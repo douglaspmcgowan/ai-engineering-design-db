@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graph Explorer</title>
+<script src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
+<style>
+:root {
+  --bg:      #0b0d12;
+  --bg2:     #11141b;
+  --panel:   #151923;
+  --panel2:  #1b2030;
+  --border:  #242a38;
+  --text:    #e7ebf3;
+  --muted:   #9aa3b2;
+  --accent:  #7c9cff;
+  --accent2: #9f7bff;
+  --good:    #51cf82;
+  --warn:    #ffb65b;
+  --chip:    #222839;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:14px;overflow:hidden}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── Header ── */
+#header{
+  display:flex;align-items:center;gap:12px;
+  padding:0 16px;height:48px;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+#header .brand{font-weight:700;font-size:15px;letter-spacing:.3px;white-space:nowrap}
+#header .brand span{color:var(--accent)}
+#header .sep{flex:1}
+#search-box{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);padding:5px 10px;font-size:13px;width:200px;outline:none;
+}
+#search-box:focus{border-color:var(--accent)}
+#search-box::placeholder{color:var(--muted)}
+.hbtn{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  color:var(--muted);padding:5px 10px;font-size:12px;cursor:pointer;
+  transition:border-color .15s,color .15s;white-space:nowrap;
+}
+.hbtn:hover{border-color:var(--accent);color:var(--text)}
+.hbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(124,156,255,.08)}
+
+/* ── Layout ── */
+#layout{display:flex;height:calc(100vh - 48px)}
+
+/* ── Left sidebar ── */
+#sidebar{
+  width:220px;flex-shrink:0;overflow-y:auto;
+  background:var(--bg2);border-right:1px solid var(--border);
+  padding:12px 10px;display:flex;flex-direction:column;gap:14px;
+}
+.sf-section{display:flex;flex-direction:column;gap:6px}
+.sf-label{
+  font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--muted);padding-bottom:2px;border-bottom:1px solid var(--border);
+}
+.type-row{display:flex;align-items:center;gap:7px;cursor:pointer;padding:2px 0}
+.type-row input[type=checkbox]{accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.type-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.type-row span{font-size:12px;color:var(--muted);flex:1}
+.type-row.active span{color:var(--text)}
+
+.edge-row{display:flex;align-items:center;gap:7px;cursor:pointer;padding:2px 0}
+.edge-row input[type=checkbox]{accent-color:var(--accent);cursor:pointer}
+.edge-stripe{width:18px;height:3px;border-radius:2px;flex-shrink:0}
+.edge-row span{font-size:12px;color:var(--muted);flex:1}
+.edge-row.active span{color:var(--text)}
+
+select.sf-select{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);padding:5px 8px;font-size:12px;width:100%;outline:none;
+}
+select.sf-select:focus{border-color:var(--accent)}
+select.sf-select option{background:var(--panel);color:var(--text)}
+
+.year-range{display:flex;flex-direction:column;gap:4px}
+.year-inputs{display:flex;gap:6px}
+.year-inputs input[type=number]{
+  width:60px;background:var(--panel);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);padding:4px 6px;font-size:12px;outline:none;
+}
+.year-inputs input:focus{border-color:var(--accent)}
+
+.stats-box{font-size:11px;color:var(--muted);line-height:1.7}
+.stats-box strong{color:var(--text)}
+
+/* ── Graph area ── */
+#graph-wrap{flex:1;position:relative;overflow:hidden}
+#graph{width:100%;height:100%;background:var(--bg)}
+
+#loading-overlay{
+  position:absolute;inset:0;
+  background:rgba(11,13,18,.85);backdrop-filter:blur(4px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  z-index:10;
+}
+#loading-overlay.hidden{display:none}
+.spinner{
+  width:36px;height:36px;border:3px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-msg{color:var(--muted);font-size:13px}
+
+/* ── Drop zone overlay ── */
+#drop-overlay{
+  position:absolute;inset:0;
+  background:rgba(11,13,18,.92);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  z-index:20;
+}
+#drop-overlay.hidden{display:none}
+.drop-box{
+  border:2px dashed var(--border);border-radius:16px;
+  padding:48px 64px;text-align:center;max-width:420px;
+}
+.drop-box h2{font-size:20px;margin-bottom:8px}
+.drop-box p{color:var(--muted);font-size:14px;margin-bottom:20px}
+.drop-box .or{color:var(--muted);font-size:12px;margin:10px 0}
+#file-input{display:none}
+.primary-btn{
+  background:var(--accent);color:#000;font-weight:600;
+  border:none;border-radius:8px;padding:9px 20px;font-size:13px;cursor:pointer;
+}
+.primary-btn:hover{opacity:.9}
+.ghost-btn{
+  background:transparent;color:var(--muted);border:1px solid var(--border);
+  border-radius:8px;padding:8px 18px;font-size:13px;cursor:pointer;
+}
+.ghost-btn:hover{border-color:var(--accent);color:var(--text)}
+
+/* ── Right detail panel ── */
+#detail{
+  width:300px;flex-shrink:0;overflow-y:auto;
+  background:var(--bg2);border-left:1px solid var(--border);
+  padding:0;display:flex;flex-direction:column;
+  transition:width .2s;
+}
+#detail.hidden{width:0;overflow:hidden;border:none}
+#detail-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--bg2);z-index:1;
+}
+#detail-header h3{font-size:14px;font-weight:600;margin:0}
+#detail-close{
+  background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:18px;line-height:1;padding:2px 4px;
+}
+#detail-close:hover{color:var(--text)}
+#detail-body{padding:14px;display:flex;flex-direction:column;gap:12px}
+.d-type-badge{
+  display:inline-block;font-size:10px;font-weight:600;letter-spacing:.6px;
+  text-transform:uppercase;padding:2px 8px;border-radius:20px;
+  background:rgba(124,156,255,.12);color:var(--accent);
+  border:1px solid rgba(124,156,255,.3);
+}
+.d-kv{font-size:12px;color:var(--muted)}
+.d-kv strong{color:var(--text)}
+.d-desc{font-size:13px;line-height:1.6;color:var(--muted)}
+.d-desc strong{color:var(--text);display:block;margin-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.chip{
+  font-size:11px;padding:2px 8px;border-radius:20px;
+  background:var(--chip);color:var(--muted);border:1px solid var(--border);
+}
+.d-links{display:flex;flex-direction:column;gap:6px}
+.d-link{
+  font-size:12px;padding:5px 10px;border-radius:6px;
+  background:var(--panel);border:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;color:var(--text);
+}
+.d-link:hover{border-color:var(--accent);text-decoration:none}
+.d-neighbors{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.d-neighbor-link{
+  padding:4px 8px;border-radius:6px;background:var(--panel);
+  border:1px solid var(--border);font-size:12px;cursor:pointer;color:var(--accent);
+}
+.d-neighbor-link:hover{border-color:var(--accent);background:var(--panel2)}
+
+/* ── Tooltip ── */
+#tooltip{
+  position:fixed;pointer-events:none;
+  background:var(--panel2);border:1px solid var(--border);
+  border-radius:8px;padding:8px 12px;font-size:12px;
+  max-width:260px;z-index:100;display:none;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <div class="brand"><span>Graph</span> Explorer</div>
+  <input id="search-box" type="text" placeholder="Search nodes…">
+  <div class="sep"></div>
+  <button class="hbtn" id="btn-fit" title="Fit graph to view">⊞ Fit</button>
+  <button class="hbtn" id="btn-physics" title="Toggle physics">⚡ Physics</button>
+  <button class="hbtn" id="btn-cluster" title="Cluster Project nodes by Category">⊕ Cluster</button>
+  <button class="hbtn" id="btn-load" title="Load a dataset file">↑ Load dataset</button>
+  <input type="file" id="file-input" accept=".json">
+</div>
+
+<div id="layout">
+  <!-- Left sidebar -->
+  <div id="sidebar">
+
+    <div class="sf-section">
+      <div class="sf-label">Node types</div>
+      <div id="node-type-filters"></div>
+    </div>
+
+    <div class="sf-section">
+      <div class="sf-label">Edge types</div>
+      <div id="edge-type-filters"></div>
+    </div>
+
+    <div class="sf-section">
+      <div class="sf-label">Category</div>
+      <select class="sf-select" id="category-filter">
+        <option value="">All categories</option>
+      </select>
+    </div>
+
+    <div class="sf-section">
+      <div class="sf-label">Year range</div>
+      <div class="year-range">
+        <div class="year-inputs">
+          <input type="number" id="year-min" placeholder="From">
+          <span style="color:var(--muted);line-height:28px">–</span>
+          <input type="number" id="year-max" placeholder="To">
+        </div>
+      </div>
+    </div>
+
+    <div class="sf-section">
+      <div class="sf-label">Stats</div>
+      <div class="stats-box" id="stats-box">—</div>
+    </div>
+
+  </div>
+
+  <!-- Graph canvas -->
+  <div id="graph-wrap">
+    <div id="graph"></div>
+
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <div id="loading-msg">Initialising graph…</div>
+    </div>
+
+    <!-- Drop-zone / initial state -->
+    <div id="drop-overlay">
+      <div class="drop-box">
+        <h2>Graph Explorer</h2>
+        <p>Load a <code>graph-data.json</code> file exported by <code>build-graph.py</code>, or drag one onto this window.</p>
+        <button class="primary-btn" id="btn-pick-file">Choose file…</button>
+        <div class="or">or</div>
+        <button class="ghost-btn" id="btn-load-default">Load default dataset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right detail panel -->
+  <div id="detail" class="hidden">
+    <div id="detail-header">
+      <h3 id="detail-title">Node detail</h3>
+      <button id="detail-close">✕</button>
+    </div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// Config
+// ────────────────────────────────────────────────────────────────────────────
+const NODE_COLORS = {
+  Project:      '#4e79a7',
+  Organization: '#f28e2b',
+  Category:     '#e15759',
+  Technique:    '#76b7b2',
+  Modality:     '#59a14f',
+  PhysicsDomain:'#edc948',
+  Industry:     '#b07aa1',
+  Year:         '#ff9da7',
+  Venue:        '#22d3ee',
+  Person:       '#f472b6',
+};
+const NODE_SIZES = {
+  Project:      10,
+  Organization: 18,
+  Category:     24,
+  Technique:    12,
+  Modality:     12,
+  PhysicsDomain:16,
+  Industry:     13,
+  Year:         9,
+  Venue:        15,
+  Person:       11,
+};
+const EDGE_COLORS = {
+  BUILT_BY:              '#f28e2b',
+  IN_CATEGORY:           '#e15759',
+  USES_TECHNIQUE:        '#76b7b2',
+  CONSUMES:              '#59a14f',
+  PRODUCES:              '#51cf82',
+  OPERATES_ON:           '#edc948',
+  APPLIED_TO:            '#b07aa1',
+  RELEASED_IN:           '#6b7280',
+  PUBLISHED_AT:          '#22d3ee',
+  AUTHORED:              '#f472b6',
+  CITES:                 '#9f7bff',
+  BUILT_ON:              '#4ade80',
+  BENCHMARKED_AGAINST:   '#f87171',
+  SEMANTICALLY_NEAR:     '#2d3748',
+};
+// Default visible node types and edge types
+const DEFAULT_NODE_TYPES = new Set(['Project', 'Organization', 'Category']);
+const DEFAULT_EDGE_TYPES = new Set(['BUILT_BY', 'IN_CATEGORY']);
+
+// ────────────────────────────────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────────────────────────────────
+let rawNodes = [], rawEdges = [], datasetMeta = {};
+let nodeById = new Map();   // id -> raw node, built once per dataset
+let visNodes, visEdges, network;
+let physicsEnabled = true;
+let selectedId = null;
+
+const filters = {
+  nodeTypes: new Set(DEFAULT_NODE_TYPES),
+  edgeTypes: new Set(DEFAULT_EDGE_TYPES),
+  category: '',
+  search: '',
+  yearMin: 0,
+  yearMax: 9999,
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+// DOM refs
+// ────────────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const dropOverlay   = $('drop-overlay');
+const loadingOverlay= $('loading-overlay');
+const graphEl       = $('graph');
+const detailPanel   = $('detail');
+const detailBody    = $('detail-body');
+const detailTitle   = $('detail-title');
+const statsBox      = $('stats-box');
+const searchBox     = $('search-box');
+const tooltip       = $('tooltip');
+
+// ────────────────────────────────────────────────────────────────────────────
+// Load dataset
+// ────────────────────────────────────────────────────────────────────────────
+function loadDataset(data) {
+  rawNodes = data.nodes || [];
+  rawEdges = data.edges || [];
+  datasetMeta = data.meta || {};
+  // Build O(1) lookup; replaces O(n) rawNodes.find() in hot paths
+  nodeById = new Map(rawNodes.map(n => [n.id, n]));
+  // Reset selection state across loads
+  selectedId = null;
+  detailPanel.classList.add('hidden');
+  searchBox.value = '';
+  filters.search = '';
+
+  // Update header brand
+  if (datasetMeta.name) {
+    document.querySelector('#header .brand').innerHTML =
+      `<span>Graph</span> Explorer — ${datasetMeta.name}`;
+  }
+
+  // Populate category filter
+  const catSel = $('category-filter');
+  catSel.innerHTML = '<option value="">All categories</option>';
+  (data.categories || []).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    catSel.appendChild(opt);
+  });
+
+  // Year range defaults
+  const [yMin, yMax] = data.yearRange || [2015, 2026];
+  $('year-min').value = yMin;
+  $('year-max').value = yMax;
+  filters.yearMin = yMin;
+  filters.yearMax = yMax;
+
+  // Build node/edge type lists
+  const nodeTypes = [...new Set(rawNodes.map(n => n.type))].sort();
+  const edgeTypes = [...new Set(rawEdges.map(e => e.type))].sort();
+  buildNodeTypeFilters(nodeTypes);
+  buildEdgeTypeFilters(edgeTypes);
+
+  dropOverlay.classList.add('hidden');
+  initGraph();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Filter UI builders
+// ────────────────────────────────────────────────────────────────────────────
+function buildNodeTypeFilters(types) {
+  const container = $('node-type-filters');
+  container.innerHTML = '';
+  types.forEach(t => {
+    const row = document.createElement('label');
+    row.className = 'type-row' + (filters.nodeTypes.has(t) ? ' active' : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = filters.nodeTypes.has(t);
+    cb.dataset.type = t;
+    cb.addEventListener('change', () => {
+      if (cb.checked) filters.nodeTypes.add(t); else filters.nodeTypes.delete(t);
+      row.classList.toggle('active', cb.checked);
+      applyFilters();
+    });
+    const dot = document.createElement('div');
+    dot.className = 'type-dot';
+    dot.style.background = NODE_COLORS[t] || '#888';
+    const label = document.createElement('span');
+    label.textContent = t;
+    row.append(cb, dot, label);
+    container.appendChild(row);
+  });
+}
+
+function buildEdgeTypeFilters(types) {
+  const container = $('edge-type-filters');
+  container.innerHTML = '';
+  types.forEach(t => {
+    const row = document.createElement('label');
+    row.className = 'edge-row' + (filters.edgeTypes.has(t) ? ' active' : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = filters.edgeTypes.has(t);
+    cb.dataset.type = t;
+    cb.addEventListener('change', () => {
+      if (cb.checked) filters.edgeTypes.add(t); else filters.edgeTypes.delete(t);
+      row.classList.toggle('active', cb.checked);
+      applyFilters();
+    });
+    const stripe = document.createElement('div');
+    stripe.className = 'edge-stripe';
+    stripe.style.background = EDGE_COLORS[t] || '#666';
+    const label = document.createElement('span');
+    label.textContent = t.replace(/_/g, ' ');
+    row.append(cb, stripe, label);
+    container.appendChild(row);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Graph initialisation
+// ────────────────────────────────────────────────────────────────────────────
+function initGraph() {
+  loadingOverlay.classList.remove('hidden');
+  $('loading-msg').textContent = 'Building graph…';
+
+  setTimeout(() => {
+    const { nodes: vn, edges: ve } = buildVisData();
+    visNodes = new vis.DataSet(vn);
+    visEdges = new vis.DataSet(ve);
+
+    const options = {
+      nodes: {
+        shape: 'dot',
+        font: { color: '#e7ebf3', size: 11, face: 'system-ui' },
+        borderWidth: 1.5,
+        borderWidthSelected: 3,
+      },
+      edges: {
+        arrows: { to: { enabled: true, scaleFactor: 0.4 } },
+        smooth: { type: 'continuous', roundness: 0.2 },
+        width: 0.8,
+        selectionWidth: 2,
+      },
+      physics: {
+        enabled: true,
+        barnesHut: {
+          gravitationalConstant: -3000,
+          centralGravity: 0.3,
+          springLength: 120,
+          springConstant: 0.04,
+          damping: 0.12,
+        },
+        stabilization: { iterations: 200, updateInterval: 25 },
+      },
+      interaction: {
+        hover: true,
+        tooltipDelay: 200,
+        navigationButtons: false,
+        keyboard: true,
+        zoomView: true,
+      },
+    };
+
+    if (network) { network.destroy(); }
+    network = new vis.Network(graphEl, { nodes: visNodes, edges: visEdges }, options);
+
+    network.on('stabilizationProgress', p => {
+      $('loading-msg').textContent = `Stabilising… ${Math.round(p.iterations/p.total*100)}%`;
+    });
+    network.on('stabilizationIterationsDone', () => {
+      loadingOverlay.classList.add('hidden');
+      // Disable physics so the layout settles. Filter changes briefly
+      // re-enable physics in applyFilters() to position newly added nodes.
+      network.setOptions({ physics: { enabled: false } });
+      physicsEnabled = false;
+      $('btn-physics').classList.remove('active');
+      updateStats();
+    });
+
+    network.on('click', params => {
+      if (params.nodes.length > 0) {
+        selectNode(params.nodes[0]);
+      } else {
+        clearSelection();
+      }
+    });
+
+    network.on('hoverNode', params => showTooltip(params.node, params.event));
+    network.on('blurNode', () => { tooltip.style.display = 'none'; });
+    network.on('doubleClick', params => {
+      if (params.nodes.length === 1 && network.isCluster(params.nodes[0])) {
+        network.openCluster(params.nodes[0]);
+      }
+    });
+
+  }, 50);
+}
+
+function buildVisData() {
+  // Build a set of visible node ids first
+  const yearMin = parseInt($('year-min').value) || 0;
+  const yearMax = parseInt($('year-max').value) || 9999;
+  const catFilter = filters.category;
+  const searchQ = filters.search.toLowerCase().trim();
+
+  const visibleNodeIds = new Set();
+
+  const nodes = rawNodes
+    .filter(n => {
+      if (!filters.nodeTypes.has(n.type)) return false;
+      // Category filter applies only to Project nodes
+      if (catFilter && n.type === 'Project' && n.props?.category !== catFilter) return false;
+      // Year filter for Project nodes
+      if (n.type === 'Project') {
+        const yr = n.props?.year;
+        if (yr && (yr < yearMin || yr > yearMax)) return false;
+      }
+      // Search
+      if (searchQ && !n.label.toLowerCase().includes(searchQ)) return false;
+      return true;
+    })
+    .map(n => {
+      visibleNodeIds.add(n.id);
+      const color = NODE_COLORS[n.type] || '#888';
+      return {
+        id: n.id,
+        label: n.label.length > 35 ? n.label.slice(0, 33) + '…' : n.label,
+        title: n.label,
+        color: { background: color, border: adjustBrightness(color, -30), highlight: { background: color, border: '#fff' } },
+        size: NODE_SIZES[n.type] || 10,
+        font: { size: n.type === 'Category' ? 13 : n.type === 'Organization' ? 12 : 10 },
+        _raw: n,
+      };
+    });
+
+  // Dedupe edges by (source, target, type) — semantic + structural can collide
+  const edgeIds = new Set();
+  const edges = [];
+  for (const e of rawEdges) {
+    if (!filters.edgeTypes.has(e.type)) continue;
+    if (!visibleNodeIds.has(e.source) || !visibleNodeIds.has(e.target)) continue;
+    const id = `${e.source}|${e.target}|${e.type}`;
+    if (edgeIds.has(id)) continue;
+    edgeIds.add(id);
+    edges.push({
+      id,
+      from: e.source,
+      to: e.target,
+      color: { color: (EDGE_COLORS[e.type] || '#444') + '88', highlight: EDGE_COLORS[e.type] || '#888' },
+      title: e.type,
+    });
+  }
+
+  return { nodes, edges };
+}
+
+function applyFilters() {
+  filters.category = $('category-filter').value;
+  filters.search = searchBox.value;
+  filters.yearMin = parseInt($('year-min').value) || 0;
+  filters.yearMax = parseInt($('year-max').value) || 9999;
+
+  if (!network) return;
+  const { nodes: vn, edges: ve } = buildVisData();
+
+  // Diff-update so existing nodes keep their positions
+  const newIds = new Set(vn.map(n => n.id));
+  const oldIds = new Set(visNodes.getIds());
+  const toRemove = [...oldIds].filter(id => !newIds.has(id));
+  const toAdd = vn.filter(n => !oldIds.has(n.id));
+  if (toRemove.length) visNodes.remove(toRemove);
+  if (toAdd.length) visNodes.add(toAdd);
+
+  visEdges.clear();
+  visEdges.add(ve);
+  updateStats();
+
+  // If new nodes were added, briefly run physics so they settle into place
+  if (toAdd.length && !physicsEnabled) {
+    network.setOptions({ physics: { enabled: true } });
+    setTimeout(() => {
+      if (!physicsEnabled) network.setOptions({ physics: { enabled: false } });
+    }, 800);
+  }
+}
+
+function updateStats() {
+  const nn = visNodes ? visNodes.length : 0;
+  const ne = visEdges ? visEdges.length : 0;
+  const tn = rawNodes.length;
+  const te = rawEdges.length;
+  statsBox.innerHTML =
+    `<strong>${nn}</strong> / ${tn} nodes<br>` +
+    `<strong>${ne}</strong> / ${te} edges` +
+    (datasetMeta.version ? `<br><span style="color:var(--muted);font-size:10px">${datasetMeta.version}</span>` : '');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Node selection + detail panel
+// ────────────────────────────────────────────────────────────────────────────
+function selectNode(nodeId) {
+  selectedId = nodeId;
+  const raw = nodeById.get(nodeId);
+  if (!raw) return;
+
+  const connectedNodes = new Set(network.getConnectedNodes(nodeId));
+  connectedNodes.add(nodeId);
+
+  // Single batched update for all visible nodes (was O(n²) with .find per id)
+  const visibleIds = visNodes.getIds();
+  const updates = new Array(visibleIds.length);
+  for (let i = 0; i < visibleIds.length; i++) {
+    const id = visibleIds[i];
+    const n = nodeById.get(id);
+    if (!n) continue;
+    const base = NODE_COLORS[n.type] || '#888';
+    const dimmed = !connectedNodes.has(id);
+    updates[i] = {
+      id,
+      color: dimmed
+        ? { background: '#1a2030', border: '#2d3748' }
+        : { background: base, border: id === nodeId ? '#fff' : adjustBrightness(base, -30) },
+    };
+  }
+  visNodes.update(updates);
+
+  showDetailPanel(raw, [...connectedNodes].filter(id => id !== nodeId));
+}
+
+function clearSelection() {
+  selectedId = null;
+  detailPanel.classList.add('hidden');
+  if (!visNodes) return;
+  // Single batched reset
+  const visibleIds = visNodes.getIds();
+  const updates = new Array(visibleIds.length);
+  for (let i = 0; i < visibleIds.length; i++) {
+    const id = visibleIds[i];
+    const n = nodeById.get(id);
+    if (!n) continue;
+    const base = NODE_COLORS[n.type] || '#888';
+    updates[i] = { id, color: { background: base, border: adjustBrightness(base, -30) } };
+  }
+  visNodes.update(updates);
+}
+
+function showDetailPanel(node, connectedNodeIds) {
+  const p = node.props || {};
+  const type = node.type;
+  // Resolve connected node objects via the map (was O(n) per neighbor)
+  const connectedNodes = (connectedNodeIds || [])
+    .map(id => nodeById.get(id))
+    .filter(Boolean);
+
+  detailTitle.textContent = node.label;
+  detailPanel.classList.remove('hidden');
+
+  let html = `<span class="d-type-badge">${type}</span>`;
+
+  if (type === 'Project') {
+    const badges = [
+      p.category && `<span class="chip">${p.category}</span>`,
+      p.type && `<span class="chip">${p.type}</span>`,
+    ].filter(Boolean).join('');
+    if (badges) html += `<div class="chips" style="margin-top:8px">${badges}</div>`;
+
+    if (p.organization || p.year) {
+      html += `<div class="d-kv"><strong>${p.organization || ''}</strong>`;
+      if (p.year) html += ` · <strong>${p.year}</strong>`;
+      html += '</div>';
+    }
+
+    if (p.description) {
+      html += `<div class="d-desc"><strong>About</strong>${escHtml(p.description)}</div>`;
+    }
+
+    const techs = p.techniques || [];
+    if (techs.length) {
+      html += `<div><div class="d-kv" style="margin-bottom:4px"><strong>Techniques</strong></div>`;
+      html += `<div class="chips">${techs.map(t => `<span class="chip">${escHtml(t)}</span>`).join('')}</div></div>`;
+    }
+
+    const industries = p.industry_application || [];
+    if (industries.length) {
+      html += `<div><div class="d-kv" style="margin-bottom:4px"><strong>Industry</strong></div>`;
+      html += `<div class="chips">${industries.map(i => `<span class="chip">${escHtml(i)}</span>`).join('')}</div></div>`;
+    }
+
+    const links = [
+      p.url_primary && { label: '🌐 Website', url: p.url_primary },
+      p.url_paper   && { label: '📄 Paper',   url: p.url_paper },
+      p.url_github  && { label: '💾 GitHub',  url: p.url_github },
+    ].filter(Boolean);
+    if (links.length) {
+      html += `<div class="d-links">`;
+      links.forEach(l => {
+        html += `<a class="d-link" href="${escHtml(l.url)}" target="_blank" rel="noopener">${l.label}</a>`;
+      });
+      html += '</div>';
+    }
+  } else {
+    // Non-project node: show label and connected projects
+    html += `<div class="d-kv" style="margin-top:6px">ID: <strong>${escHtml(node.id)}</strong></div>`;
+  }
+
+  // Connected nodes
+  if (connectedNodes.length) {
+    const shown = connectedNodes.slice(0, 20);
+    html += `<div><div class="d-kv" style="margin-bottom:6px"><strong>Connected nodes</strong> (${connectedNodes.length})</div>`;
+    html += `<div class="d-neighbors" id="detail-neighbors"></div>`;
+    if (connectedNodes.length > 20) html += `<div class="d-kv">…and ${connectedNodes.length - 20} more</div>`;
+    html += '</div>';
+  }
+
+  detailBody.innerHTML = html;
+
+  // Wire neighbor click handlers without inline onclick (avoids quote-injection)
+  const neighborsEl = $('detail-neighbors');
+  if (neighborsEl) {
+    connectedNodes.slice(0, 20).forEach(cn => {
+      const div = document.createElement('div');
+      div.className = 'd-neighbor-link';
+      const dot = document.createElement('span');
+      dot.style.cssText = `color:${NODE_COLORS[cn.type]||'#888'};margin-right:5px`;
+      dot.textContent = '●';
+      div.append(dot, document.createTextNode(cn.label));
+      div.addEventListener('click', () => selectNode(cn.id));
+      neighborsEl.appendChild(div);
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Tooltip
+// ────────────────────────────────────────────────────────────────────────────
+function showTooltip(nodeId, event) {
+  const raw = nodeById.get(nodeId);
+  if (!raw) return;
+  const p = raw.props || {};
+  let text = `<strong>${escHtml(raw.label)}</strong> <span style="color:var(--muted)">[${raw.type}]</span>`;
+  if (p.organization) text += `<br><span style="color:var(--muted)">${escHtml(p.organization)}</span>`;
+  if (p.year) text += ` · ${p.year}`;
+  tooltip.innerHTML = text;
+  tooltip.style.display = 'block';
+  const x = event.pageX || event.clientX;
+  const y = event.pageY || event.clientY;
+  tooltip.style.left = (x + 14) + 'px';
+  tooltip.style.top  = (y - 10) + 'px';
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Controls
+// ────────────────────────────────────────────────────────────────────────────
+$('btn-fit').addEventListener('click', () => network && network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } }));
+
+$('btn-physics').addEventListener('click', () => {
+  physicsEnabled = !physicsEnabled;
+  $('btn-physics').classList.toggle('active', physicsEnabled);
+  network && network.setOptions({ physics: { enabled: physicsEnabled } });
+});
+
+let clusterActive = false;
+$('btn-cluster').addEventListener('click', () => {
+  if (!network) return;
+  if (clusterActive) {
+    // Open all clusters
+    const clusterIds = network.body.nodeIndices.filter(id =>
+      typeof id === 'string' && id.startsWith('cluster:'));
+    clusterIds.forEach(id => network.openCluster(id));
+    clusterActive = false;
+    $('btn-cluster').classList.remove('active');
+    return;
+  }
+  // Cluster: group all Project nodes by their connected Category node.
+  const projectsByCat = new Map();
+  rawEdges.forEach(e => {
+    if (e.type !== 'IN_CATEGORY') return;
+    const projNode = nodeById.get(e.source);
+    const catNode = nodeById.get(e.target);
+    if (!projNode || projNode.type !== 'Project') return;
+    if (!catNode  || catNode.type  !== 'Category') return;
+    if (!visNodes.get(e.source)) return;
+    if (!projectsByCat.has(e.target)) projectsByCat.set(e.target, []);
+    projectsByCat.get(e.target).push(e.source);
+  });
+  for (const [catId, projIds] of projectsByCat) {
+    if (projIds.length < 2) continue;
+    const catNode = nodeById.get(catId);
+    network.cluster({
+      joinCondition: child => projIds.includes(child.id),
+      clusterNodeProperties: {
+        id: 'cluster:' + catId,
+        label: catNode.label + '\n(' + projIds.length + ')',
+        shape: 'box',
+        color: { background: '#1e2430', border: NODE_COLORS.Category },
+        font: { color: '#fff', size: 13 },
+        borderWidth: 2,
+      },
+    });
+  }
+  clusterActive = true;
+  $('btn-cluster').classList.add('active');
+});
+
+
+$('btn-load').addEventListener('click', () => $('file-input').click());
+$('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) readFile(file);
+  e.target.value = '';
+});
+
+$('btn-pick-file').addEventListener('click', () => $('file-input').click());
+$('btn-load-default').addEventListener('click', () => {
+  fetch('graph/graph-data.json')
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(loadDataset)
+    .catch(err => alert('Could not load default dataset.\nRun build-graph.py first, then serve this folder with:\n  python scripts/serve.py\n\nError: ' + err.message));
+});
+
+$('detail-close').addEventListener('click', clearSelection);
+
+$('category-filter').addEventListener('change', applyFilters);
+$('year-min').addEventListener('change', applyFilters);
+$('year-max').addEventListener('change', applyFilters);
+
+let searchTimer;
+searchBox.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(applyFilters, 300);
+});
+
+// Drag-and-drop on whole window
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.json')) readFile(file);
+});
+
+function readFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      loadDataset(JSON.parse(e.target.result));
+    } catch(err) {
+      alert('Invalid JSON file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ────────────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function adjustBrightness(hex, amt) {
+  const num = parseInt(hex.replace('#',''), 16);
+  const r = Math.max(0, Math.min(255, (num >> 16) + amt));
+  const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + amt));
+  const b = Math.max(0, Math.min(255, (num & 0xff) + amt));
+  return '#' + ((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Auto-load: try fetching default dataset (works when served over HTTP)
+// ────────────────────────────────────────────────────────────────────────────
+fetch('graph/graph-data.json')
+  .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
+  .then(loadDataset)
+  .catch(() => {
+    // Show drop overlay — user needs to pick a file or run serve.py
+    dropOverlay.classList.remove('hidden');
+    loadingOverlay.classList.add('hidden');
+  });
+</script>
+</body>
+</html>

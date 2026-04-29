@@ -1,0 +1,27 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# secrets / env
+.env
+.env.*
+!.env.example
+
+# os / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# vercel
+.vercel
+
+# google drive sync junk
+*.gdoc
+*.gsheet
+*.gslides

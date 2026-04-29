@@ -1,0 +1,12 @@
+physics ↓ \ industry →,aerospace,asset-management,automation,automotive,cad-automation,cad-retrieval,civil,composites,concept-design,construction,consumer,defense,digital-twin,electronics,embedded-systems,energy,engineering,engineering-reuse,engineering-sketching,gaming,industrial,infrastructure,knowledge-management,machining,manufacturing,mechanical-design,medical,operations,plm,power-systems,process-engineering,research,reverse-engineering,robotics,scientific-computing,shape-programming,site-design,utilities
+acoustic,2,0,0,6,0,0,0,0,0,0,8,0,0,4,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+atmospheric,4,0,0,0,0,0,0,0,0,0,0,0,0,4,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+electrical,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1
+electromagnetic,2,0,0,0,0,0,0,0,0,0,2,0,0,13,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+fluid,7,0,0,2,0,0,0,0,0,0,0,0,0,1,0,6,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+molecular,0,0,0,0,0,0,0,0,0,0,0,0,0,8,0,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+multi-physics,28,0,0,3,0,0,0,0,0,0,0,0,0,24,0,25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+none,65,1,3,67,6,2,2,1,1,26,0,0,1,64,2,39,8,1,1,0,8,1,3,1,136,1,26,2,4,0,1,1,26,1,2,3,1,0
+structural,21,0,0,23,0,0,0,0,0,9,1,0,0,2,0,18,0,0,0,0,0,0,0,0,3,0,6,0,0,0,0,0,0,0,0,0,0,0
+thermal,24,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,24,0,24,0,0,0,0,0,0,0,0,0,0,0
+?,4,0,0,3,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,1,6,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0
