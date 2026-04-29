@@ -25,3 +25,5 @@ desktop.ini
 *.gdoc
 *.gsheet
 *.gslides
+
+.vercel
