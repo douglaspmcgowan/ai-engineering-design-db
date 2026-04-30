@@ -1351,6 +1351,7 @@ a:hover {
   </div>
 
   <div class="topbar-actions">
+    <button id="home-button" class="ghost-button" type="button">Home</button>
     <button id="embed-button" class="ghost-button" type="button">Embed</button>
     <button id="discover-button" class="ghost-button" type="button">Discover</button>
     <button id="force-button" class="ghost-button is-active" type="button">Force</button>
@@ -1458,8 +1459,9 @@ a:hover {
       </div>
 
       <div id="cluster-label-toggle" class="cluster-label-toggle is-hidden">
-        <button id="cluster-label-a" class="ghost-button" type="button">Category clusters</button>
-        <button id="cluster-label-b" class="ghost-button is-active" type="button">Semantic clusters</button>
+        <button id="cluster-label-a" class="ghost-button" type="button">Category</button>
+        <button id="cluster-label-b" class="ghost-button is-active" type="button">Semantic</button>
+        <button id="cluster-label-c" class="ghost-button" type="button">Regions</button>
       </div>
 
       <div id="loading-overlay" class="canvas-overlay">
@@ -1489,7 +1491,10 @@ a:hover {
 
       <div id="tooltip" class="tooltip is-hidden" role="tooltip"></div>
       <div id="context-menu" class="context-menu is-hidden">
-        <button id="context-focus-button" type="button">Focus on this node</button>
+        <button id="context-zoom-button" type="button">Zoom to node</button>
+        <button id="context-select-button" type="button">Select &amp; show details</button>
+        <button id="context-focus-button" type="button">Focus / discover</button>
+        <button id="context-hide-button" type="button">Remove from view</button>
       </div>
     </div>
   </section>
@@ -1624,10 +1629,33 @@ const EDGE_TYPE_ORDER = [
   "SEMANTICALLY_NEAR",
 ];
 
-const DEFAULT_NODE_TYPES = new Set(["Project", "Organization", "Category"]);
-const DEFAULT_EDGE_TYPES = new Set(["BUILT_BY", "IN_CATEGORY"]);
+const DEFAULT_NODE_TYPES = new Set(NODE_TYPE_ORDER);
+const DEFAULT_EDGE_TYPES = new Set(["BUILT_BY", "IN_CATEGORY", "USES_TECHNIQUE", "CONSUMES", "PRODUCES", "OPERATES_ON", "APPLIED_TO"]);
 const EMBED_EDGE_TYPES = new Set(["CITES", "BUILT_ON", "BENCHMARKED_AGAINST", "SEMANTICALLY_NEAR"]);
 const SEMANTIC_EDGE_TYPES = new Set(["CITES", "BUILT_ON", "BENCHMARKED_AGAINST", "SEMANTICALLY_NEAR"]);
+
+// Visual spatial regions inferred from UMAP 2D layout (x ∈ [-1,10], y ∈ [-0.4,9.9])
+const VISUAL_REGIONS = [
+  { id: "vr0", label: "Neural Ops & Physics AI",        xMax: 1.7,            yMin: 6.5 },
+  { id: "vr1", label: "Generative Materials",           xMax: 1.7,            yMax: 6.5 },
+  { id: "vr2", label: "Text-to-CAD & Shape AI",  xMin: 1.7, xMax: 4.5, yMax: 3.0 },
+  { id: "vr3", label: "Optimization & Algorithms", xMin: 1.7, xMax: 4.5, yMin: 3.0 },
+  { id: "vr4", label: "Image-to-3D & CAD Recon.", xMin: 4.5, xMax: 7.3, yMax: 3.0 },
+  { id: "vr5", label: "Engineering AI Tools",     xMin: 4.5, xMax: 7.3, yMin: 3.0, yMax: 6.5 },
+  { id: "vr6", label: "Topology & Inverse Design",xMin: 4.5, xMax: 7.3, yMin: 6.5 },
+  { id: "vr7", label: "Process Monitoring & Inspection", xMin: 7.3 },
+];
+
+function getVisualRegion(embedX, embedY) {
+  for (const region of VISUAL_REGIONS) {
+    if (region.xMin !== undefined && embedX < region.xMin) continue;
+    if (region.xMax !== undefined && embedX >= region.xMax) continue;
+    if (region.yMin !== undefined && embedY < region.yMin) continue;
+    if (region.yMax !== undefined && embedY >= region.yMax) continue;
+    return region;
+  }
+  return null;
+}
 
 const FORCE_OPTIONS = {
   enabled: true,
@@ -1647,7 +1675,7 @@ const FORCE_OPTIONS = {
 
 const NODE_METRICS = {
   Project: { size: 10, shape: "dot" },
-  Organization: { size: 18, shape: "square" },
+  Organization: { size: 18, shape: "dot" },
   Category: { size: 16, shape: "diamond" },
   Technique: { size: 12, shape: "triangle" },
   Modality: { size: 12, shape: "triangleDown" },
@@ -1882,8 +1910,13 @@ const dom = {
   emptyOverlay: document.getElementById("empty-overlay"),
   emptyResetButton: document.getElementById("empty-reset-button"),
   tooltip: document.getElementById("tooltip"),
+  homeButton: document.getElementById("home-button"),
   contextMenu: document.getElementById("context-menu"),
+  contextZoomButton: document.getElementById("context-zoom-button"),
+  contextSelectButton: document.getElementById("context-select-button"),
   contextFocusButton: document.getElementById("context-focus-button"),
+  contextHideButton: document.getElementById("context-hide-button"),
+  clusterLabelC: document.getElementById("cluster-label-c"),
   detailKicker: document.getElementById("detail-kicker"),
   detailTitle: document.getElementById("detail-title"),
   detailBody: document.getElementById("detail-body"),
@@ -1923,6 +1956,7 @@ const state = {
     yearMax: 0,
     search: "",
   },
+  hiddenNodeIds: new Set(),
   paletteIndex: 0,
   forceEnabled: true,
   embedActive: false,
@@ -2583,7 +2617,7 @@ function initializeNetwork() {
       interaction: {
         hover: true,
         hoverConnectedEdges: false,
-        multiselect: true,
+        multiselect: false,
         navigationButtons: false,
         keyboard: false,
         tooltipDelay: 0,
@@ -2943,6 +2977,9 @@ function buildBaseEligibleNodeIds() {
         }
       }
     }
+    if (state.hiddenNodeIds && state.hiddenNodeIds.has(node.id)) {
+      continue;
+    }
     eligible.add(node.id);
   }
 
@@ -3292,7 +3329,7 @@ function applyView(options = {}) {
   dom.forceButton.classList.toggle("is-active", state.forceEnabled);
   closeContextMenu();
 
-  if (nodesToAdd.length && state.forceEnabled && !state.embedActive) {
+  if (nodesToAdd.length && state.forceEnabled && !state.embedActive && !state.focus) {
     settlePhysics();
   } else if (state.embedActive) {
     disablePhysics();
@@ -3717,6 +3754,10 @@ function focusCameraOnNode(nodeId) {
 }
 
 function activateFocus(nodeId, depth = 1) {
+  // Exit embed mode when entering discovery focus
+  if (state.embedActive) {
+    toggleEmbed(false);
+  }
   state.focus = {
     rootId: nodeId,
     accumulatedIds: new Set([nodeId]),
@@ -3726,7 +3767,8 @@ function activateFocus(nodeId, depth = 1) {
   state.selection.ids = new Set([nodeId]);
   state.selection.primaryId = nodeId;
   updateFocusExitButtonLabel();
-  applyView({ fit: true });
+  applyView({ fit: false });
+  focusCameraOnNode(nodeId);
   showToast(depth === 1 ? "Focus mode enabled." : "2-hop focus enabled.", "success");
 }
 
@@ -3741,7 +3783,8 @@ function expandFocusToNode(nodeId) {
   state.selection.ids = new Set([nodeId]);
   state.selection.primaryId = nodeId;
   updateFocusExitButtonLabel();
-  applyView({ fit: true });
+  applyView({ fit: false });
+  focusCameraOnNode(nodeId);
   const count = state.focus.accumulatedIds.size;
   showToast(count + " anchor" + (count === 1 ? "" : "s") + " in discovery.", "success");
 }
@@ -3858,6 +3901,7 @@ function updateFocusExitButtonLabel() {
 function syncClusterLabelToggleButtons() {
   dom.clusterLabelA.classList.toggle("is-active", state.clusterLabelMode === "A");
   dom.clusterLabelB.classList.toggle("is-active", state.clusterLabelMode === "B");
+  dom.clusterLabelC?.classList.toggle("is-active", state.clusterLabelMode === "C");
 }
 
 function fitVisibleGraph(duration = 280) {
@@ -3928,7 +3972,7 @@ function settlePhysics() {
   state.timers.physics = window.setTimeout(() => {
     clampOutlierNodes();
     disablePhysics();
-  }, 800);
+  }, 7000);
 }
 
 function handleNetworkStabilized() {
@@ -4116,9 +4160,20 @@ function renderClusterHulls() {
     if (!projectNode || projectNode.type !== "Project") {
       continue;
     }
-    const clusterKey = state.clusterLabelMode === "A"
-      ? String(projectNode.props?.category ?? "")
-      : String(projectNode.props?.cluster_k ?? "");
+    let clusterKey, clusterLabel;
+    if (state.clusterLabelMode === "A") {
+      clusterKey = String(projectNode.props?.category ?? "");
+      clusterLabel = clusterKey;
+    } else if (state.clusterLabelMode === "C") {
+      const ex = Number(projectNode.props?.embed_x);
+      const ey = Number(projectNode.props?.embed_y);
+      const region = (Number.isFinite(ex) && Number.isFinite(ey)) ? getVisualRegion(ex, ey) : null;
+      clusterKey = region ? region.id : "";
+      clusterLabel = region ? region.label : "";
+    } else {
+      clusterKey = String(projectNode.props?.cluster_k ?? "");
+      clusterLabel = projectNode.props?.cluster_label || state.data.clusterLabelByKey.get(clusterKey) || ("Cluster " + clusterKey);
+    }
     if (!clusterKey) {
       continue;
     }
@@ -4128,13 +4183,7 @@ function renderClusterHulls() {
     }
     const domPoint = state.network.canvasToDOM(canvasPosition);
     if (!groups.has(clusterKey)) {
-      const preferredLabel = state.clusterLabelMode === "A"
-        ? clusterKey
-        : (projectNode.props?.cluster_label || state.data.clusterLabelByKey.get(clusterKey) || ("Cluster " + clusterKey));
-      groups.set(clusterKey, {
-        label: String(preferredLabel),
-        points: [],
-      });
+      groups.set(clusterKey, { label: String(clusterLabel), points: [] });
     }
     groups.get(clusterKey).points.push({ x: domPoint.x, y: domPoint.y });
   }
@@ -4373,6 +4422,7 @@ function resetFilters(options = {}) {
   if (options.exitFocus !== false) {
     state.focus = null;
   }
+  state.hiddenNodeIds = new Set();
   applyView({ fit: true });
 }
 
@@ -4525,6 +4575,11 @@ function bindEvents() {
     syncClusterLabelToggleButtons();
     scheduleClusterHullRender();
   });
+  dom.clusterLabelC?.addEventListener("click", () => {
+    state.clusterLabelMode = "C";
+    syncClusterLabelToggleButtons();
+    scheduleClusterHullRender();
+  });
   dom.detailClose.addEventListener("click", clearSelection);
   dom.clearFiltersButton.addEventListener("click", () => {
     resetFilters({ exitFocus: true });
@@ -4670,6 +4725,23 @@ function bindEvents() {
     }
   });
 
+  dom.homeButton.addEventListener("click", () => {
+    exitFocus(false);
+    if (state.embedActive) toggleEmbed(false);
+    resetFilters({ exitFocus: false });
+    showToast("Home — full graph.", "success");
+  });
+
+  dom.contextZoomButton.addEventListener("click", () => {
+    const nodeId = state.ui.contextNodeId;
+    closeContextMenu();
+    if (nodeId) focusCameraOnNode(nodeId);
+  });
+  dom.contextSelectButton.addEventListener("click", () => {
+    const nodeId = state.ui.contextNodeId;
+    closeContextMenu();
+    if (nodeId) { selectSingleNode(nodeId); focusCameraOnNode(nodeId); }
+  });
   dom.contextFocusButton.addEventListener("click", () => {
     if (!state.ui.contextNodeId) {
       return;
@@ -4677,6 +4749,15 @@ function bindEvents() {
     const nodeId = state.ui.contextNodeId;
     closeContextMenu();
     activateFocus(nodeId, 1);
+  });
+  dom.contextHideButton.addEventListener("click", () => {
+    const nodeId = state.ui.contextNodeId;
+    closeContextMenu();
+    if (!nodeId) return;
+    state.hiddenNodeIds.add(nodeId);
+    if (state.selection.ids.has(nodeId)) clearSelection();
+    applyView({ fit: false });
+    showToast("Node hidden. Clear filters to restore.", "warn");
   });
 
   document.addEventListener("keydown", handleGlobalKeydown);
