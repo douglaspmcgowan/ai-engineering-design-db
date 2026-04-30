@@ -3,930 +3,1785 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Graph Explorer</title>
+<title>AI Engineering Design DB — Graph Explorer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a0a0b'/%3E%3Ccircle cx='20' cy='20' r='7' fill='%23ff6b3d'/%3E%3Ccircle cx='44' cy='20' r='7' fill='%2360a5fa'/%3E%3Ccircle cx='32' cy='44' r='7' fill='%23a78bfa'/%3E%3Cline x1='20' y1='20' x2='44' y2='20' stroke='rgba(255,255,255,0.3)' stroke-width='2'/%3E%3Cline x1='20' y1='20' x2='32' y2='44' stroke='rgba(255,255,255,0.3)' stroke-width='2'/%3E%3Cline x1='44' y1='20' x2='32' y2='44' stroke='rgba(255,255,255,0.3)' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
 <style>
 :root {
-  --bg:      #0b0d12;
-  --bg2:     #11141b;
-  --panel:   #151923;
-  --panel2:  #1b2030;
-  --border:  #242a38;
-  --text:    #e7ebf3;
-  --muted:   #9aa3b2;
-  --accent:  #7c9cff;
-  --accent2: #9f7bff;
-  --good:    #51cf82;
-  --warn:    #ffb65b;
-  --chip:    #222839;
+  --bg: #0a0a0b;
+  --surface: #131316;
+  --surface-2: #1c1c20;
+  --surface-3: #26262b;
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.12);
+  --fg: #ececee;
+  --fg-muted: #b6b6bf;
+  --fg-faint: #8a8a93;
+  --accent: #ff6b3d;
+  --accent-soft: rgba(255,107,61,0.15);
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --font-sans: "Geist", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg);color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  font-size:14px;overflow:hidden}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:14px;overflow:hidden}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
+button,input,select,textarea{font:inherit;color:inherit}
 
-/* ── Header ── */
-#header{
-  display:flex;align-items:center;gap:12px;
-  padding:0 16px;height:48px;
-  background:var(--bg2);border-bottom:1px solid var(--border);
-  flex-shrink:0;
+/* ── Grain overlay ── */
+.grain{position:fixed;inset:0;pointer-events:none;opacity:0.035;mix-blend-mode:overlay;z-index:9999;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:180px}
+
+/* ── Topbar ── */
+#topbar{
+  height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  background:rgba(10,10,11,0.92);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:10;
 }
-#header .brand{font-weight:700;font-size:15px;letter-spacing:.3px;white-space:nowrap}
-#header .brand span{color:var(--accent)}
-#header .sep{flex:1}
-#search-box{
-  background:var(--panel);border:1px solid var(--border);border-radius:6px;
-  color:var(--text);padding:5px 10px;font-size:13px;width:200px;outline:none;
+.logo{font-weight:700;font-size:15px;letter-spacing:-0.02em;white-space:nowrap;flex-shrink:0}
+.logo span{color:var(--accent)}
+.breadcrumb{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;color:var(--fg-faint);min-width:0;overflow:hidden}
+.bc-sep{color:var(--fg-faint);opacity:0.5}
+.bc-item{cursor:pointer;color:var(--fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.bc-item:hover{color:var(--fg)}
+.bc-item.current{color:var(--fg);cursor:default}
+.topbar-spacer{flex:1}
+.search-wrap{position:relative;width:220px;flex-shrink:0}
+#search-input{
+  width:100%;height:32px;border-radius:var(--radius);border:1px solid var(--border-strong);
+  background:var(--surface);color:var(--fg);padding:0 10px;outline:none;font-size:13px;
+  transition:border-color 120ms ease;
 }
-#search-box:focus{border-color:var(--accent)}
-#search-box::placeholder{color:var(--muted)}
-.hbtn{
-  background:var(--panel);border:1px solid var(--border);border-radius:6px;
-  color:var(--muted);padding:5px 10px;font-size:12px;cursor:pointer;
-  transition:border-color .15s,color .15s;white-space:nowrap;
+#search-input::placeholder{color:var(--fg-faint)}
+#search-input:hover{border-color:rgba(255,255,255,0.18)}
+#search-input:focus{border-color:rgba(255,107,61,0.45);background:var(--surface-2);transition-duration:120ms}
+#search-results{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;max-height:340px;overflow-y:auto;
+  background:rgba(19,19,22,0.98);border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  z-index:50;display:none;
 }
-.hbtn:hover{border-color:var(--accent);color:var(--text)}
-.hbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(124,156,255,.08)}
+#search-results.open{display:block}
+.sr-item{
+  width:100%;text-align:left;border:0;border-bottom:1px solid var(--border);
+  background:transparent;color:inherit;padding:8px 12px;cursor:pointer;
+  display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:start;
+  transition:background 120ms ease;
+}
+.sr-item:last-child{border-bottom:0}
+.sr-item:hover{background:var(--surface-2)}
+.sr-type{font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.06em;padding-top:2px}
+.sr-label{font-size:13px;color:var(--fg)}
+.sr-meta{font-size:11px;color:var(--fg-muted);font-family:var(--font-mono);margin-top:1px}
+
+/* Ghost button */
+.gbtn{
+  height:30px;display:inline-flex;align-items:center;gap:6px;
+  border-radius:var(--radius);border:1px solid var(--border-strong);
+  background:transparent;color:var(--fg-muted);padding:0 10px;
+  cursor:pointer;font-size:12px;font-family:var(--font-mono);white-space:nowrap;
+  transition:background 120ms ease,border-color 120ms ease,color 120ms ease;
+}
+.gbtn:hover{background:var(--surface-2);color:var(--fg);border-color:rgba(255,255,255,0.18);transition-duration:120ms}
+.gbtn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 
 /* ── Layout ── */
-#layout{display:flex;height:calc(100vh - 48px)}
+#layout{display:flex;height:calc(100vh - 52px)}
 
-/* ── Left sidebar ── */
+/* ── Sidebar ── */
 #sidebar{
-  width:220px;flex-shrink:0;overflow-y:auto;
-  background:var(--bg2);border-right:1px solid var(--border);
-  padding:12px 10px;display:flex;flex-direction:column;gap:14px;
+  width:240px;flex-shrink:0;overflow-y:auto;
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
 }
-.sf-section{display:flex;flex-direction:column;gap:6px}
-.sf-label{
-  font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
-  color:var(--muted);padding-bottom:2px;border-bottom:1px solid var(--border);
+#sidebar details{border-bottom:1px solid var(--border)}
+#sidebar summary{
+  list-style:none;display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:0.04em;
+  text-transform:uppercase;color:var(--fg-muted);user-select:none;
+  transition:color 120ms ease,background 120ms ease;
 }
-.type-row{display:flex;align-items:center;gap:7px;cursor:pointer;padding:2px 0}
-.type-row input[type=checkbox]{accent-color:var(--accent);cursor:pointer;flex-shrink:0}
-.type-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.type-row span{font-size:12px;color:var(--muted);flex:1}
-.type-row.active span{color:var(--text)}
-
-.edge-row{display:flex;align-items:center;gap:7px;cursor:pointer;padding:2px 0}
-.edge-row input[type=checkbox]{accent-color:var(--accent);cursor:pointer}
-.edge-stripe{width:18px;height:3px;border-radius:2px;flex-shrink:0}
-.edge-row span{font-size:12px;color:var(--muted);flex:1}
-.edge-row.active span{color:var(--text)}
-
-select.sf-select{
-  background:var(--panel);border:1px solid var(--border);border-radius:6px;
-  color:var(--text);padding:5px 8px;font-size:12px;width:100%;outline:none;
+#sidebar summary:hover{color:var(--fg);background:var(--surface-2)}
+#sidebar details[open] summary{color:var(--fg)}
+#sidebar summary::after{content:'›';font-size:14px;transition:transform 120ms ease;line-height:1}
+#sidebar details[open] summary::after{transform:rotate(90deg)}
+.sidebar-body{padding:8px 12px 12px}
+.cb-row{display:flex;align-items:center;gap:8px;padding:3px 2px;cursor:pointer}
+.cb-row input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:13px;height:13px;flex-shrink:0}
+.cb-row span{font-size:12px;color:var(--fg-muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cb-row:hover span{color:var(--fg)}
+.type-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,0.1)}
+.edge-stripe{width:16px;height:3px;border-radius:2px;flex-shrink:0}
+.cat-list{max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.cat-actions{display:flex;gap:6px;margin-bottom:8px}
+.cat-btn{
+  font-size:11px;font-family:var(--font-mono);padding:3px 8px;border-radius:var(--radius-sm);
+  border:1px solid var(--border-strong);background:transparent;color:var(--fg-muted);cursor:pointer;
+  transition:background 120ms ease,color 120ms ease;
 }
-select.sf-select:focus{border-color:var(--accent)}
-select.sf-select option{background:var(--panel);color:var(--text)}
-
-.year-range{display:flex;flex-direction:column;gap:4px}
-.year-inputs{display:flex;gap:6px}
+.cat-btn:hover{background:var(--surface-3);color:var(--fg)}
+.year-inputs{display:flex;align-items:center;gap:8px;font-size:12px;font-family:var(--font-mono);color:var(--fg-muted)}
 .year-inputs input[type=number]{
-  width:60px;background:var(--panel);border:1px solid var(--border);
-  border-radius:6px;color:var(--text);padding:4px 6px;font-size:12px;outline:none;
+  width:58px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+  color:var(--fg);padding:4px 6px;font-size:12px;font-family:var(--font-mono);outline:none;
 }
 .year-inputs input:focus{border-color:var(--accent)}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.stat-card{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px}
+.stat-label{font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+.stat-val{font-family:var(--font-mono);font-size:16px;color:var(--fg);font-variant-numeric:tabular-nums}
 
-.stats-box{font-size:11px;color:var(--muted);line-height:1.7}
-.stats-box strong{color:var(--text)}
-
-/* ── Graph area ── */
+/* ── Graph canvas ── */
 #graph-wrap{flex:1;position:relative;overflow:hidden}
 #graph{width:100%;height:100%;background:var(--bg)}
+#focus-exit{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  padding:6px 16px;font-size:12px;font-family:var(--font-mono);color:var(--fg-muted);
+  cursor:pointer;display:none;gap:8px;align-items:center;z-index:5;
+  transition:background 120ms ease,color 120ms ease;
+}
+#focus-exit.visible{display:flex}
+#focus-exit:hover{background:var(--surface-3);color:var(--fg)}
 
-#loading-overlay{
-  position:absolute;inset:0;
-  background:rgba(11,13,18,.85);backdrop-filter:blur(4px);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-  z-index:10;
+/* Embed cluster label toggle */
+#embed-label-toggle{
+  position:absolute;top:12px;right:12px;display:none;
+  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  overflow:hidden;font-family:var(--font-mono);font-size:11px;z-index:5;
 }
-#loading-overlay.hidden{display:none}
-.spinner{
-  width:36px;height:36px;border:3px solid var(--border);
-  border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;
+#embed-label-toggle.visible{display:flex}
+.elt-btn{
+  padding:5px 12px;border:0;background:transparent;color:var(--fg-muted);cursor:pointer;
+  transition:background 120ms ease,color 120ms ease;
 }
+.elt-btn.active{background:var(--accent-soft);color:var(--accent)}
+.elt-btn:hover:not(.active){background:var(--surface-3);color:var(--fg)}
+
+/* Loading overlay */
+#loading{
+  position:absolute;inset:0;background:rgba(10,10,11,0.88);backdrop-filter:blur(4px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:20;
+}
+#loading.hidden{display:none}
+.spinner{width:32px;height:32px;border:2.5px solid var(--border-strong);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-#loading-msg{color:var(--muted);font-size:13px}
+#loading-msg{font-family:var(--font-mono);font-size:12px;color:var(--fg-faint)}
 
-/* ── Drop zone overlay ── */
-#drop-overlay{
-  position:absolute;inset:0;
-  background:rgba(11,13,18,.92);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
-  z-index:20;
-}
-#drop-overlay.hidden{display:none}
-.drop-box{
-  border:2px dashed var(--border);border-radius:16px;
-  padding:48px 64px;text-align:center;max-width:420px;
-}
-.drop-box h2{font-size:20px;margin-bottom:8px}
-.drop-box p{color:var(--muted);font-size:14px;margin-bottom:20px}
-.drop-box .or{color:var(--muted);font-size:12px;margin:10px 0}
-#file-input{display:none}
+/* Drop overlay */
+#drop-overlay{position:absolute;inset:0;background:rgba(10,10,11,0.92);display:flex;align-items:center;justify-content:center;z-index:30;display:none}
+#drop-overlay.open{display:flex}
+.drop-inner{border:2px dashed var(--border-strong);border-radius:16px;padding:48px 64px;text-align:center;max-width:420px}
+.drop-inner h2{font-size:20px;margin-bottom:8px;letter-spacing:-0.02em}
+.drop-inner p{color:var(--fg-muted);font-size:13px;margin-bottom:20px}
 .primary-btn{
-  background:var(--accent);color:#000;font-weight:600;
-  border:none;border-radius:8px;padding:9px 20px;font-size:13px;cursor:pointer;
+  background:var(--accent);color:#fff;font-weight:600;border:none;border-radius:var(--radius);
+  padding:8px 20px;font-size:13px;cursor:pointer;transition:opacity 120ms ease;
 }
-.primary-btn:hover{opacity:.9}
-.ghost-btn{
-  background:transparent;color:var(--muted);border:1px solid var(--border);
-  border-radius:8px;padding:8px 18px;font-size:13px;cursor:pointer;
-}
-.ghost-btn:hover{border-color:var(--accent);color:var(--text)}
+.primary-btn:hover{opacity:0.88}
+#file-input{display:none}
 
-/* ── Right detail panel ── */
+/* ── Detail panel ── */
 #detail{
   width:300px;flex-shrink:0;overflow-y:auto;
-  background:var(--bg2);border-left:1px solid var(--border);
-  padding:0;display:flex;flex-direction:column;
-  transition:width .2s;
+  background:var(--surface);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;transition:width 240ms ease;
 }
 #detail.hidden{width:0;overflow:hidden;border:none}
-#detail-header{
+.detail-hdr{
   display:flex;align-items:center;justify-content:space-between;
   padding:12px 14px;border-bottom:1px solid var(--border);
-  position:sticky;top:0;background:var(--bg2);z-index:1;
+  position:sticky;top:0;background:var(--surface);z-index:1;
 }
-#detail-header h3{font-size:14px;font-weight:600;margin:0}
-#detail-close{
-  background:none;border:none;color:var(--muted);cursor:pointer;
-  font-size:18px;line-height:1;padding:2px 4px;
+.detail-hdr h3{font-size:13px;font-weight:600;letter-spacing:-0.01em}
+.detail-close{background:none;border:none;color:var(--fg-faint);cursor:pointer;font-size:20px;line-height:1;padding:0 2px}
+.detail-close:hover{color:var(--fg)}
+.detail-body{padding:14px;display:flex;flex-direction:column;gap:14px;flex:1}
+.d-badge{
+  display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--radius-sm);
+  font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;
+  background:var(--accent-soft);color:var(--accent);border:1px solid rgba(255,107,61,0.3);
 }
-#detail-close:hover{color:var(--text)}
-#detail-body{padding:14px;display:flex;flex-direction:column;gap:12px}
-.d-type-badge{
-  display:inline-block;font-size:10px;font-weight:600;letter-spacing:.6px;
-  text-transform:uppercase;padding:2px 8px;border-radius:20px;
-  background:rgba(124,156,255,.12);color:var(--accent);
-  border:1px solid rgba(124,156,255,.3);
-}
-.d-kv{font-size:12px;color:var(--muted)}
-.d-kv strong{color:var(--text)}
-.d-desc{font-size:13px;line-height:1.6;color:var(--muted)}
-.d-desc strong{color:var(--text);display:block;margin-bottom:4px}
-.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.d-section{display:flex;flex-direction:column;gap:6px}
+.d-label{font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.06em}
+.d-text{font-size:13px;line-height:1.6;color:var(--fg-muted)}
+.d-text strong{color:var(--fg)}
+.d-kv{display:flex;justify-content:space-between;font-size:12px;gap:8px}
+.d-kv .k{color:var(--fg-faint);font-family:var(--font-mono);flex-shrink:0}
+.d-kv .v{color:var(--fg);text-align:right;word-break:break-all}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
 .chip{
-  font-size:11px;padding:2px 8px;border-radius:20px;
-  background:var(--chip);color:var(--muted);border:1px solid var(--border);
+  display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--radius-sm);
+  border:1px solid var(--border-strong);background:var(--surface-2);color:var(--fg-muted);font-size:11px;
 }
-.d-links{display:flex;flex-direction:column;gap:6px}
+.d-links{display:flex;flex-direction:column;gap:5px}
 .d-link{
-  font-size:12px;padding:5px 10px;border-radius:6px;
-  background:var(--panel);border:1px solid var(--border);
-  display:flex;align-items:center;gap:6px;color:var(--text);
+  display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--surface-2);color:var(--fg-muted);font-size:12px;
+  transition:border-color 120ms ease,color 120ms ease,background 120ms ease;
 }
-.d-link:hover{border-color:var(--accent);text-decoration:none}
-.d-neighbors{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
-.d-neighbor-link{
-  padding:4px 8px;border-radius:6px;background:var(--panel);
-  border:1px solid var(--border);font-size:12px;cursor:pointer;color:var(--accent);
+.d-link:hover{border-color:var(--accent);color:var(--fg);background:var(--surface-3);text-decoration:none;transition-duration:120ms}
+.neighbor-list{display:flex;flex-direction:column;gap:4px}
+.neighbor-btn{
+  display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+  padding:5px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);
+  background:transparent;color:var(--fg-muted);font-size:12px;cursor:pointer;
+  transition:background 120ms ease,border-color 120ms ease,color 120ms ease;
 }
-.d-neighbor-link:hover{border-color:var(--accent);background:var(--panel2)}
+.neighbor-btn:hover{background:var(--surface-2);border-color:var(--border-strong);color:var(--fg)}
+.neighbor-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.expand-btn{
+  margin-top:6px;width:100%;padding:6px;border-radius:var(--radius);border:1px solid var(--border-strong);
+  background:transparent;color:var(--fg-muted);font-size:12px;font-family:var(--font-mono);cursor:pointer;
+  transition:background 120ms ease,color 120ms ease;
+}
+.expand-btn:hover{background:var(--surface-2);color:var(--fg)}
+.org-project-list{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto}
+.org-proj-btn{
+  text-align:left;padding:5px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);
+  background:transparent;color:var(--fg-muted);font-size:12px;cursor:pointer;width:100%;
+  transition:background 120ms ease,color 120ms ease;
+}
+.org-proj-btn:hover{background:var(--surface-2);color:var(--fg)}
 
 /* ── Tooltip ── */
 #tooltip{
-  position:fixed;pointer-events:none;
-  background:var(--panel2);border:1px solid var(--border);
-  border-radius:8px;padding:8px 12px;font-size:12px;
-  max-width:260px;z-index:100;display:none;
-  box-shadow:0 4px 20px rgba(0,0,0,.5);
+  position:fixed;pointer-events:none;z-index:200;display:none;
+  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  padding:8px 12px;max-width:240px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.5);
 }
+#tooltip .tt-name{font-size:13px;font-weight:600;margin-bottom:4px}
+#tooltip .tt-type{font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+#tooltip .tt-desc{font-size:12px;color:var(--fg-muted);line-height:1.5}
+
+/* ── Modals ── */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(10,10,11,0.7);backdrop-filter:blur(4px);
+  z-index:100;display:none;align-items:center;justify-content:center;
+}
+.modal-backdrop.open{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  width:min(480px,90vw);max-height:80vh;overflow-y:auto;
+  box-shadow:0 24px 64px rgba(0,0,0,0.6);
+}
+.modal-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;border-bottom:1px solid var(--border);
+}
+.modal-hdr h2{font-size:16px;font-weight:600;letter-spacing:-0.02em}
+.modal-close{background:none;border:none;color:var(--fg-faint);cursor:pointer;font-size:22px;line-height:1;padding:0 2px}
+.modal-close:hover{color:var(--fg)}
+.modal-body{padding:18px}
+.shortcut-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;align-items:center}
+.key{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:28px;height:22px;padding:0 6px;
+  border-radius:var(--radius-sm);border:1px solid var(--border-strong);
+  background:var(--surface-2);font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);
+  white-space:nowrap;
+}
+.shortcut-desc{font-size:12px;color:var(--fg-muted)}
+.modal-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.modal-section h3{font-size:13px;font-weight:600;margin-bottom:10px;letter-spacing:-0.01em}
+.onboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.onboard-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--fg-muted);line-height:1.5}
+.onboard-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.feedback-form{display:flex;flex-direction:column;gap:12px}
+.feedback-form textarea{
+  width:100%;height:100px;border-radius:var(--radius);border:1px solid var(--border-strong);
+  background:var(--surface-2);color:var(--fg);padding:10px;font-size:13px;resize:vertical;outline:none;
+  transition:border-color 120ms ease;
+}
+.feedback-form textarea:focus{border-color:var(--accent)}
+.feedback-form input[type=text]{
+  width:100%;height:34px;border-radius:var(--radius);border:1px solid var(--border-strong);
+  background:var(--surface-2);color:var(--fg);padding:0 10px;font-size:13px;outline:none;
+  transition:border-color 120ms ease;
+}
+.feedback-form input:focus{border-color:var(--accent)}
+.feedback-form textarea::placeholder,.feedback-form input::placeholder{color:var(--fg-faint)}
+
+/* ── Toast ── */
+#toast-wrap{position:fixed;bottom:20px;right:20px;z-index:300;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.toast{
+  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  padding:8px 14px;font-size:12px;font-family:var(--font-mono);color:var(--fg-muted);
+  animation:toast-in 120ms ease forwards;box-shadow:0 4px 16px rgba(0,0,0,0.4);
+}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes toast-out{from{opacity:1}to{opacity:0}}
+
+/* Context menu */
+#ctx-menu{
+  position:fixed;z-index:250;background:var(--surface-2);border:1px solid var(--border-strong);
+  border-radius:var(--radius-lg);padding:4px;min-width:160px;display:none;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+#ctx-menu.open{display:block}
+.ctx-item{
+  width:100%;text-align:left;border:0;background:transparent;color:var(--fg-muted);
+  padding:6px 10px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;
+  transition:background 120ms ease,color 120ms ease;
+}
+.ctx-item:hover{background:var(--surface-3);color:var(--fg)}
+
+/* ── Print palette overrides ── */
+body.palette-print{--bg:#ffffff;--surface:#f5f5f5;--surface-2:#ebebeb;--surface-3:#e0e0e0;--border:rgba(0,0,0,0.1);--border-strong:rgba(0,0,0,0.18);--fg:#111111;--fg-muted:#444444;--fg-faint:#888888}
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div id="header">
-  <div class="brand"><span>Graph</span> Explorer</div>
-  <input id="search-box" type="text" placeholder="Search nodes…">
-  <div class="sep"></div>
-  <button class="hbtn" id="btn-fit" title="Fit graph to view">⊞ Fit</button>
-  <button class="hbtn" id="btn-physics" title="Toggle physics">⚡ Physics</button>
-  <button class="hbtn" id="btn-cluster" title="Cluster Project nodes by Category">⊕ Cluster</button>
-  <button class="hbtn" id="btn-load" title="Load a dataset file">↑ Load dataset</button>
-  <input type="file" id="file-input" accept=".json">
+<div class="grain"></div>
+
+<!-- Topbar -->
+<div id="topbar">
+  <div class="logo">AI<span> ×</span> Design</div>
+  <div class="breadcrumb" id="breadcrumb">
+    <span class="bc-item current" id="bc-root">Graph Explorer</span>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="search-wrap">
+    <input id="search-input" type="text" placeholder="Search nodes… (/)">
+    <div id="search-results"></div>
+  </div>
+  <button class="gbtn" id="btn-fit" title="Fit graph to view [Space]">⊞ Fit</button>
+  <button class="gbtn" id="btn-embed" title="Toggle UMAP embed view [E]">◉ Embed</button>
+  <button class="gbtn active" id="btn-force" title="Toggle force layout [F]">⚙ Force</button>
+  <button class="gbtn" id="btn-palette" title="Cycle color palette [P]">🎨</button>
+  <button class="gbtn" id="btn-help" title="Keyboard shortcuts [?]">⌨</button>
+  <button class="gbtn" id="btn-feedback" title="Send feedback">↗ Feedback</button>
 </div>
 
 <div id="layout">
-  <!-- Left sidebar -->
+  <!-- Sidebar -->
   <div id="sidebar">
 
-    <div class="sf-section">
-      <div class="sf-label">Node types</div>
-      <div id="node-type-filters"></div>
-    </div>
+    <details id="sect-nodes" open>
+      <summary>Node types <span id="node-count-badge" style="font-size:10px;font-weight:400;margin-left:6px;color:var(--fg-faint)"></span></summary>
+      <div class="sidebar-body">
+        <div id="node-type-list"></div>
+      </div>
+    </details>
 
-    <div class="sf-section">
-      <div class="sf-label">Edge types</div>
-      <div id="edge-type-filters"></div>
-    </div>
+    <details id="sect-edges">
+      <summary>Edge types</summary>
+      <div class="sidebar-body">
+        <div id="edge-type-list"></div>
+      </div>
+    </details>
 
-    <div class="sf-section">
-      <div class="sf-label">Category</div>
-      <select class="sf-select" id="category-filter">
-        <option value="">All categories</option>
-      </select>
-    </div>
+    <details id="sect-cats">
+      <summary>Categories</summary>
+      <div class="sidebar-body">
+        <div class="cat-actions">
+          <button class="cat-btn" id="cat-all">All</button>
+          <button class="cat-btn" id="cat-clear">Clear</button>
+        </div>
+        <div class="cat-list" id="cat-list"></div>
+      </div>
+    </details>
 
-    <div class="sf-section">
-      <div class="sf-label">Year range</div>
-      <div class="year-range">
+    <details id="sect-year">
+      <summary>Year range</summary>
+      <div class="sidebar-body">
         <div class="year-inputs">
-          <input type="number" id="year-min" placeholder="From">
-          <span style="color:var(--muted);line-height:28px">–</span>
-          <input type="number" id="year-max" placeholder="To">
+          <input type="number" id="year-min" placeholder="Min" min="1980" max="2030">
+          <span>–</span>
+          <input type="number" id="year-max" placeholder="Max" min="1980" max="2030">
         </div>
       </div>
-    </div>
+    </details>
 
-    <div class="sf-section">
-      <div class="sf-label">Stats</div>
-      <div class="stats-box" id="stats-box">—</div>
-    </div>
+    <details id="sect-stats">
+      <summary>Stats</summary>
+      <div class="sidebar-body">
+        <div class="stats-grid" id="stats-grid"></div>
+      </div>
+    </details>
 
   </div>
 
-  <!-- Graph canvas -->
+  <!-- Canvas -->
   <div id="graph-wrap">
     <div id="graph"></div>
 
-    <div id="loading-overlay">
-      <div class="spinner"></div>
-      <div id="loading-msg">Initialising graph…</div>
+    <button id="focus-exit">← Exit focus · <span id="focus-node-name"></span></button>
+
+    <div id="embed-label-toggle">
+      <button class="elt-btn active" data-mode="cluster">Cluster labels</button>
+      <button class="elt-btn" data-mode="category">Category labels</button>
     </div>
 
-    <!-- Drop-zone / initial state -->
+    <div id="loading">
+      <div class="spinner"></div>
+      <div id="loading-msg">Loading graph data…</div>
+    </div>
+
     <div id="drop-overlay">
-      <div class="drop-box">
-        <h2>Graph Explorer</h2>
-        <p>Load a <code>graph-data.json</code> file exported by <code>build-graph.py</code>, or drag one onto this window.</p>
-        <button class="primary-btn" id="btn-pick-file">Choose file…</button>
-        <div class="or">or</div>
-        <button class="ghost-btn" id="btn-load-default">Load default dataset</button>
+      <div class="drop-inner">
+        <h2>Load a dataset</h2>
+        <p>Drop a graph-data.json file here, or browse to select one.</p>
+        <button class="primary-btn" onclick="document.getElementById('file-input').click()">Choose file</button>
+        <p style="margin-top:10px;font-size:12px;color:var(--fg-faint)">or drag and drop anywhere on the graph</p>
       </div>
     </div>
   </div>
 
-  <!-- Right detail panel -->
+  <!-- Detail panel -->
   <div id="detail" class="hidden">
-    <div id="detail-header">
-      <h3 id="detail-title">Node detail</h3>
-      <button id="detail-close">✕</button>
+    <div class="detail-hdr">
+      <h3 id="detail-title">Node</h3>
+      <button class="detail-close" id="detail-close">×</button>
     </div>
-    <div id="detail-body"></div>
+    <div class="detail-body" id="detail-body"></div>
   </div>
 </div>
 
-<div id="tooltip"></div>
+<!-- File input -->
+<input type="file" id="file-input" accept=".json">
+
+<!-- Tooltip -->
+<div id="tooltip">
+  <div class="tt-type" id="tt-type"></div>
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-desc" id="tt-desc"></div>
+</div>
+
+<!-- Context menu -->
+<div id="ctx-menu">
+  <button class="ctx-item" id="ctx-focus">Focus on this node</button>
+  <button class="ctx-item" id="ctx-expand">Expand neighbors</button>
+</div>
+
+<!-- Toast container -->
+<div id="toast-wrap"></div>
+
+<!-- Shortcuts modal -->
+<div class="modal-backdrop" id="modal-shortcuts">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Keyboard shortcuts</h2>
+      <button class="modal-close" data-close="modal-shortcuts">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="shortcut-grid">
+        <span class="key">/</span><span class="shortcut-desc">Focus search</span>
+        <span class="key">Space</span><span class="shortcut-desc">Fit graph to view</span>
+        <span class="key">E</span><span class="shortcut-desc">Toggle UMAP embed view</span>
+        <span class="key">F</span><span class="shortcut-desc">Toggle force layout</span>
+        <span class="key">P</span><span class="shortcut-desc">Cycle color palette</span>
+        <span class="key">?</span><span class="shortcut-desc">This shortcuts panel</span>
+        <span class="key">Esc</span><span class="shortcut-desc">Exit focus / close panel</span>
+        <span class="key">Tab</span><span class="shortcut-desc">Next neighbor node</span>
+        <span class="key">←  Backspace</span><span class="shortcut-desc">Exit focus mode</span>
+        <span class="key">Dbl-click</span><span class="shortcut-desc">Focus on node</span>
+      </div>
+      <div class="modal-section">
+        <h3>What the graph shows</h3>
+        <p style="font-size:13px;color:var(--fg-muted);line-height:1.6">
+          Nodes are AI/ML projects, organizations, categories, techniques, venues, and people. Edges show relationships — who built what (BUILT_BY), what it references (CITES/BUILT_ON), and how similar things are (SEMANTICALLY_NEAR). The <strong>Embed view</strong> uses UMAP to place nodes by semantic similarity — clusters are real neighborhoods in 1536-dim embedding space.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Onboarding modal -->
+<div class="modal-backdrop" id="modal-onboard">
+  <div class="modal" style="width:min(560px,92vw)">
+    <div class="modal-hdr">
+      <h2>Welcome to the AI × Design Graph Explorer</h2>
+      <button class="modal-close" data-close="modal-onboard">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--fg-muted);line-height:1.6;margin-bottom:16px">
+        831 AI/ML projects, papers, and tools for engineering design — mapped as a knowledge graph with 8,795 edges.
+      </p>
+      <div class="onboard-grid" id="onboard-node-types"></div>
+      <div class="modal-section">
+        <h3>How to explore</h3>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--fg-muted);line-height:1.5">
+          <div>• <strong>Click</strong> any node to see details in the right panel</div>
+          <div>• <strong>Double-click</strong> to enter Focus Mode — see only that node's neighborhood</div>
+          <div>• <strong>Embed view</strong> (◉) places nodes by semantic similarity, colored by cluster</div>
+          <div>• <strong>Sidebar</strong> lets you filter by node type, edge type, category, and year</div>
+          <div>• Press <strong>?</strong> for keyboard shortcuts</div>
+        </div>
+      </div>
+      <div style="margin-top:20px;text-align:right">
+        <button class="primary-btn" id="onboard-dismiss">Got it</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Feedback modal -->
+<div class="modal-backdrop" id="modal-feedback">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Send feedback</h2>
+      <button class="modal-close" data-close="modal-feedback">×</button>
+    </div>
+    <div class="modal-body">
+      <form class="feedback-form" id="feedback-form">
+        <textarea name="message" placeholder="What's working? What's broken? What's missing?"></textarea>
+        <input type="text" name="name" placeholder="Your name (optional)">
+        <button type="submit" class="primary-btn">Send</button>
+      </form>
+    </div>
+  </div>
+</div>
 
 <script>
-// ────────────────────────────────────────────────────────────────────────────
-// Config
-// ────────────────────────────────────────────────────────────────────────────
-const NODE_COLORS = {
-  Project:      '#4e79a7',
-  Organization: '#f28e2b',
-  Category:     '#e15759',
-  Technique:    '#76b7b2',
-  Modality:     '#59a14f',
-  PhysicsDomain:'#edc948',
-  Industry:     '#b07aa1',
-  Year:         '#ff9da7',
-  Venue:        '#22d3ee',
-  Person:       '#f472b6',
+// ═══════════════════════════════════════════════════════════════════════════════
+// PALETTES
+// ═══════════════════════════════════════════════════════════════════════════════
+const PALETTES = {
+  default: {
+    Project:'#ff6b3d', Organization:'#60a5fa', Category:'#a78bfa',
+    Technique:'#34d399', Modality:'#fbbf24', PhysicsDomain:'#f472b6',
+    Industry:'#94a3b8', Year:'#64748b', Venue:'#c084fc', Person:'#f87171',
+    bg:'#0a0a0b'
+  },
+  spectral: {
+    Project:'#E69F00', Organization:'#56B4E9', Category:'#009E73',
+    Technique:'#F0E442', Modality:'#0072B2', PhysicsDomain:'#D55E00',
+    Industry:'#CC79A7', Year:'#999999', Venue:'#56B4E9', Person:'#D55E00',
+    bg:'#0a0a0b'
+  },
+  mono: {
+    Project:'#9ca3af', Organization:'#e5e7eb', Category:'#6b7280',
+    Technique:'#d1d5db', Modality:'#4b5563', PhysicsDomain:'#9ca3af',
+    Industry:'#6b7280', Year:'#374151', Venue:'#d1d5db', Person:'#9ca3af',
+    bg:'#0a0a0b'
+  },
+  print: {
+    Project:'#1d4ed8', Organization:'#dc2626', Category:'#16a34a',
+    Technique:'#d97706', Modality:'#7c3aed', PhysicsDomain:'#db2777',
+    Industry:'#0891b2', Year:'#6b7280', Venue:'#9333ea', Person:'#ea580c',
+    bg:'#ffffff'
+  }
 };
-const NODE_SIZES = {
-  Project:      10,
-  Organization: 18,
-  Category:     24,
-  Technique:    12,
-  Modality:     12,
-  PhysicsDomain:16,
-  Industry:     13,
-  Year:         9,
-  Venue:        15,
-  Person:       11,
-};
+const PALETTE_ORDER = ['default','spectral','mono','print'];
+const PALETTE_NAMES = {default:'Default',spectral:'Spectral (colorblind-safe)',mono:'Mono',print:'Print'};
+
+const CLUSTER_COLORS = [
+  '#ff6b3d','#60a5fa','#a78bfa','#34d399','#fbbf24',
+  '#f472b6','#94a3b8','#c084fc','#f87171','#38bdf8',
+  '#4ade80','#fb923c','#e879f9','#22d3ee','#a3e635',
+  '#818cf8','#fb7185','#2dd4bf','#facc15','#f97316'
+];
+
+const NODE_TYPES = ['Project','Organization','Category','Technique','Modality','PhysicsDomain','Industry','Year','Venue','Person'];
+const NODE_SHAPES = {Project:'dot',Organization:'square',Category:'diamond',Technique:'triangle',Modality:'triangleDown',PhysicsDomain:'star',Industry:'hexagon',Year:'box',Venue:'ellipse',Person:'dot'};
+const NODE_SIZES  = {Project:8,Organization:18,Category:18,Technique:12,Modality:12,PhysicsDomain:14,Industry:12,Year:10,Venue:12,Person:10};
+
+const EDGE_TYPES = ['BUILT_BY','IN_CATEGORY','USES_TECHNIQUE','CONSUMES','PRODUCES','OPERATES_ON','APPLIED_TO','RELEASED_IN','PUBLISHED_AT','AUTHORED','CITES','BUILT_ON','BENCHMARKED_AGAINST','SEMANTICALLY_NEAR'];
 const EDGE_COLORS = {
-  BUILT_BY:              '#f28e2b',
-  IN_CATEGORY:           '#e15759',
-  USES_TECHNIQUE:        '#76b7b2',
-  CONSUMES:              '#59a14f',
-  PRODUCES:              '#51cf82',
-  OPERATES_ON:           '#edc948',
-  APPLIED_TO:            '#b07aa1',
-  RELEASED_IN:           '#6b7280',
-  PUBLISHED_AT:          '#22d3ee',
-  AUTHORED:              '#f472b6',
-  CITES:                 '#9f7bff',
-  BUILT_ON:              '#4ade80',
-  BENCHMARKED_AGAINST:   '#f87171',
-  SEMANTICALLY_NEAR:     '#2d3748',
+  BUILT_BY:'#60a5fa',IN_CATEGORY:'#a78bfa',USES_TECHNIQUE:'#34d399',
+  CONSUMES:'#fbbf24',PRODUCES:'#fb923c',OPERATES_ON:'#f472b6',
+  APPLIED_TO:'#94a3b8',RELEASED_IN:'#64748b',PUBLISHED_AT:'#64748b',
+  AUTHORED:'#f87171',CITES:'#ff6b3d',BUILT_ON:'#ff8c5a',
+  BENCHMARKED_AGAINST:'#ffa07a',SEMANTICALLY_NEAR:'#8a8a93'
 };
-// Default visible node types and edge types
-const DEFAULT_NODE_TYPES = new Set(['Project', 'Organization', 'Category']);
-const DEFAULT_EDGE_TYPES = new Set(['BUILT_BY', 'IN_CATEGORY']);
 
-// ────────────────────────────────────────────────────────────────────────────
-// State
-// ────────────────────────────────────────────────────────────────────────────
-let rawNodes = [], rawEdges = [], datasetMeta = {};
-let nodeById = new Map();   // id -> raw node, built once per dataset
-let visNodes, visEdges, network;
-let physicsEnabled = true;
-let selectedId = null;
+const FLAG = {US:'🇺🇸',GB:'🇬🇧',CN:'🇨🇳',DE:'🇩🇪',FR:'🇫🇷',CA:'🇨🇦',JP:'🇯🇵',KR:'🇰🇷',AU:'🇦🇺',CH:'🇨🇭',IL:'🇮🇱',SG:'🇸🇬',NL:'🇳🇱',SE:'🇸🇪',IT:'🇮🇹',IN:'🇮🇳',ES:'🇪🇸',DK:'🇩🇰',NO:'🇳🇴',FI:'🇫🇮',AT:'🇦🇹',BE:'🇧🇪',NZ:'🇳🇿',TW:'🇹🇼',HK:'🇭🇰',BR:'🇧🇷'};
 
-const filters = {
-  nodeTypes: new Set(DEFAULT_NODE_TYPES),
-  edgeTypes: new Set(DEFAULT_EDGE_TYPES),
-  category: '',
-  search: '',
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+const state = {
+  // Raw data
+  data: null,
+  nodeById: new Map(),         // id → node object
+  edgesBySource: new Map(),    // src id → [edge]
+  edgesByTarget: new Map(),    // tgt id → [edge]
+  orgToProjects: new Map(),    // org node id → [project node]
+
+  // Filters
+  visibleNodeTypes: new Set(['Project','Organization','Category']),
+  visibleEdgeTypes: new Set(['BUILT_BY','IN_CATEGORY']),
+  selectedCategories: new Set(), // empty = all selected
   yearMin: 0,
   yearMax: 9999,
+
+  // Palette
+  paletteIdx: 0,
+  get palette(){ return PALETTE_ORDER[this.paletteIdx] },
+
+  // Embed view
+  embedMode: false,
+  clusterLabelMode: localStorage.getItem('explorer-cluster-label-mode') || 'cluster',
+  embedScale: 900,
+
+  // Focus mode
+  focusNodeId: null,
+  focusHops: 1,
+  preEmbedSnapshot: null,   // saved before entering embed
+  preFocusSnapshot: null,   // saved before entering focus
+
+  // Vis
+  network: null,
+  nodesDS: null,
+  edgesDS: null,
+
+  // Selection
+  selectedNodeId: null,
+  focusTabIdx: -1,           // for Tab cycling through neighbors
+  ctxTargetId: null,
 };
 
-// ────────────────────────────────────────────────────────────────────────────
-// DOM refs
-// ────────────────────────────────────────────────────────────────────────────
-const $ = id => document.getElementById(id);
-const dropOverlay   = $('drop-overlay');
-const loadingOverlay= $('loading-overlay');
-const graphEl       = $('graph');
-const detailPanel   = $('detail');
-const detailBody    = $('detail-body');
-const detailTitle   = $('detail-title');
-const statsBox      = $('stats-box');
-const searchBox     = $('search-box');
-const tooltip       = $('tooltip');
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
+function toast(msg, duration=2500) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(() => { el.style.animation='toast-out 200ms ease forwards'; setTimeout(()=>el.remove(),200); }, duration);
+}
 
-// ────────────────────────────────────────────────────────────────────────────
-// Load dataset
-// ────────────────────────────────────────────────────────────────────────────
-function loadDataset(data) {
-  rawNodes = data.nodes || [];
-  rawEdges = data.edges || [];
-  datasetMeta = data.meta || {};
-  // Build O(1) lookup; replaces O(n) rawNodes.find() in hot paths
-  nodeById = new Map(rawNodes.map(n => [n.id, n]));
-  // Reset selection state across loads
-  selectedId = null;
-  detailPanel.classList.add('hidden');
-  searchBox.value = '';
-  filters.search = '';
+function convexHull(pts) {
+  if (pts.length <= 2) return pts;
+  const p = [...pts].sort((a,b) => a[0]-b[0] || a[1]-b[1]);
+  const cross = (o,a,b) => (a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lower=[], upper=[];
+  for (const pt of p) { while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],pt)<=0)lower.pop(); lower.push(pt); }
+  for (let i=p.length-1;i>=0;i--) { const pt=p[i]; while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],pt)<=0)upper.pop(); upper.push(pt); }
+  upper.pop(); lower.pop();
+  return lower.concat(upper);
+}
 
-  // Update header brand
-  if (datasetMeta.name) {
-    document.querySelector('#header .brand').innerHTML =
-      `<span>Graph</span> Explorer — ${datasetMeta.name}`;
+function expandHull(hull, padding=40) {
+  if (hull.length < 2) return hull;
+  const cx = hull.reduce((s,p)=>s+p[0],0)/hull.length;
+  const cy = hull.reduce((s,p)=>s+p[1],0)/hull.length;
+  return hull.map(([x,y]) => {
+    const dx=x-cx, dy=y-cy, len=Math.sqrt(dx*dx+dy*dy)||1;
+    return [x+(dx/len)*padding, y+(dy/len)*padding];
+  });
+}
+
+function slugify(s){ return String(s).toLowerCase().replace(/[^\w\s-]/g,'').replace(/[\s_]+/g,'-').replace(/-+/g,'-').trim(); }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BUILD VISIBLE SET
+// ═══════════════════════════════════════════════════════════════════════════════
+function computeVisibleNodeIds() {
+  const ids = new Set();
+  const allCats = state.selectedCategories.size === 0;
+  for (const n of state.data.nodes) {
+    if (!state.visibleNodeTypes.has(n.type)) continue;
+    if (n.type === 'Project') {
+      const cat = n.props.category || '';
+      if (!allCats && !state.selectedCategories.has(cat)) continue;
+      const yr = n.props.year || 0;
+      if (yr && (yr < state.yearMin || yr > state.yearMax)) continue;
+    }
+    ids.add(n.id);
   }
-
-  // Populate category filter
-  const catSel = $('category-filter');
-  catSel.innerHTML = '<option value="">All categories</option>';
-  (data.categories || []).forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c; opt.textContent = c;
-    catSel.appendChild(opt);
-  });
-
-  // Year range defaults
-  const [yMin, yMax] = data.yearRange || [2015, 2026];
-  $('year-min').value = yMin;
-  $('year-max').value = yMax;
-  filters.yearMin = yMin;
-  filters.yearMax = yMax;
-
-  // Build node/edge type lists
-  const nodeTypes = [...new Set(rawNodes.map(n => n.type))].sort();
-  const edgeTypes = [...new Set(rawEdges.map(e => e.type))].sort();
-  buildNodeTypeFilters(nodeTypes);
-  buildEdgeTypeFilters(edgeTypes);
-
-  dropOverlay.classList.add('hidden');
-  initGraph();
+  return ids;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Filter UI builders
-// ────────────────────────────────────────────────────────────────────────────
-function buildNodeTypeFilters(types) {
-  const container = $('node-type-filters');
-  container.innerHTML = '';
-  types.forEach(t => {
-    const row = document.createElement('label');
-    row.className = 'type-row' + (filters.nodeTypes.has(t) ? ' active' : '');
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = filters.nodeTypes.has(t);
-    cb.dataset.type = t;
-    cb.addEventListener('change', () => {
-      if (cb.checked) filters.nodeTypes.add(t); else filters.nodeTypes.delete(t);
-      row.classList.toggle('active', cb.checked);
-      applyFilters();
-    });
-    const dot = document.createElement('div');
-    dot.className = 'type-dot';
-    dot.style.background = NODE_COLORS[t] || '#888';
-    const label = document.createElement('span');
-    label.textContent = t;
-    row.append(cb, dot, label);
-    container.appendChild(row);
-  });
-}
-
-function buildEdgeTypeFilters(types) {
-  const container = $('edge-type-filters');
-  container.innerHTML = '';
-  types.forEach(t => {
-    const row = document.createElement('label');
-    row.className = 'edge-row' + (filters.edgeTypes.has(t) ? ' active' : '');
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = filters.edgeTypes.has(t);
-    cb.dataset.type = t;
-    cb.addEventListener('change', () => {
-      if (cb.checked) filters.edgeTypes.add(t); else filters.edgeTypes.delete(t);
-      row.classList.toggle('active', cb.checked);
-      applyFilters();
-    });
-    const stripe = document.createElement('div');
-    stripe.className = 'edge-stripe';
-    stripe.style.background = EDGE_COLORS[t] || '#666';
-    const label = document.createElement('span');
-    label.textContent = t.replace(/_/g, ' ');
-    row.append(cb, stripe, label);
-    container.appendChild(row);
-  });
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Graph initialisation
-// ────────────────────────────────────────────────────────────────────────────
-function initGraph() {
-  loadingOverlay.classList.remove('hidden');
-  $('loading-msg').textContent = 'Building graph…';
-
-  setTimeout(() => {
-    const { nodes: vn, edges: ve } = buildVisData();
-    visNodes = new vis.DataSet(vn);
-    visEdges = new vis.DataSet(ve);
-
-    const options = {
-      nodes: {
-        shape: 'dot',
-        font: { color: '#e7ebf3', size: 11, face: 'system-ui' },
-        borderWidth: 1.5,
-        borderWidthSelected: 3,
-      },
-      edges: {
-        arrows: { to: { enabled: true, scaleFactor: 0.4 } },
-        smooth: { type: 'continuous', roundness: 0.2 },
-        width: 0.8,
-        selectionWidth: 2,
-      },
-      physics: {
-        enabled: true,
-        barnesHut: {
-          gravitationalConstant: -3000,
-          centralGravity: 0.3,
-          springLength: 120,
-          springConstant: 0.04,
-          damping: 0.12,
-        },
-        stabilization: { iterations: 200, updateInterval: 25 },
-      },
-      interaction: {
-        hover: true,
-        tooltipDelay: 200,
-        navigationButtons: false,
-        keyboard: true,
-        zoomView: true,
-      },
-    };
-
-    if (network) { network.destroy(); }
-    network = new vis.Network(graphEl, { nodes: visNodes, edges: visEdges }, options);
-
-    network.on('stabilizationProgress', p => {
-      $('loading-msg').textContent = `Stabilising… ${Math.round(p.iterations/p.total*100)}%`;
-    });
-    network.on('stabilizationIterationsDone', () => {
-      loadingOverlay.classList.add('hidden');
-      // Disable physics so the layout settles. Filter changes briefly
-      // re-enable physics in applyFilters() to position newly added nodes.
-      network.setOptions({ physics: { enabled: false } });
-      physicsEnabled = false;
-      $('btn-physics').classList.remove('active');
-      updateStats();
-    });
-
-    network.on('click', params => {
-      if (params.nodes.length > 0) {
-        selectNode(params.nodes[0]);
-      } else {
-        clearSelection();
-      }
-    });
-
-    network.on('hoverNode', params => showTooltip(params.node, params.event));
-    network.on('blurNode', () => { tooltip.style.display = 'none'; });
-    network.on('doubleClick', params => {
-      if (params.nodes.length === 1 && network.isCluster(params.nodes[0])) {
-        network.openCluster(params.nodes[0]);
-      }
-    });
-
-  }, 50);
-}
-
-function buildVisData() {
-  // Build a set of visible node ids first
-  const yearMin = parseInt($('year-min').value) || 0;
-  const yearMax = parseInt($('year-max').value) || 9999;
-  const catFilter = filters.category;
-  const searchQ = filters.search.toLowerCase().trim();
-
-  const visibleNodeIds = new Set();
-
-  const nodes = rawNodes
-    .filter(n => {
-      if (!filters.nodeTypes.has(n.type)) return false;
-      // Category filter applies only to Project nodes
-      if (catFilter && n.type === 'Project' && n.props?.category !== catFilter) return false;
-      // Year filter for Project nodes
-      if (n.type === 'Project') {
-        const yr = n.props?.year;
-        if (yr && (yr < yearMin || yr > yearMax)) return false;
-      }
-      // Search
-      if (searchQ && !n.label.toLowerCase().includes(searchQ)) return false;
-      return true;
-    })
-    .map(n => {
-      visibleNodeIds.add(n.id);
-      const color = NODE_COLORS[n.type] || '#888';
-      return {
-        id: n.id,
-        label: n.label.length > 35 ? n.label.slice(0, 33) + '…' : n.label,
-        title: n.label,
-        color: { background: color, border: adjustBrightness(color, -30), highlight: { background: color, border: '#fff' } },
-        size: NODE_SIZES[n.type] || 10,
-        font: { size: n.type === 'Category' ? 13 : n.type === 'Organization' ? 12 : 10 },
-        _raw: n,
-      };
-    });
-
-  // Dedupe edges by (source, target, type) — semantic + structural can collide
-  const edgeIds = new Set();
-  const edges = [];
-  for (const e of rawEdges) {
-    if (!filters.edgeTypes.has(e.type)) continue;
+function computeVisibleEdges(visibleNodeIds) {
+  const out = [];
+  const seen = new Set();
+  for (const e of state.data.edges) {
+    if (!state.visibleEdgeTypes.has(e.type)) continue;
     if (!visibleNodeIds.has(e.source) || !visibleNodeIds.has(e.target)) continue;
-    const id = `${e.source}|${e.target}|${e.type}`;
-    if (edgeIds.has(id)) continue;
-    edgeIds.add(id);
-    edges.push({
-      id,
-      from: e.source,
-      to: e.target,
-      color: { color: (EDGE_COLORS[e.type] || '#444') + '88', highlight: EDGE_COLORS[e.type] || '#888' },
-      title: e.type,
+    const key = `${e.source}||${e.target}||${e.type}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: key,
+      from: e.source, to: e.target,
+      color: { color: EDGE_COLORS[e.type]||'#555', opacity: 0.6 },
+      width: e.type === 'SEMANTICALLY_NEAR' ? 0.8 : 1,
+      arrows: e.type !== 'SEMANTICALLY_NEAR' ? { to: { enabled:true, scaleFactor:0.4 } } : undefined,
+      title: e.evidence || e.type,
+      smooth: { type:'continuous', roundness:0.2 },
     });
   }
-
-  return { nodes, edges };
+  return out;
 }
 
-function applyFilters() {
-  filters.category = $('category-filter').value;
-  filters.search = searchBox.value;
-  filters.yearMin = parseInt($('year-min').value) || 0;
-  filters.yearMax = parseInt($('year-max').value) || 9999;
+function nodeToVis(n) {
+  const pal = PALETTES[state.palette];
+  const col = pal[n.type] || '#888';
+  return {
+    id: n.id,
+    label: n.label.length > 28 ? n.label.slice(0,26)+'…' : n.label,
+    title: n.label,
+    shape: NODE_SHAPES[n.type] || 'dot',
+    size: NODE_SIZES[n.type] || 8,
+    color: { background: col, border: col, highlight: { background:'#fff', border: col }, hover: { background: col+'cc', border: col } },
+    font: { color:'#ececee', size: n.type==='Project'?11:12, face:'Geist, Inter, sans-serif' },
+    physics: true,
+  };
+}
 
-  if (!network) return;
-  const { nodes: vn, edges: ve } = buildVisData();
-
-  // Diff-update so existing nodes keep their positions
-  const newIds = new Set(vn.map(n => n.id));
-  const oldIds = new Set(visNodes.getIds());
-  const toRemove = [...oldIds].filter(id => !newIds.has(id));
-  const toAdd = vn.filter(n => !oldIds.has(n.id));
-  if (toRemove.length) visNodes.remove(toRemove);
-  if (toAdd.length) visNodes.add(toAdd);
-
-  visEdges.clear();
-  visEdges.add(ve);
-  updateStats();
-
-  // If new nodes were added, briefly run physics so they settle into place
-  if (toAdd.length && !physicsEnabled) {
-    network.setOptions({ physics: { enabled: true } });
-    setTimeout(() => {
-      if (!physicsEnabled) network.setOptions({ physics: { enabled: false } });
-    }, 800);
+// ═══════════════════════════════════════════════════════════════════════════════
+// DIFF-UPDATE helpers
+// ═══════════════════════════════════════════════════════════════════════════════
+function applyNodeFilter() {
+  if (state.embedMode) return; // embed mode manages its own nodes
+  const target = computeVisibleNodeIds();
+  const current = new Set(state.nodesDS.getIds());
+  const toAdd = [], toRemove = [];
+  for (const id of target) if (!current.has(id)) toAdd.push(nodeToVis(state.nodeById.get(id)));
+  for (const id of current) if (!target.has(id)) toRemove.push(id);
+  if (toRemove.length) state.nodesDS.remove(toRemove);
+  if (toAdd.length) {
+    state.nodesDS.add(toAdd);
+    if (state.network) { state.network.setOptions({physics:{enabled:true}}); setTimeout(()=>{state.network.setOptions({physics:{enabled:false}})},800); }
   }
+  applyEdgeFilter(target);
+  updateNodeCountBadge();
 }
 
-function updateStats() {
-  const nn = visNodes ? visNodes.length : 0;
-  const ne = visEdges ? visEdges.length : 0;
-  const tn = rawNodes.length;
-  const te = rawEdges.length;
-  statsBox.innerHTML =
-    `<strong>${nn}</strong> / ${tn} nodes<br>` +
-    `<strong>${ne}</strong> / ${te} edges` +
-    (datasetMeta.version ? `<br><span style="color:var(--muted);font-size:10px">${datasetMeta.version}</span>` : '');
+function applyEdgeFilter(visibleNodeIds) {
+  if (!visibleNodeIds) visibleNodeIds = new Set(state.nodesDS.getIds());
+  const newEdges = computeVisibleEdges(visibleNodeIds);
+  const newIds = new Set(newEdges.map(e=>e.id));
+  const curIds = new Set(state.edgesDS.getIds());
+  const toRemove = [...curIds].filter(id=>!newIds.has(id));
+  const toAdd = newEdges.filter(e=>!curIds.has(e.id));
+  if (toRemove.length) state.edgesDS.remove(toRemove);
+  if (toAdd.length) state.edgesDS.add(toAdd);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Node selection + detail panel
-// ────────────────────────────────────────────────────────────────────────────
-function selectNode(nodeId) {
-  selectedId = nodeId;
-  const raw = nodeById.get(nodeId);
-  if (!raw) return;
+// ═══════════════════════════════════════════════════════════════════════════════
+// PALETTE
+// ═══════════════════════════════════════════════════════════════════════════════
+function applyPalette() {
+  const pal = PALETTES[state.palette];
+  // Update all node colors in bulk
+  const updates = state.nodesDS.getIds().map(id => {
+    const n = state.nodeById.get(id);
+    if (!n) return null;
+    const col = pal[n.type] || '#888';
+    return { id, color:{ background:col, border:col, highlight:{background:'#fff',border:col}, hover:{background:col+'cc',border:col} } };
+  }).filter(Boolean);
+  state.nodesDS.update(updates);
 
-  const connectedNodes = new Set(network.getConnectedNodes(nodeId));
-  connectedNodes.add(nodeId);
+  // Print palette: swap bg
+  if (state.palette === 'print') {
+    document.body.classList.add('palette-print');
+  } else {
+    document.body.classList.remove('palette-print');
+  }
+  if (state.network) state.network.setOptions({ nodes:{} }); // force redraw
+  toast(`Palette: ${PALETTE_NAMES[state.palette]}`);
+  localStorage.setItem('explorer-palette', state.palette);
+}
 
-  // Single batched update for all visible nodes (was O(n²) with .find per id)
-  const visibleIds = visNodes.getIds();
-  const updates = new Array(visibleIds.length);
-  for (let i = 0; i < visibleIds.length; i++) {
-    const id = visibleIds[i];
-    const n = nodeById.get(id);
-    if (!n) continue;
-    const base = NODE_COLORS[n.type] || '#888';
-    const dimmed = !connectedNodes.has(id);
-    updates[i] = {
-      id,
-      color: dimmed
-        ? { background: '#1a2030', border: '#2d3748' }
-        : { background: base, border: id === nodeId ? '#fff' : adjustBrightness(base, -30) },
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMBED VIEW
+// ═══════════════════════════════════════════════════════════════════════════════
+function enterEmbedMode() {
+  state.embedMode = true;
+  document.getElementById('btn-embed').classList.add('active');
+  document.getElementById('embed-label-toggle').classList.add('visible');
+  document.getElementById('btn-force').classList.remove('active');
+
+  // Store current vis state
+  const curIds = state.nodesDS.getIds();
+  const positions = state.network.getPositions(curIds);
+  state.preEmbedSnapshot = { nodeIds: curIds, positions };
+
+  // Compute embed coords centered at origin
+  const projectNodes = state.data.nodes.filter(n=>n.type==='Project' && n.props.embed_x!==undefined);
+  const xVals = projectNodes.map(n=>n.props.embed_x);
+  const yVals = projectNodes.map(n=>n.props.embed_y);
+  const xMid = (Math.min(...xVals)+Math.max(...xVals))/2;
+  const yMid = (Math.min(...yVals)+Math.max(...yVals))/2;
+  const S = state.embedScale;
+
+  // Remove non-project nodes
+  const toRemove = state.nodesDS.getIds().filter(id => { const n=state.nodeById.get(id); return n && n.type!=='Project'; });
+  if (toRemove.length) state.nodesDS.remove(toRemove);
+
+  // Add/update project nodes with fixed positions
+  const toAdd=[], toUpdate=[];
+  for (const n of projectNodes) {
+    const x = (n.props.embed_x - xMid) * S;
+    const y = (n.props.embed_y - yMid) * S;
+    const kc = n.props.cluster_k;
+    const col = kc !== undefined ? CLUSTER_COLORS[kc % CLUSTER_COLORS.length] : (PALETTES[state.palette].Project);
+    const vis = {
+      id: n.id, label: n.label.length>22?n.label.slice(0,20)+'…':n.label,
+      x, y, physics:false,
+      color:{ background:col, border:col, highlight:{background:'#fff',border:col}, hover:{background:col+'cc',border:col} },
+      shape:'dot', size:7,
+      font:{ color:'#ececee', size:10, face:'Geist, Inter, sans-serif' },
+    };
+    if (state.nodesDS.get(n.id)) toUpdate.push(vis);
+    else toAdd.push(vis);
+  }
+  if (toAdd.length) state.nodesDS.add(toAdd);
+  if (toUpdate.length) state.nodesDS.update(toUpdate);
+
+  state.network.setOptions({ physics:{ enabled:false } });
+
+  // Show only citation-type edges between project nodes
+  const projectIds = new Set(projectNodes.map(n=>n.id));
+  const embedEdgeTypes = new Set(['CITES','BUILT_ON','BENCHMARKED_AGAINST','SEMANTICALLY_NEAR']);
+  const curEdgeIds = new Set(state.edgesDS.getIds());
+  const embedEdges = [], seen = new Set();
+  for (const e of state.data.edges) {
+    if (!embedEdgeTypes.has(e.type)) continue;
+    if (!projectIds.has(e.source) || !projectIds.has(e.target)) continue;
+    const key = `${e.source}||${e.target}||${e.type}`;
+    if (seen.has(key)) continue; seen.add(key);
+    if (!curEdgeIds.has(key)) {
+      embedEdges.push({ id:key, from:e.source, to:e.target, color:{color:EDGE_COLORS[e.type]||'#555',opacity:0.4}, width:0.8, smooth:{type:'continuous',roundness:0.2} });
+    }
+  }
+  // Remove non-embed edges
+  const toRemoveEdges = [...curEdgeIds].filter(id => { const parts=id.split('||'); return !embedEdgeTypes.has(parts[2]); });
+  if (toRemoveEdges.length) state.edgesDS.remove(toRemoveEdges);
+  if (embedEdges.length) state.edgesDS.add(embedEdges);
+
+  setTimeout(() => { state.network.fit({ animation:{duration:600,easingFunction:'easeInOutQuad'} }); }, 100);
+  toast('Embed view — nodes positioned by semantic similarity');
+}
+
+function exitEmbedMode() {
+  state.embedMode = false;
+  document.getElementById('btn-embed').classList.remove('active');
+  document.getElementById('embed-label-toggle').classList.remove('visible');
+
+  // Re-enable physics, restore full filter
+  state.network.setOptions({ physics:{ enabled:true } });
+  const snap = state.preEmbedSnapshot;
+
+  // Remove all current nodes and re-add from filter
+  state.nodesDS.clear();
+  state.edgesDS.clear();
+
+  const visIds = computeVisibleNodeIds();
+  const visNodes = [...visIds].map(id => nodeToVis(state.nodeById.get(id)));
+  state.nodesDS.add(visNodes);
+  applyEdgeFilter(visIds);
+
+  // Restore positions where possible
+  if (snap) {
+    const posUpdates = [];
+    for (const [id, pos] of Object.entries(snap.positions)) {
+      if (visIds.has(id)) posUpdates.push({ id, x:pos.x, y:pos.y });
+    }
+    if (posUpdates.length) state.network.moveNode && posUpdates.forEach(p=>state.network.moveNode(p.id,p.x,p.y));
+  }
+
+  setTimeout(()=>{ state.network.setOptions({physics:{enabled:false}}); }, 1200);
+  updateNodeCountBadge();
+  toast('Force layout restored');
+}
+
+function drawClusters(ctx) {
+  if (!state.embedMode || !state.data.clusterLabels) return;
+  const positions = state.network.getPositions();
+
+  // Group by cluster
+  const groups = {};
+  for (const [nid, pos] of Object.entries(positions)) {
+    const n = state.nodeById.get(nid);
+    if (!n || n.type !== 'Project' || n.props.cluster_k === undefined) continue;
+    const k = n.props.cluster_k;
+    if (!groups[k]) groups[k] = [];
+    groups[k].push([pos.x, pos.y]);
+  }
+
+  ctx.save();
+  ctx.globalAlpha = 1;
+  for (const [k, pts] of Object.entries(groups)) {
+    if (pts.length < 3) continue;
+    const hull = expandHull(convexHull(pts), 50);
+    const col = CLUSTER_COLORS[parseInt(k) % CLUSTER_COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(hull[0][0], hull[0][1]);
+    for (let i=1;i<hull.length;i++) ctx.lineTo(hull[i][0],hull[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = col + '18'; // ~10% opacity
+    ctx.fill();
+    ctx.strokeStyle = col + '55';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6,3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Label at centroid
+    const cx = pts.reduce((s,p)=>s+p[0],0)/pts.length;
+    const cy = pts.reduce((s,p)=>s+p[1],0)/pts.length;
+    let label;
+    if (state.clusterLabelMode === 'cluster') {
+      label = state.data.clusterLabels[String(k)] || `Cluster ${k}`;
+    } else {
+      // majority category from node props
+      const cats = pts.map((_,i) => {
+        const entries = Object.entries(positions);
+        // find the category of this cluster's nodes
+      });
+      // Simpler: look at nodeById for this cluster
+      const clusterNodes = state.data.nodes.filter(n=>n.type==='Project' && n.props.cluster_k===parseInt(k));
+      const catCount = {};
+      clusterNodes.forEach(n=>{ const c=n.props.category||'?'; catCount[c]=(catCount[c]||0)+1; });
+      label = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0]?.[0]?.replace(/-/g,' ')?.replace(/\b\w/g,c=>c.toUpperCase()) || `Cluster ${k}`;
+    }
+    // Truncate
+    if (label.length > 30) label = label.slice(0,28)+'…';
+
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Background pill
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(10,10,11,0.65)';
+    const ph=14, pw=tw+12;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(cx-pw/2,cy-ph/2,pw,ph,5) : (()=>{ ctx.rect(cx-pw/2,cy-ph/2,pw,ph); })();
+    ctx.fill();
+    ctx.fillStyle = col + 'dd';
+    ctx.fillText(label, cx, cy);
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FOCUS MODE
+// ═══════════════════════════════════════════════════════════════════════════════
+function enterFocusMode(nodeId, hops=1) {
+  if (state.embedMode) return; // don't focus in embed mode
+  const n = state.nodeById.get(nodeId);
+  if (!n) return;
+
+  // Save snapshot if not already in focus
+  if (!state.focusNodeId) {
+    state.preFocusSnapshot = {
+      nodeIds: new Set(state.nodesDS.getIds()),
+      edgeIds: new Set(state.edgesDS.getIds()),
     };
   }
-  visNodes.update(updates);
 
-  showDetailPanel(raw, [...connectedNodes].filter(id => id !== nodeId));
-}
+  state.focusNodeId = nodeId;
+  state.focusHops = hops;
 
-function clearSelection() {
-  selectedId = null;
-  detailPanel.classList.add('hidden');
-  if (!visNodes) return;
-  // Single batched reset
-  const visibleIds = visNodes.getIds();
-  const updates = new Array(visibleIds.length);
-  for (let i = 0; i < visibleIds.length; i++) {
-    const id = visibleIds[i];
-    const n = nodeById.get(id);
-    if (!n) continue;
-    const base = NODE_COLORS[n.type] || '#888';
-    updates[i] = { id, color: { background: base, border: adjustBrightness(base, -30) } };
+  // BFS to collect neighborhood
+  const visible = new Set([nodeId]);
+  let frontier = new Set([nodeId]);
+  for (let h=0;h<hops;h++) {
+    const next = new Set();
+    for (const fid of frontier) {
+      for (const e of (state.edgesBySource.get(fid)||[])) {
+        if (state.visibleEdgeTypes.has(e.type)) { visible.add(e.target); next.add(e.target); }
+      }
+      for (const e of (state.edgesByTarget.get(fid)||[])) {
+        if (state.visibleEdgeTypes.has(e.type)) { visible.add(e.source); next.add(e.source); }
+      }
+    }
+    frontier = next;
   }
-  visNodes.update(updates);
+
+  // Diff-update nodes
+  const current = new Set(state.nodesDS.getIds());
+  const toAdd = [...visible].filter(id=>!current.has(id)).map(id=>nodeToVis(state.nodeById.get(id))).filter(Boolean);
+  const toRemove = [...current].filter(id=>!visible.has(id));
+  if (toRemove.length) state.nodesDS.remove(toRemove);
+  if (toAdd.length) state.nodesDS.add(toAdd);
+  applyEdgeFilter(visible);
+
+  // Highlight focal node
+  state.nodesDS.update([{ id:nodeId, borderWidth:3, color:{ border:'#fff' } }]);
+
+  // Update UI
+  const exitBtn = document.getElementById('focus-exit');
+  exitBtn.classList.add('visible');
+  document.getElementById('focus-node-name').textContent = n.label;
+  updateBreadcrumb([{ label:n.label, id:nodeId }]);
+
+  state.network.focus(nodeId, { scale:1.2, animation:{duration:500,easingFunction:'easeInOutQuad'} });
+  showNodeDetail(nodeId);
 }
 
-function showDetailPanel(node, connectedNodeIds) {
-  const p = node.props || {};
-  const type = node.type;
-  // Resolve connected node objects via the map (was O(n) per neighbor)
-  const connectedNodes = (connectedNodeIds || [])
-    .map(id => nodeById.get(id))
-    .filter(Boolean);
+function exitFocusMode() {
+  if (!state.focusNodeId) return;
+  state.focusNodeId = null;
+  state.focusHops = 1;
+  state.focusTabIdx = -1;
 
-  detailTitle.textContent = node.label;
-  detailPanel.classList.remove('hidden');
+  document.getElementById('focus-exit').classList.remove('visible');
+  updateBreadcrumb([]);
 
-  let html = `<span class="d-type-badge">${type}</span>`;
-
-  if (type === 'Project') {
-    const badges = [
-      p.category && `<span class="chip">${p.category}</span>`,
-      p.type && `<span class="chip">${p.type}</span>`,
-    ].filter(Boolean).join('');
-    if (badges) html += `<div class="chips" style="margin-top:8px">${badges}</div>`;
-
-    if (p.organization || p.year) {
-      html += `<div class="d-kv"><strong>${p.organization || ''}</strong>`;
-      if (p.year) html += ` · <strong>${p.year}</strong>`;
-      html += '</div>';
-    }
-
-    if (p.description) {
-      html += `<div class="d-desc"><strong>About</strong>${escHtml(p.description)}</div>`;
-    }
-
-    const techs = p.techniques || [];
-    if (techs.length) {
-      html += `<div><div class="d-kv" style="margin-bottom:4px"><strong>Techniques</strong></div>`;
-      html += `<div class="chips">${techs.map(t => `<span class="chip">${escHtml(t)}</span>`).join('')}</div></div>`;
-    }
-
-    const industries = p.industry_application || [];
-    if (industries.length) {
-      html += `<div><div class="d-kv" style="margin-bottom:4px"><strong>Industry</strong></div>`;
-      html += `<div class="chips">${industries.map(i => `<span class="chip">${escHtml(i)}</span>`).join('')}</div></div>`;
-    }
-
-    const links = [
-      p.url_primary && { label: '🌐 Website', url: p.url_primary },
-      p.url_paper   && { label: '📄 Paper',   url: p.url_paper },
-      p.url_github  && { label: '💾 GitHub',  url: p.url_github },
-    ].filter(Boolean);
-    if (links.length) {
-      html += `<div class="d-links">`;
-      links.forEach(l => {
-        html += `<a class="d-link" href="${escHtml(l.url)}" target="_blank" rel="noopener">${l.label}</a>`;
-      });
-      html += '</div>';
-    }
+  if (state.preFocusSnapshot) {
+    const snap = state.preFocusSnapshot;
+    const current = new Set(state.nodesDS.getIds());
+    const toAdd = [...snap.nodeIds].filter(id=>!current.has(id)).map(id=>nodeToVis(state.nodeById.get(id))).filter(Boolean);
+    const toRemove = [...current].filter(id=>!snap.nodeIds.has(id));
+    if (toRemove.length) state.nodesDS.remove(toRemove);
+    if (toAdd.length) state.nodesDS.add(toAdd);
+    applyEdgeFilter(snap.nodeIds);
+    state.preFocusSnapshot = null;
   } else {
-    // Non-project node: show label and connected projects
-    html += `<div class="d-kv" style="margin-top:6px">ID: <strong>${escHtml(node.id)}</strong></div>`;
+    applyNodeFilter();
   }
+  state.network.fit({ animation:{duration:500} });
+  toast('Returned to full graph');
+}
 
-  // Connected nodes
-  if (connectedNodes.length) {
-    const shown = connectedNodes.slice(0, 20);
-    html += `<div><div class="d-kv" style="margin-bottom:6px"><strong>Connected nodes</strong> (${connectedNodes.length})</div>`;
-    html += `<div class="d-neighbors" id="detail-neighbors"></div>`;
-    if (connectedNodes.length > 20) html += `<div class="d-kv">…and ${connectedNodes.length - 20} more</div>`;
-    html += '</div>';
-  }
+// ═══════════════════════════════════════════════════════════════════════════════
+// DETAIL PANEL
+// ═══════════════════════════════════════════════════════════════════════════════
+function showNodeDetail(nodeId) {
+  const n = state.nodeById.get(nodeId);
+  if (!n) return;
+  state.selectedNodeId = nodeId;
+  document.getElementById('detail').classList.remove('hidden');
+  document.getElementById('detail-title').textContent = n.label;
 
-  detailBody.innerHTML = html;
+  const body = document.getElementById('detail-body');
+  body.innerHTML = '';
 
-  // Wire neighbor click handlers without inline onclick (avoids quote-injection)
-  const neighborsEl = $('detail-neighbors');
-  if (neighborsEl) {
-    connectedNodes.slice(0, 20).forEach(cn => {
-      const div = document.createElement('div');
-      div.className = 'd-neighbor-link';
-      const dot = document.createElement('span');
-      dot.style.cssText = `color:${NODE_COLORS[cn.type]||'#888'};margin-right:5px`;
-      dot.textContent = '●';
-      div.append(dot, document.createTextNode(cn.label));
-      div.addEventListener('click', () => selectNode(cn.id));
-      neighborsEl.appendChild(div);
-    });
+  const add = (html) => { const d=document.createElement('div'); d.innerHTML=html; body.appendChild(d.firstElementChild || d); };
+
+  // Badge
+  add(`<div class="d-badge">${n.type}</div>`);
+
+  if (n.type === 'Project') renderProjectDetail(n, body);
+  else if (n.type === 'Organization') renderOrgDetail(n, body);
+  else renderGenericDetail(n, body);
+
+  // Neighbors section
+  const neighbors = getNeighbors(nodeId);
+  if (neighbors.length) {
+    const sec = document.createElement('div');
+    sec.className = 'd-section';
+    sec.innerHTML = `<div class="d-label">Neighbors (${neighbors.length})</div>`;
+    const list = document.createElement('div');
+    list.className = 'neighbor-list';
+    const show = neighbors.slice(0,12);
+    for (const nb of show) {
+      const btn = document.createElement('button');
+      btn.className = 'neighbor-btn';
+      const col = PALETTES[state.palette][nb.type] || '#888';
+      btn.innerHTML = `<span class="neighbor-dot" style="background:${col}"></span><span>${nb.label}</span><span style="font-family:var(--font-mono);font-size:10px;color:var(--fg-faint);margin-left:auto">${nb.type}</span>`;
+      btn.onclick = () => { showNodeDetail(nb.id); if(state.focusNodeId) enterFocusMode(nb.id,state.focusHops); };
+      list.appendChild(btn);
+    }
+    if (neighbors.length > 12) {
+      const more = document.createElement('div');
+      more.style.cssText='font-size:11px;color:var(--fg-faint);padding:4px 8px;font-family:var(--font-mono)';
+      more.textContent = `+${neighbors.length-12} more`;
+      list.appendChild(more);
+    }
+    // Expand button (for focus mode)
+    if (state.focusNodeId) {
+      const exp = document.createElement('button');
+      exp.className = 'expand-btn';
+      exp.textContent = `Expand to ${state.focusHops+1}-hop neighborhood`;
+      exp.onclick = () => enterFocusMode(state.focusNodeId, state.focusHops+1);
+      list.appendChild(exp);
+    }
+    sec.appendChild(list);
+    body.appendChild(sec);
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Tooltip
-// ────────────────────────────────────────────────────────────────────────────
-function showTooltip(nodeId, event) {
-  const raw = nodeById.get(nodeId);
-  if (!raw) return;
-  const p = raw.props || {};
-  let text = `<strong>${escHtml(raw.label)}</strong> <span style="color:var(--muted)">[${raw.type}]</span>`;
-  if (p.organization) text += `<br><span style="color:var(--muted)">${escHtml(p.organization)}</span>`;
-  if (p.year) text += ` · ${p.year}`;
-  tooltip.innerHTML = text;
-  tooltip.style.display = 'block';
-  const x = event.pageX || event.clientX;
-  const y = event.pageY || event.clientY;
-  tooltip.style.left = (x + 14) + 'px';
-  tooltip.style.top  = (y - 10) + 'px';
-}
+function renderProjectDetail(n, body) {
+  const p = n.props;
 
-// ────────────────────────────────────────────────────────────────────────────
-// Controls
-// ────────────────────────────────────────────────────────────────────────────
-$('btn-fit').addEventListener('click', () => network && network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } }));
-
-$('btn-physics').addEventListener('click', () => {
-  physicsEnabled = !physicsEnabled;
-  $('btn-physics').classList.toggle('active', physicsEnabled);
-  network && network.setOptions({ physics: { enabled: physicsEnabled } });
-});
-
-let clusterActive = false;
-$('btn-cluster').addEventListener('click', () => {
-  if (!network) return;
-  if (clusterActive) {
-    // Open all clusters
-    const clusterIds = network.body.nodeIndices.filter(id =>
-      typeof id === 'string' && id.startsWith('cluster:'));
-    clusterIds.forEach(id => network.openCluster(id));
-    clusterActive = false;
-    $('btn-cluster').classList.remove('active');
-    return;
-  }
-  // Cluster: group all Project nodes by their connected Category node.
-  const projectsByCat = new Map();
-  rawEdges.forEach(e => {
-    if (e.type !== 'IN_CATEGORY') return;
-    const projNode = nodeById.get(e.source);
-    const catNode = nodeById.get(e.target);
-    if (!projNode || projNode.type !== 'Project') return;
-    if (!catNode  || catNode.type  !== 'Category') return;
-    if (!visNodes.get(e.source)) return;
-    if (!projectsByCat.has(e.target)) projectsByCat.set(e.target, []);
-    projectsByCat.get(e.target).push(e.source);
+  // Key-value row helper
+  const kvSection = document.createElement('div');
+  kvSection.className = 'd-section';
+  const kvs = [
+    ['Category', p.category?.replace(/-/g,' ')],
+    ['Year', p.year],
+    ['Organization', p.organization],
+    ['Country', p.country ? `${FLAG[p.country]||''} ${p.country}` : null],
+    ['Type', p.type],
+    ['Status', p.status],
+  ].filter(([,v])=>v);
+  kvs.forEach(([k,v]) => {
+    const row = document.createElement('div');
+    row.className = 'd-kv';
+    row.innerHTML = `<span class="k">${k}</span><span class="v">${v}</span>`;
+    kvSection.appendChild(row);
   });
-  for (const [catId, projIds] of projectsByCat) {
-    if (projIds.length < 2) continue;
-    const catNode = nodeById.get(catId);
-    network.cluster({
-      joinCondition: child => projIds.includes(child.id),
-      clusterNodeProperties: {
-        id: 'cluster:' + catId,
-        label: catNode.label + '\n(' + projIds.length + ')',
-        shape: 'box',
-        color: { background: '#1e2430', border: NODE_COLORS.Category },
-        font: { color: '#fff', size: 13 },
-        borderWidth: 2,
-      },
-    });
+  body.appendChild(kvSection);
+
+  // Description
+  if (p.description) {
+    const sec = document.createElement('div');
+    sec.className = 'd-section';
+    sec.innerHTML = `<div class="d-label">Description</div><div class="d-text">${p.description}</div>`;
+    body.appendChild(sec);
   }
-  clusterActive = true;
-  $('btn-cluster').classList.add('active');
-});
 
+  // Techniques
+  if (p.techniques?.length) {
+    const sec = document.createElement('div');
+    sec.className = 'd-section';
+    sec.innerHTML = `<div class="d-label">Techniques</div>`;
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    p.techniques.slice(0,8).forEach(t=>{ chips.innerHTML+=`<span class="chip">${t}</span>`; });
+    sec.appendChild(chips);
+    body.appendChild(sec);
+  }
 
-$('btn-load').addEventListener('click', () => $('file-input').click());
-$('file-input').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (file) readFile(file);
-  e.target.value = '';
-});
+  // Industry
+  if (p.industry_application?.length) {
+    const sec = document.createElement('div');
+    sec.className = 'd-section';
+    sec.innerHTML = `<div class="d-label">Industry</div>`;
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    p.industry_application.forEach(t=>{ chips.innerHTML+=`<span class="chip">${t}</span>`; });
+    sec.appendChild(chips);
+    body.appendChild(sec);
+  }
 
-$('btn-pick-file').addEventListener('click', () => $('file-input').click());
-$('btn-load-default').addEventListener('click', () => {
-  fetch('graph/graph-data.json')
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(loadDataset)
-    .catch(err => alert('Could not load default dataset.\nRun build-graph.py first, then serve this folder with:\n  python scripts/serve.py\n\nError: ' + err.message));
-});
+  // Cluster info (in embed mode)
+  if (p.cluster_label) {
+    const sec = document.createElement('div');
+    sec.className = 'd-section';
+    sec.innerHTML = `<div class="d-label">Semantic cluster</div><div class="d-text">${p.cluster_label}</div>`;
+    body.appendChild(sec);
+  }
 
-$('detail-close').addEventListener('click', clearSelection);
+  // Links
+  const links = [
+    [p.url_primary,'🔗 Primary URL'],
+    [p.url_paper,'📄 Paper'],
+    [p.url_github,'⌥ GitHub'],
+  ].filter(([u])=>u);
+  if (links.length) {
+    const sec = document.createElement('div');
+    sec.className = 'd-section';
+    sec.innerHTML = `<div class="d-label">Links</div>`;
+    const dl = document.createElement('div');
+    dl.className = 'd-links';
+    links.forEach(([url,label]) => { dl.innerHTML+=`<a class="d-link" href="${url}" target="_blank" rel="noopener">${label}<span style="margin-left:auto;opacity:0.4">↗</span></a>`; });
+    sec.appendChild(dl);
+    body.appendChild(sec);
+  }
+}
 
-$('category-filter').addEventListener('change', applyFilters);
-$('year-min').addEventListener('change', applyFilters);
-$('year-max').addEventListener('change', applyFilters);
+function renderOrgDetail(n, body) {
+  const p = n.props;
+  const projects = state.orgToProjects.get(n.id) || [];
 
-let searchTimer;
-searchBox.addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(applyFilters, 300);
-});
+  // Country
+  if (p.country) {
+    const row = document.createElement('div');
+    row.className = 'd-kv';
+    row.innerHTML = `<span class="k">Country</span><span class="v">${FLAG[p.country]||''} ${p.country}</span>`;
+    body.appendChild(row);
+  }
 
-// Drag-and-drop on whole window
-window.addEventListener('dragover', e => e.preventDefault());
-window.addEventListener('drop', e => {
-  e.preventDefault();
-  const file = e.dataTransfer.files[0];
-  if (file && file.name.endsWith('.json')) readFile(file);
-});
+  // Stats
+  if (projects.length) {
+    const sec = document.createElement('div');
+    sec.className = 'd-section';
+    sec.innerHTML = `<div class="d-label">In this database</div>`;
+    const years = projects.map(pr=>pr.props.year).filter(Boolean).sort();
+    const cats = {};
+    projects.forEach(pr=>{ const c=pr.props.category||'?'; cats[c]=(cats[c]||0)+1; });
+    const topCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    sec.innerHTML += `<div class="d-kv"><span class="k">Projects</span><span class="v">${projects.length}</span></div>`;
+    if (years.length) sec.innerHTML += `<div class="d-kv"><span class="k">Years</span><span class="v">${years[0]}–${years[years.length-1]}</span></div>`;
+    sec.innerHTML += `<div class="d-label" style="margin-top:8px">Top categories</div>`;
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    topCats.forEach(([cat,n])=>{ chips.innerHTML+=`<span class="chip">${cat.replace(/-/g,' ')} (${n})</span>`; });
+    sec.appendChild(chips);
+    body.appendChild(sec);
 
-function readFile(file) {
+    // Project list
+    const psec = document.createElement('div');
+    psec.className = 'd-section';
+    psec.innerHTML = `<div class="d-label">Projects</div>`;
+    const list = document.createElement('div');
+    list.className = 'org-project-list';
+    projects.slice(0,15).forEach(pr=>{
+      const btn = document.createElement('button');
+      btn.className = 'org-proj-btn';
+      btn.textContent = pr.label + (pr.props.year ? ` (${pr.props.year})` : '');
+      btn.onclick = () => showNodeDetail(pr.id);
+      list.appendChild(btn);
+    });
+    if (projects.length > 15) {
+      const more = document.createElement('div');
+      more.style.cssText='font-size:11px;color:var(--fg-faint);padding:4px 8px;font-family:var(--font-mono)';
+      more.textContent=`+${projects.length-15} more`;
+      list.appendChild(more);
+    }
+    psec.appendChild(list);
+    body.appendChild(psec);
+  }
+}
+
+function renderGenericDetail(n, body) {
+  const p = n.props;
+  const sec = document.createElement('div');
+  sec.className = 'd-section';
+  const keys = Object.keys(p).filter(k=>!['id','name'].includes(k));
+  keys.slice(0,8).forEach(k=>{
+    const v = p[k];
+    if (!v || (Array.isArray(v)&&!v.length)) return;
+    const row = document.createElement('div');
+    row.className = 'd-kv';
+    row.innerHTML = `<span class="k">${k}</span><span class="v">${Array.isArray(v)?v.join(', '):v}</span>`;
+    sec.appendChild(row);
+  });
+  body.appendChild(sec);
+}
+
+function getNeighbors(nodeId) {
+  const seen = new Set([nodeId]);
+  const out = [];
+  const addNeighbor = (id) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    const n = state.nodeById.get(id);
+    if (n) out.push(n);
+  };
+  for (const e of (state.edgesBySource.get(nodeId)||[])) addNeighbor(e.target);
+  for (const e of (state.edgesByTarget.get(nodeId)||[])) addNeighbor(e.source);
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BREADCRUMB
+// ═══════════════════════════════════════════════════════════════════════════════
+function updateBreadcrumb(crumbs) {
+  const bc = document.getElementById('breadcrumb');
+  bc.innerHTML = '';
+  const rootSpan = document.createElement('span');
+  rootSpan.className = 'bc-item' + (crumbs.length ? '' : ' current');
+  rootSpan.textContent = 'Graph Explorer';
+  rootSpan.onclick = crumbs.length ? exitFocusMode : null;
+  bc.appendChild(rootSpan);
+  crumbs.forEach((c, i) => {
+    const sep = document.createElement('span'); sep.className='bc-sep'; sep.textContent='›'; bc.appendChild(sep);
+    const span = document.createElement('span');
+    span.className = 'bc-item' + (i===crumbs.length-1?' current':'');
+    span.textContent = c.label;
+    bc.appendChild(span);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════════════════════════════════════════
+function setupSearch() {
+  const input = document.getElementById('search-input');
+  const results = document.getElementById('search-results');
+  let debounce;
+  input.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => doSearch(input.value.trim()), 120);
+  });
+  input.addEventListener('focus', () => { if(input.value.trim()) results.classList.add('open'); });
+  document.addEventListener('click', e => { if(!input.contains(e.target)&&!results.contains(e.target)) results.classList.remove('open'); });
+}
+
+function doSearch(q) {
+  const results = document.getElementById('search-results');
+  if (!q || q.length < 2) { results.classList.remove('open'); return; }
+  const ql = q.toLowerCase();
+  const matches = state.data.nodes.filter(n => n.label.toLowerCase().includes(ql) || (n.props.description||'').toLowerCase().includes(ql)).slice(0,12);
+  if (!matches.length) { results.innerHTML='<div class="sr-item"><span class="sr-type"></span><div class="sr-main"><div class="sr-label" style="color:var(--fg-faint)">No results</div></div></div>'; results.classList.add('open'); return; }
+  results.innerHTML = matches.map(n => `
+    <button class="sr-item" data-id="${n.id}">
+      <span class="sr-type">${n.type}</span>
+      <div><div class="sr-label">${n.label}</div><div class="sr-meta">${n.props.organization||n.props.category||''} ${n.props.year||''}</div></div>
+    </button>`).join('');
+  results.classList.add('open');
+  results.querySelectorAll('.sr-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      results.classList.remove('open');
+      document.getElementById('search-input').value = '';
+      // Navigate to node
+      jumpToNode(id);
+    });
+  });
+}
+
+function jumpToNode(id) {
+  // Ensure node is visible
+  if (!state.nodesDS.get(id)) {
+    const n = state.nodeById.get(id);
+    if (n) {
+      // Enable the right node type
+      state.visibleNodeTypes.add(n.type);
+      applyNodeFilter();
+    }
+  }
+  if (state.network && state.nodesDS.get(id)) {
+    state.network.focus(id, { scale:1.5, animation:{duration:500,easingFunction:'easeInOutQuad'} });
+    state.network.selectNodes([id]);
+    showNodeDetail(id);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIDEBAR SETUP
+// ═══════════════════════════════════════════════════════════════════════════════
+function setupSidebar() {
+  // Accordion: one open at a time
+  document.querySelectorAll('#sidebar details').forEach(d => {
+    d.addEventListener('toggle', () => {
+      if (d.open) document.querySelectorAll('#sidebar details').forEach(other=>{ if(other!==d) other.open=false; });
+    });
+  });
+
+  // Node types
+  const ntl = document.getElementById('node-type-list');
+  NODE_TYPES.forEach(type => {
+    const row = document.createElement('label');
+    row.className = 'cb-row';
+    const checked = state.visibleNodeTypes.has(type) ? 'checked' : '';
+    const col = PALETTES[state.palette][type] || '#888';
+    row.innerHTML = `<input type="checkbox" ${checked}><span class="type-dot" style="background:${col}"></span><span>${type}</span>`;
+    row.querySelector('input').addEventListener('change', e => {
+      e.target.checked ? state.visibleNodeTypes.add(type) : state.visibleNodeTypes.delete(type);
+      applyNodeFilter();
+    });
+    ntl.appendChild(row);
+  });
+
+  // Edge types
+  const etl = document.getElementById('edge-type-list');
+  EDGE_TYPES.forEach(type => {
+    const row = document.createElement('label');
+    row.className = 'cb-row';
+    const checked = state.visibleEdgeTypes.has(type) ? 'checked' : '';
+    const col = EDGE_COLORS[type] || '#888';
+    row.innerHTML = `<input type="checkbox" ${checked}><span class="edge-stripe" style="background:${col}"></span><span style="font-size:11px">${type}</span>`;
+    row.querySelector('input').addEventListener('change', e => {
+      e.target.checked ? state.visibleEdgeTypes.add(type) : state.visibleEdgeTypes.delete(type);
+      applyEdgeFilter();
+    });
+    etl.appendChild(row);
+  });
+
+  // Categories
+  const cl = document.getElementById('cat-list');
+  (state.data.categories || []).forEach(cat => {
+    const row = document.createElement('label');
+    row.className = 'cb-row';
+    row.innerHTML = `<input type="checkbox" checked><span style="font-size:11px">${cat.replace(/-/g,' ')}</span>`;
+    row.dataset.cat = cat;
+    row.querySelector('input').addEventListener('change', e => {
+      if (e.target.checked) state.selectedCategories.delete(cat);
+      else state.selectedCategories.add(cat); // add means "excluded"
+      applyNodeFilter();
+    });
+    cl.appendChild(row);
+  });
+
+  document.getElementById('cat-all').onclick = () => {
+    state.selectedCategories.clear();
+    cl.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    applyNodeFilter();
+  };
+  document.getElementById('cat-clear').onclick = () => {
+    (state.data.categories||[]).forEach(c=>state.selectedCategories.add(c));
+    cl.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    applyNodeFilter();
+  };
+
+  // Year range
+  const d = state.data;
+  const [yMin, yMax] = d.yearRange || [1983, 2026];
+  state.yearMin = yMin; state.yearMax = yMax;
+  document.getElementById('year-min').value = yMin;
+  document.getElementById('year-max').value = yMax;
+  document.getElementById('year-min').addEventListener('change', e => { state.yearMin = parseInt(e.target.value)||0; applyNodeFilter(); });
+  document.getElementById('year-max').addEventListener('change', e => { state.yearMax = parseInt(e.target.value)||9999; applyNodeFilter(); });
+
+  // Stats
+  const sg = document.getElementById('stats-grid');
+  const meta = d.meta;
+  sg.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Projects</div><div class="stat-val">${d.nodes.filter(n=>n.type==='Project').length}</div></div>
+    <div class="stat-card"><div class="stat-label">Nodes</div><div class="stat-val">${meta.nodeCount.toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">Edges</div><div class="stat-val">${meta.edgeCount.toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">Version</div><div class="stat-val" style="font-size:11px">${meta.version}</div></div>
+  `;
+  updateNodeCountBadge();
+}
+
+function updateNodeCountBadge() {
+  const el = document.getElementById('node-count-badge');
+  if (el) el.textContent = `(${state.nodesDS ? state.nodesDS.length : 0} visible)`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLAMP OUTLIERS after stabilization
+// ═══════════════════════════════════════════════════════════════════════════════
+function clampOutliers() {
+  if (!state.network) return;
+  const ids = state.nodesDS.getIds();
+  if (ids.length < 5) return;
+  const positions = state.network.getPositions(ids);
+  const dists = Object.values(positions).map(p=>Math.sqrt(p.x*p.x+p.y*p.y)).sort((a,b)=>a-b);
+  const median = dists[Math.floor(dists.length/2)];
+  const maxDist = median * 3.5;
+  const updates = [];
+  for (const [id, pos] of Object.entries(positions)) {
+    const d = Math.sqrt(pos.x*pos.x+pos.y*pos.y);
+    if (d > maxDist) {
+      const scale = maxDist / d;
+      updates.push({ id, x: pos.x*scale, y: pos.y*scale });
+    }
+  }
+  if (updates.length) {
+    updates.forEach(u => state.network.moveNode(u.id, u.x, u.y));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VIS-NETWORK INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+function initNetwork() {
+  const d = state.data;
+  state.nodesDS = new vis.DataSet();
+  state.edgesDS = new vis.DataSet();
+
+  const visibleIds = computeVisibleNodeIds();
+  state.nodesDS.add([...visibleIds].map(id=>nodeToVis(state.nodeById.get(id))));
+  state.edgesDS.add(computeVisibleEdges(visibleIds));
+
+  const container = document.getElementById('graph');
+  const options = {
+    physics:{
+      enabled:true,
+      solver:'forceAtlas2Based',
+      forceAtlas2Based:{
+        gravitationalConstant:-30,
+        centralGravity:0.006,
+        springLength:220,
+        springConstant:0.15,
+        damping:0.4,
+        avoidOverlap:0.4,
+      },
+      stabilization:{iterations:150, updateInterval:25},
+      maxVelocity:120,
+      minVelocity:0.5,
+    },
+    interaction:{
+      hover:true,
+      tooltipDelay:300,
+      hideEdgesOnDrag:true,
+      navigationButtons:false,
+      keyboard:false,
+    },
+    edges:{
+      smooth:{type:'continuous',roundness:0.2},
+      selectionWidth:2,
+    },
+    nodes:{ chosen:true },
+    layout:{ improvedLayout:false },
+  };
+
+  state.network = new vis.Network(container, { nodes:state.nodesDS, edges:state.edgesDS }, options);
+
+  // Stabilization done → disable physics, clamp outliers
+  state.network.once('stabilizationIterationsDone', () => {
+    state.network.setOptions({ physics:{ enabled:false } });
+    clampOutliers();
+    document.getElementById('loading').classList.add('hidden');
+    updateNodeCountBadge();
+  });
+
+  // Draw clusters in embed mode
+  state.network.on('afterDrawing', ctx => drawClusters(ctx));
+
+  // Click
+  state.network.on('click', params => {
+    if (params.nodes.length) {
+      showNodeDetail(params.nodes[0]);
+    } else {
+      // Click on empty → close detail (unless in focus mode)
+      if (!state.focusNodeId) document.getElementById('detail').classList.add('hidden');
+    }
+  });
+
+  // Double-click → focus mode
+  state.network.on('doubleClick', params => {
+    if (params.nodes.length) enterFocusMode(params.nodes[0]);
+  });
+
+  // Hover tooltip
+  state.network.on('hoverNode', params => {
+    const n = state.nodeById.get(params.node);
+    if (!n) return;
+    document.getElementById('tt-type').textContent = n.type;
+    document.getElementById('tt-name').textContent = n.label;
+    document.getElementById('tt-desc').textContent = (n.props.description||'').slice(0,120)+(n.props.description?.length>120?'…':'');
+    const tt = document.getElementById('tooltip');
+    tt.style.display = 'block';
+  });
+  state.network.on('blurNode', () => { document.getElementById('tooltip').style.display='none'; });
+  document.addEventListener('mousemove', e => {
+    const tt = document.getElementById('tooltip');
+    if (tt.style.display==='block') { tt.style.left=(e.clientX+14)+'px'; tt.style.top=(e.clientY-10)+'px'; }
+  });
+
+  // Right-click context menu
+  state.network.on('oncontext', params => {
+    params.event.preventDefault();
+    if (params.nodes.length) {
+      state.ctxTargetId = params.nodes[0];
+      const menu = document.getElementById('ctx-menu');
+      menu.style.left = params.event.clientX+'px';
+      menu.style.top = params.event.clientY+'px';
+      menu.classList.add('open');
+    }
+  });
+  document.addEventListener('click', () => document.getElementById('ctx-menu').classList.remove('open'));
+  document.getElementById('ctx-focus').onclick = () => { if(state.ctxTargetId) enterFocusMode(state.ctxTargetId); };
+  document.getElementById('ctx-expand').onclick = () => {
+    if (state.ctxTargetId && state.focusNodeId) enterFocusMode(state.focusNodeId, state.focusHops+1);
+    else if (state.ctxTargetId) enterFocusMode(state.ctxTargetId);
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOOLBAR BUTTONS
+// ═══════════════════════════════════════════════════════════════════════════════
+function setupToolbar() {
+  document.getElementById('btn-fit').onclick = () => { state.network.fit({animation:{duration:400}}); toast('Fit to view'); };
+  document.getElementById('btn-embed').onclick = () => state.embedMode ? exitEmbedMode() : enterEmbedMode();
+  // btn-force handler wired in init() after physicsOn var is declared
+  document.getElementById('btn-palette').onclick = () => {
+    state.paletteIdx = (state.paletteIdx+1) % PALETTE_ORDER.length;
+    applyPalette();
+  };
+  document.getElementById('btn-help').onclick = () => openModal('modal-shortcuts');
+  document.getElementById('btn-feedback').onclick = () => openModal('modal-feedback');
+  document.getElementById('focus-exit').onclick = exitFocusMode;
+  document.getElementById('detail-close').onclick = () => document.getElementById('detail').classList.add('hidden');
+
+  // Embed cluster label toggle
+  document.querySelectorAll('.elt-btn').forEach(btn => {
+    btn.onclick = () => {
+      state.clusterLabelMode = btn.dataset.mode;
+      localStorage.setItem('explorer-cluster-label-mode', state.clusterLabelMode);
+      document.querySelectorAll('.elt-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.clusterLabelMode));
+      state.network.redraw();
+    };
+  });
+  // Restore cluster label mode
+  document.querySelectorAll('.elt-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.clusterLabelMode));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function setupModals() {
+  document.querySelectorAll('.modal-close,[data-close]').forEach(btn => {
+    btn.onclick = () => closeModal(btn.dataset.close || btn.closest('.modal-backdrop')?.id);
+  });
+  document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', e => { if(e.target===backdrop) closeModal(backdrop.id); });
+  });
+
+  // Onboarding
+  const ntTypes = NODE_TYPES.slice(0,8);
+  const og = document.getElementById('onboard-node-types');
+  ntTypes.forEach(t => {
+    const col = PALETTES.default[t] || '#888';
+    og.innerHTML += `<div class="onboard-item"><span class="onboard-dot" style="background:${col}"></span><span><strong>${t}</strong></span></div>`;
+  });
+  document.getElementById('onboard-dismiss').onclick = () => { closeModal('modal-onboard'); localStorage.setItem('explorer-visited','1'); };
+
+  // Feedback
+  document.getElementById('feedback-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      const resp = await fetch('https://formspree.io/f/xvgpdqov', {
+        method:'POST', headers:{'Accept':'application/json'},
+        body: fd,
+      });
+      if (resp.ok) { closeModal('modal-feedback'); toast('Thanks — feedback sent!'); e.target.reset(); }
+      else throw new Error('bad status');
+    } catch {
+      toast('Failed to send — please email douglaspmcgowan@gmail.com');
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+function setupKeyboard() {
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+    switch(e.key) {
+      case '/': e.preventDefault(); document.getElementById('search-input').focus(); break;
+      case ' ': e.preventDefault(); state.network?.fit({animation:{duration:400}}); break;
+      case 'e': case 'E': state.embedMode ? exitEmbedMode() : enterEmbedMode(); break;
+      case 'f': case 'F': document.getElementById('btn-force').click(); break;
+      case 'p': case 'P': state.paletteIdx=(state.paletteIdx+1)%PALETTE_ORDER.length; applyPalette(); break;
+      case '?': openModal('modal-shortcuts'); break;
+      case 'Escape':
+        if (document.querySelector('.modal-backdrop.open')) { document.querySelector('.modal-backdrop.open')?.classList.remove('open'); break; }
+        if (state.focusNodeId) { exitFocusMode(); break; }
+        if (state.embedMode) { exitEmbedMode(); break; }
+        document.getElementById('detail').classList.add('hidden');
+        break;
+      case 'Backspace': case 'ArrowLeft':
+        if (state.focusNodeId && document.activeElement.tagName!=='INPUT') { exitFocusMode(); }
+        break;
+      case 'Tab':
+        if (state.selectedNodeId) {
+          e.preventDefault();
+          const neighbors = getNeighbors(state.selectedNodeId).filter(n=>state.nodesDS.get(n.id));
+          if (!neighbors.length) break;
+          state.focusTabIdx = (state.focusTabIdx+1) % neighbors.length;
+          const nb = neighbors[state.focusTabIdx];
+          state.network.selectNodes([nb.id]);
+          state.network.focus(nb.id, {scale:1.3,animation:{duration:300}});
+          showNodeDetail(nb.id);
+        }
+        break;
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DRAG & DROP / FILE LOAD
+// ═══════════════════════════════════════════════════════════════════════════════
+function setupFileLoad() {
+  const graphWrap = document.getElementById('graph-wrap');
+  const overlay = document.getElementById('drop-overlay');
+
+  graphWrap.addEventListener('dragover', e => { e.preventDefault(); overlay.classList.add('open'); });
+  graphWrap.addEventListener('dragleave', e => { if(!graphWrap.contains(e.relatedTarget)) overlay.classList.remove('open'); });
+  graphWrap.addEventListener('drop', e => { e.preventDefault(); overlay.classList.remove('open'); loadFile(e.dataTransfer.files[0]); });
+
+  document.getElementById('file-input').onchange = e => loadFile(e.target.files[0]);
+}
+
+function loadFile(file) {
+  if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      loadDataset(JSON.parse(e.target.result));
-    } catch(err) {
-      alert('Invalid JSON file: ' + err.message);
-    }
+      const data = JSON.parse(e.target.result);
+      loadData(data);
+    } catch { toast('Invalid JSON file'); }
   };
   reader.readAsText(file);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Utilities
-// ────────────────────────────────────────────────────────────────────────────
-function escHtml(s) {
-  return String(s || '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+// ═══════════════════════════════════════════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════════════════════════════════════════
+function indexData(data) {
+  state.data = data;
+  state.nodeById.clear();
+  state.edgesBySource.clear();
+  state.edgesByTarget.clear();
+  state.orgToProjects.clear();
+
+  for (const n of data.nodes) state.nodeById.set(n.id, n);
+
+  for (const e of data.edges) {
+    if (!state.edgesBySource.has(e.source)) state.edgesBySource.set(e.source, []);
+    if (!state.edgesByTarget.has(e.target)) state.edgesByTarget.set(e.target, []);
+    state.edgesBySource.get(e.source).push(e);
+    state.edgesByTarget.get(e.target).push(e);
+
+    // Build org→projects map
+    if (e.type === 'BUILT_BY') {
+      if (!state.orgToProjects.has(e.target)) state.orgToProjects.set(e.target, []);
+      const proj = state.nodeById.get(e.source);
+      if (proj) state.orgToProjects.get(e.target).push(proj);
+    }
+  }
 }
 
-function adjustBrightness(hex, amt) {
-  const num = parseInt(hex.replace('#',''), 16);
-  const r = Math.max(0, Math.min(255, (num >> 16) + amt));
-  const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + amt));
-  const b = Math.max(0, Math.min(255, (num & 0xff) + amt));
-  return '#' + ((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
+function loadData(data) {
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('loading-msg').textContent = 'Indexing graph…';
+
+  setTimeout(() => {
+    indexData(data);
+    if (state.network) {
+      state.nodesDS.clear();
+      state.edgesDS.clear();
+      const visIds = computeVisibleNodeIds();
+      state.nodesDS.add([...visIds].map(id=>nodeToVis(state.nodeById.get(id))));
+      state.edgesDS.add(computeVisibleEdges(visIds));
+    } else {
+      initNetwork();
+      setupSidebar();
+    }
+  }, 50);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Auto-load: try fetching default dataset (works when served over HTTP)
-// ────────────────────────────────────────────────────────────────────────────
-fetch('graph/graph-data.json')
-  .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
-  .then(loadDataset)
-  .catch(() => {
-    // Show drop overlay — user needs to pick a file or run serve.py
-    dropOverlay.classList.remove('hidden');
-    loadingOverlay.classList.add('hidden');
-  });
+// ═══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+async function init() {
+  setupKeyboard();
+  setupSearch();
+  setupModals();
+  setupFileLoad();
+  setupToolbar();
+
+  // Load palette from localStorage
+  const savedPalette = localStorage.getItem('explorer-palette');
+  if (savedPalette && PALETTE_ORDER.includes(savedPalette)) {
+    state.paletteIdx = PALETTE_ORDER.indexOf(savedPalette);
+  }
+
+  try {
+    document.getElementById('loading-msg').textContent = 'Loading graph data…';
+    const resp = await fetch('graph/graph-data.json');
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    loadData(data);
+    setTimeout(() => {
+      // Show onboarding on first visit
+      if (!localStorage.getItem('explorer-visited')) openModal('modal-onboard');
+    }, 800);
+  } catch(err) {
+    document.getElementById('loading-msg').textContent = 'Could not load graph-data.json — drag a file onto the canvas.';
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('drop-overlay').classList.add('open');
+  }
+
+  // Track physics state properly
+  Object.defineProperty(state.network || {}, 'physicsEnabled', { get: ()=>true, configurable:true });
+  // Fix the force toggle to properly read physics state
+  let physicsOn = true;
+  document.getElementById('btn-force').onclick = () => {
+    physicsOn = !physicsOn;
+    state.network.setOptions({ physics:{ enabled:physicsOn } });
+    document.getElementById('btn-force').classList.toggle('active', physicsOn);
+    toast(physicsOn ? 'Force layout on' : 'Force layout off');
+  };
+}
+
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>

@@ -34,6 +34,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 IN_FILE = ROOT / "consolidated.jsonl"
 GRAPH_DIR = ROOT / "graph"
+EMBED_COORDS = GRAPH_DIR / "embed-coords.json"
+CLUSTER_LABELS = GRAPH_DIR / "cluster-labels.json"
 
 # ── Node type constants ──────────────────────────────────────────────────────
 T_PROJECT = "Project"
@@ -229,6 +231,25 @@ class GraphBuilder:
         # Build id → record lookup for description enrichment
         by_id: dict[str, dict] = {r["id"]: r for r in records}
 
+        # Load UMAP embed coordinates (optional — skip gracefully if missing)
+        embed_coords: dict[str, dict] = {}
+        if EMBED_COORDS.exists():
+            try:
+                embed_coords = json.loads(EMBED_COORDS.read_text(encoding="utf-8"))
+                print(f"Loaded embed coords for {len(embed_coords)} nodes")
+            except Exception:
+                pass
+
+        # Load cluster labels (set_B_kmeans) for embed view
+        cluster_label_map: dict[int, str] = {}
+        if CLUSTER_LABELS.exists():
+            try:
+                cl = json.loads(CLUSTER_LABELS.read_text(encoding="utf-8"))
+                for c, v in cl.get("set_B_kmeans", {}).items():
+                    cluster_label_map[int(c)] = v["label"]
+            except Exception:
+                pass
+
         # Nodes: parse props JSON so the explorer gets structured objects
         out_nodes = []
         for n in self.nodes.values():
@@ -236,7 +257,7 @@ class GraphBuilder:
                 props = json.loads(n["props"])
             except Exception:
                 props = {}
-            # Enrich Project nodes with full description
+            # Enrich Project nodes with full description + embed coords
             rec_id = props.get("id", "")
             if n["type"] == T_PROJECT and rec_id in by_id:
                 rec = by_id[rec_id]
@@ -245,6 +266,13 @@ class GraphBuilder:
                 props["industry_application"] = rec.get("industry_application", [])
                 props["tags"] = rec.get("tags", [])
                 props["name"] = rec.get("name", n["label"])
+                # Inject UMAP 2D coords for embed view
+                ec = embed_coords.get(rec_id)
+                if ec:
+                    props["embed_x"] = ec["x"]
+                    props["embed_y"] = ec["y"]
+                    props["cluster_k"] = ec["cluster_k"]
+                    props["cluster_label"] = cluster_label_map.get(ec["cluster_k"], f"Cluster {ec['cluster_k']}")
             out_nodes.append({"id": n["id"], "type": n["type"], "label": n["label"], "props": props})
 
         out_edges = [dict(e) for e in self.edges]
@@ -258,6 +286,7 @@ class GraphBuilder:
             },
             "categories": categories,
             "yearRange": year_range,
+            "clusterLabels": cluster_label_map,  # int-keyed cluster → label (Set B)
             "nodes": out_nodes,
             "edges": out_edges,
         }
