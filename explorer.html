@@ -1377,6 +1377,10 @@ a:hover {
           <span id="node-types-summary" class="summary-meta">0 / 0</span>
         </summary>
         <div class="section-body">
+          <div class="categories-actions">
+            <button id="node-types-select-all" class="ghost-button" type="button">Select all</button>
+            <button id="node-types-clear-all" class="ghost-button" type="button">Clear</button>
+          </div>
           <div id="node-type-list" class="option-list"></div>
         </div>
       </details>
@@ -1387,6 +1391,10 @@ a:hover {
           <span id="edge-types-summary" class="summary-meta">0 / 0</span>
         </summary>
         <div class="section-body">
+          <div class="categories-actions">
+            <button id="edge-types-select-all" class="ghost-button" type="button">Select all</button>
+            <button id="edge-types-clear-all" class="ghost-button" type="button">Clear</button>
+          </div>
           <div id="edge-type-list" class="option-list"></div>
         </div>
       </details>
@@ -1624,12 +1632,12 @@ const SEMANTIC_EDGE_TYPES = new Set(["CITES", "BUILT_ON", "BENCHMARKED_AGAINST",
 const FORCE_OPTIONS = {
   enabled: true,
   forceAtlas2Based: {
-    gravitationalConstant: -26,
-    centralGravity: 0.005,
-    springLength: 230,
-    springConstant: 0.18,
+    gravitationalConstant: -30,
+    centralGravity: 0.006,
+    springLength: 220,
+    springConstant: 0.15,
     damping: 0.4,
-    avoidOverlap: 0.5,
+    avoidOverlap: 0.4,
   },
   solver: "forceAtlas2Based",
   stabilization: { iterations: 150 },
@@ -1941,6 +1949,9 @@ const state = {
     hoverNodeId: "",
     hoverPosition: { x: 0, y: 0 },
     hullRafId: 0,
+    zoomScale: 1,
+    hoveredHullKey: "",
+    renderedHulls: [],
   },
   timers: {
     physics: 0,
@@ -2253,7 +2264,7 @@ function buildInitialPositions(nodes, nodeById, incidentEdgeIdsByNode, edgeById)
     const x = Number(node.props?.embed_x);
     const y = Number(node.props?.embed_y);
     if (Number.isFinite(x) && Number.isFinite(y)) {
-      const position = { x: x * 80, y: y * 80 };
+      const position = { x: x * 120, y: y * 120 };
       projectPositions.set(node.id, position);
       positions.set(node.id, position);
       continue;
@@ -3016,35 +3027,30 @@ function buildFocusNodeIds(baseEligibleNodeIds) {
   if (!state.focus) {
     return baseEligibleNodeIds;
   }
-  const rootId = state.focus.rootId;
-  if (!baseEligibleNodeIds.has(rootId)) {
-    return new Set();
-  }
+  const roots = state.focus.accumulatedIds || new Set([state.focus.rootId]);
   const allowedEdgeTypes = getActiveEdgeTypeSet();
-  const visible = new Set([rootId]);
-  let frontier = new Set([rootId]);
-  for (let hop = 0; hop < state.focus.depth; hop += 1) {
-    const nextFrontier = new Set();
-    for (const nodeId of frontier) {
-      const incidentIds = state.caches.incidentEdgeIdsByNode.get(nodeId) || [];
-      for (const edgeId of incidentIds) {
-        const edge = state.caches.edgeById.get(edgeId);
-        if (!edge || !allowedEdgeTypes.has(edge.type)) {
-          continue;
+  const visible = new Set();
+  for (const rootId of roots) {
+    if (!baseEligibleNodeIds.has(rootId)) continue;
+    visible.add(rootId);
+    let frontier = new Set([rootId]);
+    for (let hop = 0; hop < state.focus.depth; hop += 1) {
+      const nextFrontier = new Set();
+      for (const nodeId of frontier) {
+        const incidentIds = state.caches.incidentEdgeIdsByNode.get(nodeId) || [];
+        for (const edgeId of incidentIds) {
+          const edge = state.caches.edgeById.get(edgeId);
+          if (!edge || !allowedEdgeTypes.has(edge.type)) continue;
+          const otherId = edge.source === nodeId ? edge.target : edge.source;
+          if (!baseEligibleNodeIds.has(otherId)) continue;
+          if (!visible.has(otherId)) nextFrontier.add(otherId);
+          visible.add(otherId);
         }
-        const otherId = edge.source === nodeId ? edge.target : edge.source;
-        if (!baseEligibleNodeIds.has(otherId)) {
-          continue;
-        }
-        if (!visible.has(otherId)) {
-          nextFrontier.add(otherId);
-        }
-        visible.add(otherId);
       }
+      frontier = nextFrontier;
     }
-    frontier = nextFrontier;
   }
-  return visible;
+  return visible.size ? visible : new Set();
 }
 
 function buildFocusNeighborIds(baseEligibleNodeIds) {
@@ -3077,7 +3083,7 @@ function getPreferredPosition(nodeId) {
     const embedX = Number(node?.props?.embed_x);
     const embedY = Number(node?.props?.embed_y);
     if (Number.isFinite(embedX) && Number.isFinite(embedY)) {
-      return { x: embedX * 80, y: embedY * 80 };
+      return { x: embedX * 120, y: embedY * 120 };
     }
   }
   if (state.caches.pendingRestorePositions.has(nodeId)) {
@@ -3099,7 +3105,7 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
   const isPrimary = state.selection.primaryId === nodeId;
   const isFocusRoot = state.focus?.rootId === nodeId;
   const isFlashing = state.selection.flashId === nodeId;
-  const showAllLabels = Boolean(state.focus) || visibleNodeCount <= 180;
+  const showAllLabels = Boolean(state.focus) || state.ui.zoomScale >= 0.65 || visibleNodeCount <= 180;
   let label = "";
   if (!state.embedActive) {
     if (showAllLabels) {
@@ -3123,7 +3129,7 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
       strokeWidth: 0,
     },
     shape: getNodeShape(node.type),
-    size: metrics.size + (isSelected ? 2 : 0) + (isFlashing ? 2 : 0),
+    size: (state.embedActive && node.type === "Project" ? 6 : metrics.size) + (isSelected ? 2 : 0) + (isFlashing ? 2 : 0),
     title: "",
     x: position.x,
     y: position.y,
@@ -3713,6 +3719,7 @@ function focusCameraOnNode(nodeId) {
 function activateFocus(nodeId, depth = 1) {
   state.focus = {
     rootId: nodeId,
+    accumulatedIds: new Set([nodeId]),
     depth,
     neighborIndex: -1,
   };
@@ -3721,6 +3728,22 @@ function activateFocus(nodeId, depth = 1) {
   updateFocusExitButtonLabel();
   applyView({ fit: true });
   showToast(depth === 1 ? "Focus mode enabled." : "2-hop focus enabled.", "success");
+}
+
+function expandFocusToNode(nodeId) {
+  if (!state.focus) {
+    activateFocus(nodeId);
+    return;
+  }
+  state.focus.accumulatedIds.add(nodeId);
+  state.focus.rootId = nodeId;
+  state.focus.neighborIndex = -1;
+  state.selection.ids = new Set([nodeId]);
+  state.selection.primaryId = nodeId;
+  updateFocusExitButtonLabel();
+  applyView({ fit: true });
+  const count = state.focus.accumulatedIds.size;
+  showToast(count + " anchor" + (count === 1 ? "" : "s") + " in discovery.", "success");
 }
 
 function exitFocus(announce = true) {
@@ -3738,6 +3761,18 @@ function exitFocus(announce = true) {
 function stepBack() {
   if (state.focus?.depth === 2) {
     state.focus.depth = 1;
+    applyView({ fit: true });
+    return;
+  }
+  if (state.focus && state.focus.accumulatedIds && state.focus.accumulatedIds.size > 1) {
+    // Pop the most recently added anchor (last in insertion order)
+    const all = Array.from(state.focus.accumulatedIds);
+    const removed = all.pop();
+    state.focus.accumulatedIds = new Set(all);
+    state.focus.rootId = all[all.length - 1] || removed;
+    state.focus.neighborIndex = -1;
+    const count = state.focus.accumulatedIds.size;
+    showToast(count + " anchor" + (count === 1 ? "" : "s") + " in discovery.", "warn");
     applyView({ fit: true });
     return;
   }
@@ -3907,9 +3942,41 @@ function handleNetworkStabilized() {
 }
 
 function handleViewportChanged() {
+  const newScale = state.network?.getScale() ?? 1;
+  const scaleChanged = Math.abs(newScale - state.ui.zoomScale) > 0.04;
+  state.ui.zoomScale = newScale;
   syncPositionCacheFromNetwork();
   scheduleClusterHullRender();
   closeContextMenu();
+  if (scaleChanged) {
+    refreshNodeLabels();
+  }
+}
+
+function refreshNodeLabels() {
+  if (!state.network || !state.currentView.nodeIds.size) return;
+  const count = state.currentView.nodeIds.size;
+  const updates = Array.from(state.currentView.nodeIds).map((nodeId) => {
+    const node = state.caches.nodeById.get(nodeId);
+    if (!node) return null;
+    const showAllLabels = Boolean(state.focus) || state.ui.zoomScale >= 0.65 || count <= 180;
+    let label = "";
+    if (!state.embedActive) {
+      if (showAllLabels) {
+        label = truncateText(node.label, node.type === "Project" ? 28 : 32);
+      } else if (node.type === "Category") {
+        label = truncateText(node.label, 26);
+      } else if (node.type === "Organization" && count <= 420) {
+        label = truncateText(node.label, 28);
+      } else if ((node.type === "Technique" || node.type === "Venue") && count <= 260) {
+        label = truncateText(node.label, 24);
+      }
+    }
+    return { id: nodeId, label };
+  }).filter(Boolean);
+  if (state.datasets?.nodes) {
+    state.datasets.nodes.update(updates);
+  }
 }
 
 function handleHoverNode(params) {
@@ -3932,6 +3999,9 @@ function handleNetworkMouseMove(params) {
   };
   if (state.ui.hoverNodeId) {
     renderTooltip();
+  }
+  if (state.embedActive && state.ui.renderedHulls.length) {
+    checkHullHover(sourceEvent.clientX, sourceEvent.clientY);
   }
 }
 
@@ -3988,7 +4058,11 @@ function handleNetworkDoubleClick(params) {
   if (!params.nodes.length) {
     return;
   }
-  activateFocus(params.nodes[0], 1);
+  if (state.focus) {
+    expandFocusToNode(params.nodes[0]);
+  } else {
+    activateFocus(params.nodes[0], 1);
+  }
 }
 
 function handleNetworkContextMenu(params) {
@@ -4042,7 +4116,9 @@ function renderClusterHulls() {
     if (!projectNode || projectNode.type !== "Project") {
       continue;
     }
-    const clusterKey = String(projectNode.props?.cluster_k ?? "");
+    const clusterKey = state.clusterLabelMode === "A"
+      ? String(projectNode.props?.category ?? "")
+      : String(projectNode.props?.cluster_k ?? "");
     if (!clusterKey) {
       continue;
     }
@@ -4053,10 +4129,10 @@ function renderClusterHulls() {
     const domPoint = state.network.canvasToDOM(canvasPosition);
     if (!groups.has(clusterKey)) {
       const preferredLabel = state.clusterLabelMode === "A"
-        ? projectNode.props?.cluster_category
-        : projectNode.props?.cluster_label;
+        ? clusterKey
+        : (projectNode.props?.cluster_label || state.data.clusterLabelByKey.get(clusterKey) || ("Cluster " + clusterKey));
       groups.set(clusterKey, {
-        label: String(preferredLabel || state.data.clusterLabelByKey.get(clusterKey) || ("Cluster " + clusterKey)),
+        label: String(preferredLabel),
         points: [],
       });
     }
@@ -4064,12 +4140,14 @@ function renderClusterHulls() {
   }
 
   const palette = getCurrentPalette();
-  const fill = withAlpha(palette.nodeColors.Project, palette.key === "print" ? 0.06 : 0.05);
-  const stroke = withAlpha(palette.nodeColors.Project, palette.key === "print" ? 0.18 : 0.24);
+  const fillColor = palette.nodeColors.Project;
+  const fillOpacityBase = palette.key === "print" ? 0.06 : 0.05;
+  const strokeOpacityBase = palette.key === "print" ? 0.18 : 0.24;
   const textColor = palette.theme.fg;
   const fragments = [];
+  const renderedHulls = [];
 
-  for (const group of groups.values()) {
+  for (const [clusterKey, group] of groups.entries()) {
     if (group.points.length < 3) {
       continue;
     }
@@ -4078,20 +4156,60 @@ function renderClusterHulls() {
       continue;
     }
     const expandedHull = expandPolygon(hull, 14);
+    renderedHulls.push({ key: clusterKey, expandedHull });
+    const isHovered = clusterKey === state.ui.hoveredHullKey;
+    const fillOpacity = isHovered ? 0.14 : fillOpacityBase;
+    const strokeOpacity = isHovered ? 0.5 : strokeOpacityBase;
+    const strokeWidth = isHovered ? 1.5 : 1;
     const pointsAttribute = expandedHull.map((point) => point.x.toFixed(1) + "," + point.y.toFixed(1)).join(" ");
     const centroid = polygonCentroid(expandedHull);
     const labelText = escapeHtml(group.label);
     const labelWidth = labelText.length * 6.5 + 12;
+    const safeKey = escapeHtml(clusterKey);
     fragments.push(
-      "<polygon points='" + pointsAttribute + "' fill='" + fill + "' stroke='" + stroke + "' stroke-width='1'></polygon>" +
+      "<g class='hull-group' data-key='" + safeKey + "'>" +
+      "<polygon points='" + pointsAttribute + "' fill='" + fillColor + "' fill-opacity='" + fillOpacity + "' stroke='" + fillColor + "' stroke-opacity='" + strokeOpacity + "' stroke-width='" + strokeWidth + "'></polygon>" +
       "<g>" +
         "<rect x='" + (centroid.x - labelWidth / 2).toFixed(1) + "' y='" + (centroid.y - 13).toFixed(1) + "' width='" + labelWidth.toFixed(1) + "' height='18' rx='4' fill='rgba(10,10,11,0.72)'></rect>" +
         "<text x='" + centroid.x.toFixed(1) + "' y='" + centroid.y.toFixed(1) + "' fill='" + textColor + "' text-anchor='middle' dominant-baseline='middle' style='font-family: JetBrains Mono, monospace; font-size: 11px; font-weight: 500;'>" + labelText + "</text>" +
+      "</g>" +
       "</g>"
     );
   }
 
+  state.ui.renderedHulls = renderedHulls;
   dom.clusterOverlay.innerHTML = fragments.join("");
+}
+
+function isPointInPolygon(pt, polygon) {
+  let inside = false;
+  const n = polygon.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y;
+    const xj = polygon[j].x, yj = polygon[j].y;
+    if (((yi > pt.y) !== (yj > pt.y)) && (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function checkHullHover(clientX, clientY) {
+  if (!state.ui.renderedHulls.length || !dom.canvasSurface) return;
+  const rect = dom.canvasSurface.getBoundingClientRect();
+  const domX = clientX - rect.left;
+  const domY = clientY - rect.top;
+  let newHovered = "";
+  for (const hull of state.ui.renderedHulls) {
+    if (isPointInPolygon({ x: domX, y: domY }, hull.expandedHull)) {
+      newHovered = hull.key;
+      break;
+    }
+  }
+  if (newHovered !== state.ui.hoveredHullKey) {
+    state.ui.hoveredHullKey = newHovered;
+    scheduleClusterHullRender();
+  }
 }
 
 function convexHull(points) {
@@ -4419,6 +4537,42 @@ function bindEvents() {
 
   dom.yearMin.addEventListener("change", handleYearInputChange);
   dom.yearMax.addEventListener("change", handleYearInputChange);
+
+  dom.nodeTypesSelectAll = document.getElementById("node-types-select-all");
+  dom.nodeTypesClearAll = document.getElementById("node-types-clear-all");
+  dom.nodeTypesSelectAll.addEventListener("click", () => {
+    if (!state.data) return;
+    state.filters.nodeTypes = new Set(NODE_TYPE_ORDER);
+    for (const input of state.controls.nodeTypeCheckboxes.values()) input.checked = true;
+    updateSidebarSummaries();
+    applyView({ fit: false });
+    showToast("All node types selected.", "success");
+  });
+  dom.nodeTypesClearAll.addEventListener("click", () => {
+    state.filters.nodeTypes = new Set();
+    for (const input of state.controls.nodeTypeCheckboxes.values()) input.checked = false;
+    updateSidebarSummaries();
+    applyView({ fit: false });
+    showToast("Node type filter cleared.", "warn");
+  });
+
+  dom.edgeTypesSelectAll = document.getElementById("edge-types-select-all");
+  dom.edgeTypesClearAll = document.getElementById("edge-types-clear-all");
+  dom.edgeTypesSelectAll.addEventListener("click", () => {
+    if (!state.data) return;
+    state.filters.edgeTypes = new Set(EDGE_TYPE_ORDER);
+    for (const input of state.controls.edgeTypeCheckboxes.values()) input.checked = true;
+    updateSidebarSummaries();
+    applyView({ fit: false });
+    showToast("All edge types selected.", "success");
+  });
+  dom.edgeTypesClearAll.addEventListener("click", () => {
+    state.filters.edgeTypes = new Set();
+    for (const input of state.controls.edgeTypeCheckboxes.values()) input.checked = false;
+    updateSidebarSummaries();
+    applyView({ fit: false });
+    showToast("Edge type filter cleared.", "warn");
+  });
 
   dom.categoriesSelectAll = document.getElementById("categories-select-all");
   dom.categoriesClearAll = document.getElementById("categories-clear-all");
