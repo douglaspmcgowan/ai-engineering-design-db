@@ -1549,7 +1549,6 @@ a:hover {
     <div class="modal-footer">
       <div class="modal-note">Press Esc to close the current modal or view.</div>
       <div class="modal-actions">
-        <button id="help-dismiss" class="ghost-button" type="button">Close</button>
         <button id="help-got-it" class="ghost-button is-strong" type="button">Got it</button>
       </div>
     </div>
@@ -1660,15 +1659,15 @@ function getVisualRegion(embedX, embedY) {
 const FORCE_OPTIONS = {
   enabled: true,
   forceAtlas2Based: {
-    gravitationalConstant: -30,
-    centralGravity: 0.006,
-    springLength: 220,
-    springConstant: 0.15,
-    damping: 0.4,
-    avoidOverlap: 0.4,
+    gravitationalConstant: -38,
+    centralGravity: 0.012,
+    springLength: 200,
+    springConstant: 0.16,
+    damping: 0.5,
+    avoidOverlap: 0.55,
   },
   solver: "forceAtlas2Based",
-  stabilization: { iterations: 150 },
+  stabilization: { iterations: 200 },
   maxVelocity: 146,
   minVelocity: 0.1,
 };
@@ -1682,7 +1681,7 @@ const NODE_METRICS = {
   PhysicsDomain: { size: 17, shape: "star" },
   Industry: { size: 15, shape: "hexagon" },
   Year: { size: 14, shape: "ellipse" },
-  Venue: { size: 15, shape: "database" },
+  Venue: { size: 13, shape: "dot" },
   Person: { size: 13, shape: "dot" },
 };
 
@@ -1923,7 +1922,6 @@ const dom = {
   detailClose: document.getElementById("detail-close"),
   helpModal: document.getElementById("help-modal"),
   helpClose: document.getElementById("help-close"),
-  helpDismiss: document.getElementById("help-dismiss"),
   helpGotIt: document.getElementById("help-got-it"),
   helpTabOverview: document.getElementById("help-tab-overview"),
   helpTabShortcuts: document.getElementById("help-tab-shortcuts"),
@@ -4685,7 +4683,6 @@ function bindEvents() {
   dom.helpTabOverview.addEventListener("click", () => setHelpTab("overview"));
   dom.helpTabShortcuts.addEventListener("click", () => setHelpTab("shortcuts"));
   dom.helpClose.addEventListener("click", () => closeHelp(false));
-  dom.helpDismiss.addEventListener("click", () => closeHelp(false));
   dom.helpGotIt.addEventListener("click", () => closeHelp(true));
   dom.helpModal.addEventListener("click", (event) => {
     if (event.target === dom.helpModal) {
