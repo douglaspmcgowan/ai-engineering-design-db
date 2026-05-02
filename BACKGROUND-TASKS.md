@@ -1,105 +1,47 @@
-# Background Tasks
+# Background Agent Tasks
 
-This file is written immediately when a long-running background agent is dispatched.
-Check this file first on any session resume. If expected output files are missing, re-dispatch.
-
----
-
-## Wave 3 — Codex research sweep (10 domains, ~250 entries)
-
-| Field | Value |
-|---|---|
-| **First attempt** | task-mojmal15-hls6ta (PID 46584) — ZOMBIE: died ~10m in at 05:41:35Z without writing any raw files |
-| **Re-dispatch** | 2026-04-28 (this session) — agent ID a9388bfc28ce61a65 |
-| **Status** | running, writing raw/16-25 directly (no helper-script detour) |
-| **People extractor** | ✅ done — 72 people, 73 AUTHORED edges (graph/people-{nodes,edges}.csv) |
-
-### Expected output files
-| File | Target |
-|---|---|
-| `raw/16-eda-chip-design.jsonl` | 30+ |
-| `raw/17-pcb-electronics-design.jsonl` | 25+ |
-| `raw/18-aec-construction-ai.jsonl` | 30+ |
-| `raw/19-robotics-manufacturing.jsonl` | 30+ |
-| `raw/20-vision-inspection-qa-ml.jsonl` | 30+ |
-| `raw/21-process-monitoring-am-boost.jsonl` | 25+ |
-| `raw/22-dfm-machining-molding.jsonl` | 25+ |
-| `raw/23-medical-engineering-ai.jsonl` | 25+ |
-| `raw/24-engineering-rag-chat.jsonl` | 25+ |
-| `raw/25-scan-to-cad-reverse-eng.jsonl` | 20+ |
-
-### Next steps after Wave 3 completes
-1. `py -3 scripts/consolidate.py`
-2. `py -3 scripts/embed.py`
-3. `py -3 scripts/extract-people.py` (new)
-4. `py -3 scripts/extract-venues.py` (new)
-5. `py -3 scripts/extract-semantic-edges.py`
-6. `py -3 scripts/build-graph.py --no-html`
-7. `py -3 scripts/whitespace-report.py`
-8. `py -3 scripts/load-kuzu.py`
+## Task: explorer.html 7-fix repair — COMPLETED 2026-04-30
+- **Commit**: 567d1e4 on main
+- **Agent ID**: task-molvhl65-vwk3eo — was bogus (prompt="test"); fixes made directly by Claude
+- **Note**: Codex notification hook updated in ~/.claude/settings.json (agent_complete → Windows popup)
+- **Fixes landed**:
+  1. ✅ FORCE_OPTIONS restored (gravitationalConstant -30, centralGravity 0.006, springLength 220, springConstant 0.15, avoidOverlap 0.4)
+  2. ✅ Embed coord scale 80→120; Project size 10→6 in embed mode
+  3. ✅ Zoom-reactive labels (handleViewportChanged → refreshNodeLabels, threshold zoomScale >= 0.65)
+  4. ✅ Category cluster mode A groups by props.category (different hulls, not just different labels)
+  5. ✅ Select All / Clear buttons added to Node Types + Edge Types sidebar
+  6. ✅ Bloom cumulative discovery (accumulatedIds Set, expandFocusToNode, Backspace pops)
+  7. ✅ Hull hover via JS mousemove (isPointInPolygon + checkHullHover, no pointer-events breakage)
 
 ---
-
-## Wave 2 — Codex research sweep (5 domains)
-
-| Field | Value |
-|---|---|
-| **Codex job ID** | task-mojbqtkp-hy60y1 |
-| **PID** | 37372 |
-| **Dispatched** | 2026-04-29 |
-| **Status** | ✅ completed — files written, process exited before marking done |
-
-### Expected output files
-
-| File | Target entries |
-|---|---|
-| `raw/11-b-rep-learning.jsonl` | 35+ |
-| `raw/12-benchmark-datasets.jsonl` | 25+ |
-| `raw/13-architected-materials.jsonl` | 30+ |
-| `raw/14-scientific-ml-tools.jsonl` | 30+ |
-| `raw/15-inverse-design-mdo.jsonl` | 30+ |
-
-### Next steps after Wave 2 completes
-1. `python scripts/consolidate.py`
-2. `python scripts/embed.py`
-3. `python scripts/build-graph.py` → graph/graph.html
-4. Report totals
+## Task: Spring Length Screenshots — IN PROGRESS 2026-05-02
+- **Agent ID:** bofyuidil
+- **Script:** `_spring_length_shots.py`
+- **Output dir:** `Obsidian/.../Research/attachments/spring-lengths/`
+- **Files expected:** `sl-080.png`, `sl-120.png`, `sl-150.png`, `sl-200.png`, `sl-240.png`, `sl-280.png`
+- **Output log:** `C:\Users\dougl\AppData\Local\Temp\claude\...\tasks\bofyuidil.output`
+- **Re-dispatch:** `python _spring_length_shots.py` from project dir
 
 ---
+## Task: Online Graph Screenshots — IN PROGRESS 2026-05-02
+- **Agent ID:** b5us7pe07
+- **Script:** `_online_graph_shots.js`
+- **Output dir:** `Obsidian/.../Research/attachments/online-graphs/`
+- **Files expected:** `01-connected-papers.png` through `10-semantic-scholar.png`
+- **Output log:** `C:\Users\dougl\AppData\Local\Temp\claude\...\tasks\b5us7pe07.output`
+- **Re-dispatch:** `node _online_graph_shots.js "<obsidian_dir>/Research/attachments/online-graphs"` from project dir
 
-## Wave 1 — Codex research sweep (10 domains)
-
-| Field | Value |
-|---|---|
-| **Codex job ID** | task-moj2yuzz-bhlyou |
-| **PID** | 37484 |
-| **Dispatched** | 2026-04-28T20:30:29Z |
-| **Status** | ✅ completed — 2026-04-29T00:17:26Z |
-| **Claude session** | C--Users-dougl-My-Drive--douglaspmcgowan-gmail-com--UC-Berkeley-Research-Claude-Research-Folder |
-
-### Expected output files (check existence to confirm completion)
-
-| File | Target entries |
-|---|---|
-| `raw/01-text-to-cad-commercial.jsonl` | 30+ |
-| `raw/02-text-to-cad-academic.jsonl` | 40+ |
-| `raw/03-topology-optimization.jsonl` | 35+ |
-| `raw/04-neural-operators-surrogates.jsonl` | 40+ |
-| `raw/05-generative-3d-shape.jsonl` | 35+ |
-| `raw/06-generative-materials.jsonl` | 35+ |
-| `raw/07-dfm-dfam-ai.jsonl` | 30+ |
-| `raw/08-cad-copilots-agents.jsonl` | 25+ |
-| `raw/09-generative-platforms.jsonl` | 25+ |
-| `raw/10-pinn-differentiable.jsonl` | 30+ |
-
-**Seed file already present:** `raw/00-seed-from-training.jsonl` (63 entries)
-
-### Next steps after Codex completes
-1. `python scripts/consolidate.py` → `consolidated.jsonl`
-2. `python scripts/embed.py` → `embeddings.jsonl`
-3. `python scripts/nearest.py "deepcad" -k 5` — spot-check kNN quality
-4. Report final entry count + category breakdown to user
-5. Consider Wave 2: b-rep learning, benchmark datasets, architected materials, harvest from AI-in-Design-Map site
-
-### Re-dispatch prompt (if output files are missing)
-Use `Agent(subagent_type="codex:codex-rescue")` with `--fresh` and the full 10-domain brief from the session transcript.
+---
+## Task: explorer.html performance + UX fixes
+- **Agent ID:** b62i2ghsi
+- **Dispatched:** 2026-04-30
+- **Output file:** C:\Users\dougl\AppData\Local\Temp\claude\C--Users-dougl-My-Drive--douglaspmcgowan-gmail-com--UC-Berkeley-Research-Claude-Research-Folder\0a42a30d-13e5-48b4-8ed2-73476b8b6a4d\tasks\b62i2ghsi.output
+- **Expected changes:** explorer.html only (6 fixes applied, Playwright tests passing, committed)
+- **Re-dispatch if needed:** Run codex-rescue with --resume on the same task prompt (explorer.html perf/zoom/one-hop/visual/layout fixes)
+- **Fixes:**
+  1. Zoom lag — split handleViewportChanged into handleZoom + handleDragEnd
+  2. Smooth edges → straight lines in Force mode
+  3. Default node/edge types narrowed to Project/Org/Category/Technique + 3 edge types
+  4. fit() calls get padding: 60 everywhere
+  5. One-hop expand UX — background double-click exits focus, breadcrumb, Exploring label, camera on new node
+  6. afterDrawing RAF gated to embed mode only

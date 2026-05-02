@@ -550,6 +550,58 @@ a:hover {
   transition-duration: var(--ease-fast);
 }
 
+/* Physics Lab panel */
+.phys-lab { display: flex; flex-direction: column; gap: 5px; }
+.phys-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 52px;
+  align-items: center;
+  gap: 5px;
+}
+.phys-label {
+  font: 500 10px/1 var(--font-mono);
+  color: var(--fg-faint);
+  text-align: right;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.phys-slider {
+  width: 100%;
+  height: 3px;
+  accent-color: #f97316;
+  cursor: pointer;
+}
+.phys-val {
+  font: 500 10px/1 var(--font-mono);
+  color: var(--fg-muted, var(--fg-faint));
+  text-align: right;
+  letter-spacing: -0.02em;
+}
+.phys-divider {
+  font: 600 9px/1 var(--font-mono);
+  color: var(--fg-faint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 0 2px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+.phys-check-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 500 10px/1 var(--font-mono);
+  color: var(--fg-faint);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.phys-actions { display: flex; gap: 5px; }
+.phys-actions .ghost-button { flex: 1; font-size: 10px; padding: 4px 6px; }
+.phys-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.phys-presets .ghost-button { font-size: 10px; padding: 4px 6px; }
+.phys-wide-btn { width: 100%; font-size: 10px; padding: 5px; margin-top: 2px; }
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1353,6 +1405,7 @@ a:hover {
   <div class="topbar-actions">
     <button id="home-button" class="ghost-button" type="button">Home</button>
     <button id="embed-button" class="ghost-button" type="button">Embed</button>
+    <button id="reset-button" class="ghost-button" type="button" title="Reset node positions to UMAP seed">Reset</button>
     <button id="discover-button" class="ghost-button" type="button">Discover</button>
     <button id="force-button" class="ghost-button is-active" type="button">Force</button>
     <div style="position: relative;">
@@ -1431,6 +1484,91 @@ a:hover {
               <div class="field-label">Max year</div>
               <input id="year-max" class="text-input" type="number" inputmode="numeric">
             </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="sidebar-section" data-accordion>
+        <summary>
+          <span class="summary-title">View Presets</span>
+          <span class="summary-meta">Quick</span>
+        </summary>
+        <div class="section-body">
+          <div class="phys-presets">
+            <button class="ghost-button" id="vp-project-graph" type="button"
+              title="Projects, orgs, categories, techniques — hub-and-spoke">Project Graph</button>
+            <button class="ghost-button" id="vp-hierarchical" type="button"
+              title="Category → project → industry hierarchy">Hierarchical</button>
+            <button class="ghost-button" id="vp-industry" type="button"
+              title="Industry applications and builder orgs">Industry</button>
+            <button class="ghost-button" id="vp-research" type="button"
+              title="Authors, venues, publications, citations">Research</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="sidebar-section" data-accordion>
+        <summary>
+          <span class="summary-title">Physics Lab</span>
+          <span id="physics-lab-summary" class="summary-meta">barnesHut</span>
+        </summary>
+        <div class="section-body">
+          <div class="phys-lab">
+            <div class="phys-row">
+              <label class="phys-label" for="phys-grav">Gravity</label>
+              <input id="phys-grav" class="phys-slider" type="range" min="-30000" max="-500" step="500" value="-15000">
+              <span id="phys-grav-val" class="phys-val">-15000</span>
+            </div>
+            <div class="phys-row">
+              <label class="phys-label" for="phys-cg">CentralG</label>
+              <input id="phys-cg" class="phys-slider" type="range" min="0.001" max="0.08" step="0.001" value="0.006">
+              <span id="phys-cg-val" class="phys-val">0.006</span>
+            </div>
+            <div class="phys-row">
+              <label class="phys-label" for="phys-sl">SpringLen</label>
+              <input id="phys-sl" class="phys-slider" type="range" min="40" max="360" step="10" value="200">
+              <span id="phys-sl-val" class="phys-val">200</span>
+            </div>
+            <div class="phys-row">
+              <label class="phys-label" for="phys-sc">SpringK</label>
+              <input id="phys-sc" class="phys-slider" type="range" min="0.01" max="0.30" step="0.01" value="0.10">
+              <span id="phys-sc-val" class="phys-val">0.10</span>
+            </div>
+            <div class="phys-row">
+              <label class="phys-label" for="phys-ao">Overlap</label>
+              <input id="phys-ao" class="phys-slider" type="range" min="0" max="0.6" step="0.02" value="0.20">
+              <span id="phys-ao-val" class="phys-val">0.20</span>
+            </div>
+            <div class="phys-row">
+              <label class="phys-label" for="phys-damp">Damping</label>
+              <input id="phys-damp" class="phys-slider" type="range" min="0.02" max="0.40" step="0.01" value="0.15">
+              <span id="phys-damp-val" class="phys-val">0.15</span>
+            </div>
+            <div class="phys-row">
+              <label class="phys-label" for="phys-iter">Iterations</label>
+              <input id="phys-iter" class="phys-slider" type="range" min="50" max="600" step="50" value="100">
+              <span id="phys-iter-val" class="phys-val">100</span>
+            </div>
+            <div class="phys-divider">Controls</div>
+            <label class="phys-check-row">
+              <input id="phys-continuous" type="checkbox">
+              Continuous physics (no cutoff)
+            </label>
+            <div class="phys-actions">
+              <button id="phys-restart" class="ghost-button" type="button">Restart physics</button>
+              <button id="phys-reset-params" class="ghost-button" type="button">Reset params</button>
+            </div>
+            <div class="phys-divider">Presets</div>
+            <div class="phys-presets">
+              <button id="phys-preset-default" class="ghost-button" type="button" title="Current tuned defaults">Default</button>
+              <button id="phys-preset-gephi" class="ghost-button" type="button" title="Gephi-like: strong repulsion, long springs">Gephi</button>
+              <button id="phys-preset-tight" class="ghost-button" type="button" title="Tight cluster islands">Tight</button>
+              <button id="phys-preset-spread" class="ghost-button" type="button" title="Maximum spread">Spread</button>
+            </div>
+            <button id="phys-gephi-phases" class="ghost-button phys-wide-btn" type="button"
+              title="Multi-phase: expansion (3s) → cooling (2s) → cluster separation (1.5s)">
+              ▶ Run Gephi Phases
+            </button>
           </div>
         </div>
       </details>
@@ -1596,6 +1734,42 @@ const GRAPH_URL = "./graph/graph-data.json";
 const STORAGE_KEYS = {
   palette: "explorer-palette",
   visited: "explorer-visited",
+};
+
+// Physics Lab presets — each matches the barnesHut sub-object + iterations
+const PHYSICS_PRESETS = {
+  default: { gravitationalConstant: -15000, centralGravity: 0.006, springLength: 200, springConstant: 0.10, avoidOverlap: 0.20, damping: 0.15, iterations: 100 },
+  gephi:   { gravitationalConstant: -20000, centralGravity: 0.003, springLength: 250, springConstant: 0.08, avoidOverlap: 0.15, damping: 0.10, iterations: 300 },
+  tight:   { gravitationalConstant: -18000, centralGravity: 0.005, springLength: 180, springConstant: 0.15, avoidOverlap: 0.25, damping: 0.15, iterations: 150 },
+  spread:  { gravitationalConstant: -12000, centralGravity: 0.003, springLength: 260, springConstant: 0.07, avoidOverlap: 0.20, damping: 0.12, iterations: 100 },
+};
+
+// View presets — each bundles node types, edge types, and a physics preset
+const VIEW_PRESETS = {
+  "project-graph": {
+    label: "Project Graph",
+    nodeTypes: ["Project", "Organization", "Category", "Technique"],
+    edgeTypes: ["BUILT_BY", "IN_CATEGORY", "USES_TECHNIQUE"],
+    physics: "default",
+  },
+  "hierarchical": {
+    label: "Hierarchical",
+    nodeTypes: ["Category", "Project", "Industry"],
+    edgeTypes: ["IN_CATEGORY", "APPLIED_TO"],
+    physics: "tight",
+  },
+  "industry": {
+    label: "Industry",
+    nodeTypes: ["Industry", "Project", "Organization"],
+    edgeTypes: ["APPLIED_TO", "BUILT_BY"],
+    physics: "spread",
+  },
+  "research": {
+    label: "Research",
+    nodeTypes: ["Project", "Person", "Venue", "Year"],
+    edgeTypes: ["AUTHORED", "PUBLISHED_AT", "RELEASED_IN", "CITES"],
+    physics: "gephi",
+  },
 };
 
 const NODE_TYPE_ORDER = [
@@ -1874,6 +2048,7 @@ const dom = {
   breadcrumbTrail: document.getElementById("breadcrumb-trail"),
   searchInput: document.getElementById("search-input"),
   embedButton: document.getElementById("embed-button"),
+  resetButton: document.getElementById("reset-button"),
   discoverButton: document.getElementById("discover-button"),
   forceButton: document.getElementById("force-button"),
   paletteButton: document.getElementById("palette-button"),
@@ -1985,6 +2160,7 @@ const state = {
     embedDrawingListenerActive: false,
     hoveredHullKey: "",
     renderedHulls: [],
+    continuousPhysics: false,
   },
   timers: {
     physics: 0,
@@ -3209,6 +3385,10 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
     }
   }
   const position = getPreferredPosition(nodeId);
+  // Scale size by log(degree) so high-degree hub nodes appear larger.
+  // incidentEdgeIdsByNode holds ALL edges (structural + semantic) for each node.
+  const _degree = state.caches.incidentEdgeIdsByNode?.get(nodeId)?.length || 1;
+  const _degreeBoost = state.embedActive ? 0 : Math.min(8, Math.log(_degree + 1) * 1.5);
   const rendered = {
     id: nodeId,
     label,
@@ -3219,7 +3399,7 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
       strokeWidth: 0,
     },
     shape: getNodeShape(node.type),
-    size: (state.embedActive && node.type === "Project" ? 6 : metrics.size) + (isSelected ? 2 : 0) + (isFlashing ? 2 : 0),
+    size: (state.embedActive && node.type === "Project" ? 6 : metrics.size + _degreeBoost) + (isSelected ? 2 : 0) + (isFlashing ? 2 : 0),
     title: "",
     x: position.x,
     y: position.y,
@@ -3936,7 +4116,16 @@ function toggleEmbed(announce = true) {
     state.embedActive = true;
     setEmbedDrawingListener(true);
     applyGraphTheme();
-    applyView({ fit: true });
+    // fit: false here — vis-network needs one render cycle to move fixed nodes
+    // to their new embed coords before fit() can compute the correct bounding box.
+    applyView({ fit: false });
+    window.setTimeout(() => {
+      state.network?.fit({
+        nodes: Array.from(state.currentView.nodeIds),
+        padding: 60,
+        animation: { duration: 600, easingFunction: "easeInOutQuad" },
+      });
+    }, 80);
     if (announce) {
       showToast("Embed view enabled.", "success");
     }
@@ -3950,6 +4139,187 @@ function toggleEmbed(announce = true) {
     showToast("Embed view disabled.", "success");
   }
 }
+
+// Snap every node back to its UMAP-seeded initial position, then re-run physics from there.
+// This is the same starting state as a fresh page load.
+function resetToInitialPositions() {
+  if (!state.data || !state.network) return;
+  state.caches.nodePositionCache = new Map(state.data.initialPositionsById);
+  state.caches.pendingRestorePositions = new Map();
+  applyView({ fit: false });
+  if (state.forceEnabled && !state.embedActive) {
+    settlePhysics();
+  }
+  window.setTimeout(() => {
+    state.network?.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+  }, 80);
+  showToast("Reset to UMAP seed positions.", "success");
+}
+
+// ─── Physics Lab ────────────────────────────────────────────────────────────
+
+function getPhysicsLabParams() {
+  const el = document.getElementById("phys-grav");
+  if (!el) return null; // panel not in DOM yet
+  return {
+    gravitationalConstant: Number(el.value),
+    centralGravity:        Number(document.getElementById("phys-cg").value),
+    springLength:          Number(document.getElementById("phys-sl").value),
+    springConstant:        Number(document.getElementById("phys-sc").value),
+    avoidOverlap:          Number(document.getElementById("phys-ao").value),
+    damping:               Number(document.getElementById("phys-damp").value),
+    iterations:            Number(document.getElementById("phys-iter").value),
+  };
+}
+
+function setPhysicsLabSliders(p) {
+  const map = {
+    "phys-grav": [p.gravitationalConstant, "phys-grav-val"],
+    "phys-cg":   [p.centralGravity,        "phys-cg-val"],
+    "phys-sl":   [p.springLength,           "phys-sl-val"],
+    "phys-sc":   [p.springConstant,         "phys-sc-val"],
+    "phys-ao":   [p.avoidOverlap,           "phys-ao-val"],
+    "phys-damp": [p.damping,                "phys-damp-val"],
+    "phys-iter": [p.iterations,             "phys-iter-val"],
+  };
+  for (const [sliderId, [val, labelId]] of Object.entries(map)) {
+    const slider = document.getElementById(sliderId);
+    const label  = document.getElementById(labelId);
+    if (slider) slider.value = val;
+    if (label)  label.textContent = String(val);
+  }
+}
+
+function applyPhysicsPreset(name) {
+  const preset = PHYSICS_PRESETS[name];
+  if (!preset) return;
+  setPhysicsLabSliders(preset);
+  if (state.network && !state.embedActive && state.forceEnabled) {
+    settlePhysics();
+  }
+  showToast("Preset: " + name, "success");
+}
+
+function applyViewPreset(name) {
+  const preset = VIEW_PRESETS[name];
+  if (!preset) return;
+
+  // Update filter state
+  state.filters.nodeTypes = new ReportedSizeSet(new Set(preset.nodeTypes), NODE_TYPE_ORDER.length);
+  state.filters.edgeTypes = new Set(preset.edgeTypes);
+
+  // Sync filter checkboxes to match the new filter state
+  for (const [type, input] of state.controls.nodeTypeCheckboxes) {
+    input.checked = state.filters.nodeTypes.has(type);
+  }
+  for (const [type, input] of state.controls.edgeTypeCheckboxes) {
+    input.checked = state.filters.edgeTypes.has(type);
+  }
+
+  // Stage physics sliders (applyView → settlePhysics will pick them up)
+  const physicsPreset = PHYSICS_PRESETS[preset.physics];
+  if (physicsPreset) setPhysicsLabSliders(physicsPreset);
+
+  applyView({ fit: true });
+  showToast("View: " + preset.label, "success");
+}
+
+function runGephiPhases() {
+  if (!state.network || state.embedActive) {
+    showToast("Exit embed mode first.", "warn");
+    return;
+  }
+  showToast("Gephi phases: expansion → cooling → clustering…", "success");
+  // Phase 1: Blast nodes apart (strong repulsion, no overlap avoidance)
+  state.network.setOptions({ physics: { enabled: true, solver: "barnesHut", barnesHut: {
+    gravitationalConstant: -25000, centralGravity: 0.001,
+    springLength: 280, springConstant: 0.06, avoidOverlap: 0, damping: 0.08,
+  }, stabilization: { enabled: false }, maxVelocity: 200 }});
+  // Phase 2: Cooling — ease forces, nodes drift to equilibrium
+  window.setTimeout(() => {
+    if (!state.network) return;
+    state.network.setOptions({ physics: { barnesHut: {
+      gravitationalConstant: -15000, centralGravity: 0.004,
+      springLength: 220, springConstant: 0.09, avoidOverlap: 0.08, damping: 0.12,
+    }}});
+  }, 3000);
+  // Phase 3: Cluster separation — overlap avoidance separates nodes within clusters
+  window.setTimeout(() => {
+    if (!state.network) return;
+    state.network.setOptions({ physics: { barnesHut: {
+      gravitationalConstant: -15000, centralGravity: 0.006,
+      springLength: 200, springConstant: 0.10, avoidOverlap: 0.25, damping: 0.15,
+    }}});
+  }, 5000);
+  // Finalize
+  window.setTimeout(() => {
+    if (!state.network) return;
+    clampOutlierNodes();
+    if (!state.ui.continuousPhysics) disablePhysics();
+    state.network.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+    showToast("Gephi phases complete.", "success");
+  }, 6800);
+}
+
+function initPhysicsLab() {
+  // Sync value labels as sliders move
+  const sliders = [
+    ["phys-grav", "phys-grav-val", (v) => String(v)],
+    ["phys-cg",   "phys-cg-val",   (v) => Number(v).toFixed(3)],
+    ["phys-sl",   "phys-sl-val",   (v) => String(v)],
+    ["phys-sc",   "phys-sc-val",   (v) => Number(v).toFixed(2)],
+    ["phys-ao",   "phys-ao-val",   (v) => Number(v).toFixed(2)],
+    ["phys-damp", "phys-damp-val", (v) => Number(v).toFixed(2)],
+    ["phys-iter", "phys-iter-val", (v) => String(v)],
+  ];
+  for (const [sliderId, labelId, fmt] of sliders) {
+    const slider = document.getElementById(sliderId);
+    const label  = document.getElementById(labelId);
+    if (!slider || !label) continue;
+    slider.addEventListener("input", () => {
+      label.textContent = fmt(slider.value);
+    });
+  }
+  // Continuous toggle
+  const continuousEl = document.getElementById("phys-continuous");
+  if (continuousEl) {
+    continuousEl.addEventListener("change", () => {
+      state.ui.continuousPhysics = continuousEl.checked;
+      if (!continuousEl.checked && state.network) {
+        // User just turned off continuous — stop physics now
+        disablePhysics();
+      }
+    });
+  }
+  // Restart button
+  const restartEl = document.getElementById("phys-restart");
+  if (restartEl) {
+    restartEl.addEventListener("click", () => {
+      if (state.network && !state.embedActive && state.forceEnabled) {
+        settlePhysics();
+        showToast("Physics restarted.", "success");
+      }
+    });
+  }
+  // Reset params button
+  const resetParamsEl = document.getElementById("phys-reset-params");
+  if (resetParamsEl) {
+    resetParamsEl.addEventListener("click", () => {
+      setPhysicsLabSliders(PHYSICS_PRESETS.default);
+      showToast("Physics params reset to defaults.", "success");
+    });
+  }
+  // Preset buttons
+  ["default", "gephi", "tight", "spread"].forEach((name) => {
+    const btn = document.getElementById("phys-preset-" + name);
+    if (btn) btn.addEventListener("click", () => applyPhysicsPreset(name));
+  });
+  // Gephi phases button
+  const gephasEl = document.getElementById("phys-gephi-phases");
+  if (gephasEl) gephasEl.addEventListener("click", runGephiPhases);
+}
+
+// ─── End Physics Lab ─────────────────────────────────────────────────────────
 
 function toggleForce(announce = true) {
   state.forceEnabled = !state.forceEnabled;
@@ -4049,10 +4419,29 @@ function settlePhysics() {
     return;
   }
   window.clearTimeout(state.timers.physics);
-  state.network.setOptions({ physics: FORCE_OPTIONS });
+  // Build physics options from lab sliders if available, else use compiled defaults
+  const labP = getPhysicsLabParams();
+  const physicsOpts = labP ? {
+    enabled: true,
+    solver: "barnesHut",
+    barnesHut: {
+      gravitationalConstant: labP.gravitationalConstant,
+      centralGravity: labP.centralGravity,
+      springLength: labP.springLength,
+      springConstant: labP.springConstant,
+      avoidOverlap: labP.avoidOverlap,
+      damping: labP.damping,
+    },
+    stabilization: { iterations: labP.iterations },
+    maxVelocity: 120,
+    minVelocity: 0.1,
+  } : FORCE_OPTIONS;
+  state.network.setOptions({ physics: physicsOpts });
   state.timers.physics = window.setTimeout(() => {
     clampOutlierNodes();
-    disablePhysics();
+    if (!state.ui.continuousPhysics) {
+      disablePhysics();
+    }
     if (!state.focus && !state.embedActive) {
       state.network?.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     }
@@ -4669,6 +5058,18 @@ function bindEvents() {
   });
 
   dom.embedButton.addEventListener("click", () => toggleEmbed(true));
+  dom.resetButton.addEventListener("click", resetToInitialPositions);
+  // View preset buttons
+  for (const [id, name] of [
+    ["vp-project-graph", "project-graph"],
+    ["vp-hierarchical",  "hierarchical"],
+    ["vp-industry",      "industry"],
+    ["vp-research",      "research"],
+  ]) {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener("click", () => applyViewPreset(name));
+  }
+  initPhysicsLab();
   dom.discoverButton.addEventListener("click", () => {
     if (!state.selection.primaryId) {
       showToast("Click a node to select it, then press Discover to enter focus mode.", "warn");
