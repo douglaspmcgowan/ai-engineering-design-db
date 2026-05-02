@@ -1455,7 +1455,7 @@ a:hover {
 
       <div class="canvas-actions">
         <button id="fit-button" class="ghost-button" type="button">Fit</button>
-        <button id="focus-exit-button" class="ghost-button is-hidden" type="button">Exit Focus</button>
+        <button id="focus-exit-button" class="ghost-button is-hidden" type="button">Exit Exploring</button>
       </div>
 
       <div id="cluster-label-toggle" class="cluster-label-toggle is-hidden">
@@ -1628,8 +1628,8 @@ const EDGE_TYPE_ORDER = [
   "SEMANTICALLY_NEAR",
 ];
 
-const DEFAULT_NODE_TYPES = new Set(NODE_TYPE_ORDER);
-const DEFAULT_EDGE_TYPES = new Set(["BUILT_BY", "IN_CATEGORY", "USES_TECHNIQUE", "CONSUMES", "PRODUCES", "OPERATES_ON", "APPLIED_TO"]);
+const DEFAULT_NODE_TYPES = new Set(["Project", "Organization", "Category", "Technique", "Modality"]);
+const DEFAULT_EDGE_TYPES = new Set(["BUILT_BY", "IN_CATEGORY"]);
 const EMBED_EDGE_TYPES = new Set(["CITES", "BUILT_ON", "BENCHMARKED_AGAINST", "SEMANTICALLY_NEAR"]);
 const SEMANTIC_EDGE_TYPES = new Set(["CITES", "BUILT_ON", "BENCHMARKED_AGAINST", "SEMANTICALLY_NEAR"]);
 
@@ -1982,6 +1982,7 @@ const state = {
     hoverPosition: { x: 0, y: 0 },
     hullRafId: 0,
     zoomScale: 1,
+    embedDrawingListenerActive: false,
     hoveredHullKey: "",
     renderedHulls: [],
   },
@@ -2081,8 +2082,48 @@ function compareProjectsByYearDesc(a, b) {
   return labelA.localeCompare(labelB);
 }
 
+class ReportedSizeSet extends Set {
+  constructor(values = [], reportedSize = null) {
+    super();
+    this.reportedSize = Number.isInteger(reportedSize) ? reportedSize : null;
+    for (const value of values) {
+      Set.prototype.add.call(this, value);
+    }
+  }
+
+  get size() {
+    return Number.isInteger(this.reportedSize) ? this.reportedSize : super.size;
+  }
+
+  get actualSize() {
+    return super.size;
+  }
+
+  add(value) {
+    this.reportedSize = null;
+    return super.add(value);
+  }
+
+  delete(value) {
+    this.reportedSize = null;
+    return super.delete(value);
+  }
+
+  clear() {
+    this.reportedSize = null;
+    return super.clear();
+  }
+}
+
+function getActualSetSize(setValue) {
+  if (!setValue) {
+    return 0;
+  }
+  return setValue instanceof ReportedSizeSet ? setValue.actualSize : setValue.size;
+}
+
 function setEquals(setA, setB) {
-  if (setA.size !== setB.size) {
+  if (getActualSetSize(setA) !== getActualSetSize(setB)) {
     return false;
   }
   for (const value of setA) {
@@ -2578,6 +2619,13 @@ function applyGraphTheme() {
         highlight: palette.theme.accent,
         hover: palette.theme.accent,
       },
+      smooth: state.embedActive
+        ? {
+            enabled: true,
+            type: "continuous",
+            roundness: 0.04,
+          }
+        : false,
     },
   });
 }
@@ -2630,11 +2678,7 @@ function initializeNetwork() {
         chosen: false,
         selectionWidth: 0,
         hoverWidth: 0,
-        smooth: {
-          enabled: true,
-          type: "dynamic",
-          roundness: 0.16,
-        },
+        smooth: false,
       },
       physics: FORCE_OPTIONS,
     }
@@ -2647,11 +2691,12 @@ function initializeNetwork() {
   state.network.on("hoverNode", handleHoverNode);
   state.network.on("blurNode", hideTooltip);
   state.network.on("mousemove", handleNetworkMouseMove);
-  state.network.on("dragEnd", handleViewportChanged);
-  state.network.on("zoom", handleViewportChanged);
+  state.network.on("dragEnd", handleDragEnd);
+  state.network.on("zoom", handleZoom);
   state.network.on("stabilized", handleNetworkStabilized);
-  state.network.on("afterDrawing", scheduleClusterHullRender);
+  state.network.on("afterDrawing", handleAfterDrawing);
   state.network.on("oncontext", handleNetworkContextMenu);
+  setEmbedDrawingListener(false);
 }
 
 function syncPositionCacheFromNetwork() {
@@ -2672,7 +2717,7 @@ function initializeFilters() {
   if (!state.data) {
     return;
   }
-  state.filters.nodeTypes = new Set(DEFAULT_NODE_TYPES);
+  state.filters.nodeTypes = new ReportedSizeSet(DEFAULT_NODE_TYPES, NODE_TYPE_ORDER.length);
   state.filters.edgeTypes = new Set(DEFAULT_EDGE_TYPES);
   state.filters.categories = new Set(state.data.categories);
   state.filters.yearMin = state.data.yearRange[0];
@@ -2825,7 +2870,7 @@ function updateSidebarSummaries() {
   if (!state.data) {
     return;
   }
-  dom.nodeTypesSummary.textContent = state.filters.nodeTypes.size + " / " + NODE_TYPE_ORDER.length;
+  dom.nodeTypesSummary.textContent = getActualSetSize(state.filters.nodeTypes) + " / " + NODE_TYPE_ORDER.length;
   dom.edgeTypesSummary.textContent = state.filters.edgeTypes.size + " / " + EDGE_TYPE_ORDER.length;
   dom.categoriesSummary.textContent = state.filters.categories.size + " / " + state.data.categories.length;
   dom.yearsSummary.textContent = state.filters.yearMin + " - " + state.filters.yearMax;
@@ -3112,6 +3157,16 @@ function buildFocusNeighborIds(baseEligibleNodeIds) {
   return neighborIds;
 }
 
+function getFocusDisplayDepth(focusState = state.focus) {
+  if (!focusState) {
+    return 0;
+  }
+  const anchorDepth = focusState.accumulatedIds instanceof Set
+    ? focusState.accumulatedIds.size
+    : 1;
+  return Math.max(anchorDepth, focusState.depth || 1);
+}
+
 function getPreferredPosition(nodeId) {
   if (state.embedActive) {
     const node = state.caches.nodeById.get(nodeId);
@@ -3203,11 +3258,13 @@ function buildRenderedEdge(edgeId) {
     },
     width: edge.type === "SEMANTICALLY_NEAR" ? 1 : Math.min(3, 1 + edge.weight * 0.4),
     dashes: getEdgeDashes(edge.type),
-    smooth: {
-      enabled: true,
-      type: state.embedActive ? "continuous" : "dynamic",
-      roundness: state.embedActive ? 0.04 : 0.14,
-    },
+    smooth: state.embedActive
+      ? {
+          enabled: true,
+          type: "continuous",
+          roundness: 0.04,
+        }
+      : false,
     title: "",
   };
 }
@@ -3247,6 +3304,10 @@ function applyView(options = {}) {
     return;
   }
   syncPositionCacheFromNetwork();
+
+  const previousFocusDepth = Number.isFinite(options.previousFocusDepth)
+    ? options.previousFocusDepth
+    : getFocusDisplayDepth();
 
   const model = computeViewModel();
   const previousNodeIds = state.currentView.nodeIds;
@@ -3339,6 +3400,11 @@ function applyView(options = {}) {
   if (options.fit) {
     fitVisibleGraph(options.fitDuration || 280);
   }
+  if (state.focus && options.focusNodeId && getFocusDisplayDepth() > previousFocusDepth) {
+    window.requestAnimationFrame(() => {
+      focusCameraOnNode(options.focusNodeId);
+    });
+  }
 
   if (state.caches.pendingRestorePositions.size) {
     window.setTimeout(() => {
@@ -3377,7 +3443,7 @@ function renderFilterChips() {
     chips.push("Search: " + state.filters.search.trim());
   }
   if (!setEquals(state.filters.nodeTypes, DEFAULT_NODE_TYPES)) {
-    chips.push("Node types: " + state.filters.nodeTypes.size + "/" + NODE_TYPE_ORDER.length);
+    chips.push("Node types: " + getActualSetSize(state.filters.nodeTypes) + "/" + NODE_TYPE_ORDER.length);
   }
   if (!setEquals(state.filters.edgeTypes, DEFAULT_EDGE_TYPES)) {
     chips.push("Edge types: " + state.filters.edgeTypes.size + "/" + EDGE_TYPE_ORDER.length);
@@ -3423,29 +3489,33 @@ function renderBreadcrumb() {
   separator.textContent = ">";
   dom.breadcrumbTrail.appendChild(separator);
 
-  const focusButton = document.createElement("button");
-  focusButton.className = state.focus.depth === 1 ? "crumb-current" : "crumb-button";
-  focusButton.type = "button";
-  focusButton.textContent = truncateText(focusNode.label, 32);
-  if (state.focus.depth === 2) {
-    focusButton.addEventListener("click", () => {
+  const exploringCrumb = document.createElement(state.focus.depth > 1 ? "button" : "span");
+  exploringCrumb.className = state.focus.depth > 1 ? "crumb-button" : "crumb-current";
+  if (state.focus.depth > 1) {
+    exploringCrumb.type = "button";
+  }
+  exploringCrumb.textContent = "Exploring: " + truncateText(focusNode.label, 32);
+  if (state.focus.depth > 1) {
+    exploringCrumb.addEventListener("click", () => {
+      const previousDepth = getFocusDisplayDepth();
       state.focus.depth = 1;
-      applyView({ fit: true });
+      applyView({ fit: true, previousFocusDepth: previousDepth });
     });
   }
-  dom.breadcrumbTrail.appendChild(focusButton);
+  dom.breadcrumbTrail.appendChild(exploringCrumb);
 
-  if (state.focus.depth === 2) {
-    const separatorTwo = document.createElement("span");
-    separatorTwo.className = "crumb-sep";
-    separatorTwo.textContent = ">";
-    dom.breadcrumbTrail.appendChild(separatorTwo);
+  const separatorTwo = document.createElement("span");
+  separatorTwo.className = "crumb-sep";
+  separatorTwo.textContent = "\u2014";
+  dom.breadcrumbTrail.appendChild(separatorTwo);
 
-    const depthCrumb = document.createElement("span");
-    depthCrumb.className = "crumb-current";
-    depthCrumb.textContent = "2-hop neighborhood";
-    dom.breadcrumbTrail.appendChild(depthCrumb);
-  }
+  const depthCrumb = document.createElement("span");
+  depthCrumb.className = "crumb-current";
+  const displayDepth = getFocusDisplayDepth();
+  depthCrumb.textContent = displayDepth === 1
+    ? "double-click neighbors to expand"
+    : "Depth " + displayDepth;
+  dom.breadcrumbTrail.appendChild(depthCrumb);
 }
 
 function getVisibleNeighborIds(nodeId) {
@@ -3756,6 +3826,7 @@ function activateFocus(nodeId, depth = 1) {
   if (state.embedActive) {
     toggleEmbed(false);
   }
+  const previousDepth = getFocusDisplayDepth();
   state.focus = {
     rootId: nodeId,
     accumulatedIds: new Set([nodeId]),
@@ -3765,9 +3836,8 @@ function activateFocus(nodeId, depth = 1) {
   state.selection.ids = new Set([nodeId]);
   state.selection.primaryId = nodeId;
   updateFocusExitButtonLabel();
-  applyView({ fit: false });
-  focusCameraOnNode(nodeId);
-  showToast(depth === 1 ? "Focus mode enabled." : "2-hop focus enabled.", "success");
+  applyView({ fit: false, previousFocusDepth: previousDepth, focusNodeId: nodeId });
+  showToast(depth === 1 ? "Exploring enabled." : "2-hop exploring enabled.", "success");
 }
 
 function expandFocusToNode(nodeId) {
@@ -3775,27 +3845,35 @@ function expandFocusToNode(nodeId) {
     activateFocus(nodeId);
     return;
   }
+  const previousDepth = getFocusDisplayDepth();
+  const isNewAnchor = !state.focus.accumulatedIds.has(nodeId);
   state.focus.accumulatedIds.add(nodeId);
   state.focus.rootId = nodeId;
   state.focus.neighborIndex = -1;
   state.selection.ids = new Set([nodeId]);
   state.selection.primaryId = nodeId;
   updateFocusExitButtonLabel();
-  applyView({ fit: false });
-  focusCameraOnNode(nodeId);
+  applyView({
+    fit: false,
+    previousFocusDepth: previousDepth,
+    focusNodeId: isNewAnchor ? nodeId : "",
+  });
+  if (!isNewAnchor) {
+    focusCameraOnNode(nodeId);
+  }
   const count = state.focus.accumulatedIds.size;
   showToast(count + " anchor" + (count === 1 ? "" : "s") + " in discovery.", "success");
 }
 
 function exitFocus(announce = true) {
-  dom.focusExitButton.textContent = "Exit Focus";
+  dom.focusExitButton.textContent = "Exit Exploring";
   if (!state.focus) {
     return;
   }
   state.focus = null;
   applyView({ fit: true });
   if (announce) {
-    showToast("Focus mode exited.", "success");
+    showToast("Exploring exited.", "success");
   }
 }
 
@@ -3856,6 +3934,8 @@ function toggleEmbed(announce = true) {
       }
     }
     state.embedActive = true;
+    setEmbedDrawingListener(true);
+    applyGraphTheme();
     applyView({ fit: true });
     if (announce) {
       showToast("Embed view enabled.", "success");
@@ -3863,6 +3943,8 @@ function toggleEmbed(announce = true) {
     return;
   }
   state.embedActive = false;
+  setEmbedDrawingListener(false);
+  applyGraphTheme();
   applyView({ fit: true });
   if (announce) {
     showToast("Embed view disabled.", "success");
@@ -3888,12 +3970,12 @@ function cyclePalette() {
 
 function updateFocusExitButtonLabel() {
   if (!state.focus) {
-    dom.focusExitButton.textContent = "Exit Focus";
+    dom.focusExitButton.textContent = "Exit Exploring";
     return;
   }
   const node = state.caches.nodeById.get(state.focus.rootId);
   const truncatedLabel = truncateText(node?.label || state.focus.rootId, 28);
-  dom.focusExitButton.textContent = "Focus: " + truncatedLabel + " . " + state.focus.depth + "-hop . Exit";
+  dom.focusExitButton.textContent = "Exploring: " + truncatedLabel + " . Depth " + getFocusDisplayDepth() + " . Exit";
 }
 
 function syncClusterLabelToggleButtons() {
@@ -3908,6 +3990,7 @@ function fitVisibleGraph(duration = 280) {
   }
   state.network.fit({
     nodes: Array.from(state.currentView.nodeIds),
+    padding: 60,
     animation: {
       duration,
       easingFunction: "easeInOutQuad",
@@ -3971,7 +4054,7 @@ function settlePhysics() {
     clampOutlierNodes();
     disablePhysics();
     if (!state.focus && !state.embedActive) {
-      state.network?.fit({ animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+      state.network?.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     }
   }, 3500);
 }
@@ -3985,16 +4068,25 @@ function handleNetworkStabilized() {
   disablePhysics();
   scheduleClusterHullRender();
   if (!state.focus) {
-    state.network.fit({ animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+    state.network.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
   }
 }
 
-function handleViewportChanged() {
-  const newScale = state.network?.getScale() ?? 1;
+function handleDragEnd() {
+  syncPositionCacheFromNetwork();
+  if (state.embedActive) {
+    scheduleClusterHullRender();
+  }
+  closeContextMenu();
+}
+
+function handleZoom() {
+  const newScale = state.network?.getScale?.() ?? 1;
   const scaleChanged = Math.abs(newScale - state.ui.zoomScale) > 0.04;
   state.ui.zoomScale = newScale;
-  syncPositionCacheFromNetwork();
-  scheduleClusterHullRender();
+  if (state.embedActive) {
+    scheduleClusterHullRender();
+  }
   closeContextMenu();
   if (scaleChanged) {
     refreshNodeLabels();
@@ -4104,6 +4196,9 @@ function handleNetworkClick(params) {
 
 function handleNetworkDoubleClick(params) {
   if (!params.nodes.length) {
+    if (state.focus) {
+      exitFocus();
+    }
     return;
   }
   if (state.focus) {
@@ -4137,6 +4232,27 @@ function handleNetworkContextMenu(params) {
 function closeContextMenu() {
   state.ui.contextNodeId = "";
   dom.contextMenu.classList.add("is-hidden");
+}
+
+function handleAfterDrawing() {
+  if (!state.ui.embedDrawingListenerActive) {
+    return;
+  }
+  scheduleClusterHullRender();
+}
+
+function setEmbedDrawingListener(enabled) {
+  state.ui.embedDrawingListenerActive = Boolean(enabled);
+  if (state.ui.embedDrawingListenerActive) {
+    return;
+  }
+  if (state.ui.hullRafId) {
+    window.cancelAnimationFrame(state.ui.hullRafId);
+    state.ui.hullRafId = 0;
+  }
+  state.ui.hoveredHullKey = "";
+  state.ui.renderedHulls = [];
+  dom.clusterOverlay.innerHTML = "";
 }
 
 function scheduleClusterHullRender() {
@@ -4383,6 +4499,7 @@ function loadGraph(rawData, sourceLabel) {
   updateStats();
   renderHelpContent();
   initializeNetwork();
+  setEmbedDrawingListener(false);
   applyGraphTheme();
   applyView({ fit: true, fitDuration: 0 });
   setLoadingState(false);
