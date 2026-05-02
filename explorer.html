@@ -1658,17 +1658,17 @@ function getVisualRegion(embedX, embedY) {
 
 const FORCE_OPTIONS = {
   enabled: true,
-  forceAtlas2Based: {
-    gravitationalConstant: -38,
-    centralGravity: 0.012,
+  solver: "barnesHut",
+  barnesHut: {
+    gravitationalConstant: -8000,
+    centralGravity: 0.25,
     springLength: 200,
-    springConstant: 0.16,
-    damping: 0.5,
-    avoidOverlap: 0.55,
+    springConstant: 0.05,
+    damping: 0.12,
+    avoidOverlap: 0,
   },
-  solver: "forceAtlas2Based",
-  stabilization: { iterations: 200 },
-  maxVelocity: 146,
+  stabilization: { iterations: 100 },
+  maxVelocity: 120,
   minVelocity: 0.1,
 };
 
@@ -3970,7 +3970,10 @@ function settlePhysics() {
   state.timers.physics = window.setTimeout(() => {
     clampOutlierNodes();
     disablePhysics();
-  }, 7000);
+    if (!state.focus && !state.embedActive) {
+      state.network?.fit({ animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+    }
+  }, 3500);
 }
 
 function handleNetworkStabilized() {
@@ -3981,6 +3984,9 @@ function handleNetworkStabilized() {
   clampOutlierNodes();
   disablePhysics();
   scheduleClusterHullRender();
+  if (!state.focus) {
+    state.network.fit({ animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+  }
 }
 
 function handleViewportChanged() {
