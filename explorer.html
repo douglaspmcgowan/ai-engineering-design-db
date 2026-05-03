@@ -2424,6 +2424,7 @@ const state = {
     hoverNodeId: "",
     hoverPosition: { x: 0, y: 0 },
     hullRafId: 0,
+    hullZoomDebounceId: 0,
     zoomScale: 1,
     embedDrawingListenerActive: false,
     hoveredHullKey: "",
@@ -2447,6 +2448,7 @@ const state = {
     orgAggregateById: new Map(),
     clusterMembersByKey: new Map(),
     clusterLabelByKey: new Map(),
+    clusterLabelByKeyAll: new Map(),
     pendingRestorePositions: new Map(),
   },
   controls: {
@@ -3055,11 +3057,15 @@ function normalizeGraphData(rawData) {
 
   const clusterMembersByKey = new Map();
   const clusterLabelByKey = new Map();
+  const clusterLabelByKeyAll = new Map();
   const projectIdsByOrganization = new Map();
   const orgAggregateSeed = new Map();
 
   for (const rawKey of Object.keys(rawData?.clusterLabels || {})) {
     clusterLabelByKey.set(String(rawKey), String(rawData.clusterLabels[rawKey]));
+  }
+  for (const rawKey of Object.keys(rawData?.clusterLabelsAll || {})) {
+    clusterLabelByKeyAll.set(String(rawKey), String(rawData.clusterLabelsAll[rawKey]));
   }
 
   for (const node of nodes) {
@@ -3119,6 +3125,7 @@ function normalizeGraphData(rawData) {
     incidentEdgeIdsByNode,
     clusterMembersByKey,
     clusterLabelByKey,
+    clusterLabelByKeyAll,
     projectIdsByOrganization,
     orgAggregateById: orgAggregateSeed,
     initialPositionsById,
@@ -3582,13 +3589,18 @@ function buildBaseEligibleNodeIds() {
   const searchTerms = state.filters.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const embedMode = state.embedActive;
   const embedAllMode = embedMode && state.embedAllNodes;
-  // In embed-all mode, allow all node types that have embed_all coords
+  // In embed-all mode, allow all node types that have embed_all coords (except Year — not semantic)
+  const EMBED_EXCLUDED_TYPES = new Set(["Year"]);
   const allowedNodeTypes = embedMode
     ? (embedAllMode ? new Set(Object.keys(NODE_METRICS)) : new Set(["Project"]))
     : state.filters.nodeTypes;
 
   for (const node of state.data.nodes) {
     if (!allowedNodeTypes.has(node.type)) {
+      continue;
+    }
+    // Year nodes are structural calendar nodes — no semantic meaning in embed space
+    if (embedMode && embedAllMode && EMBED_EXCLUDED_TYPES.has(node.type)) {
       continue;
     }
     if (searchTerms.length && !searchTerms.every((t) => node.searchText.includes(t))) {
@@ -3624,8 +3636,7 @@ function buildBaseEligibleNodeIds() {
 
 function getActiveEdgeTypeSet() {
   if (!state.embedActive) return state.filters.edgeTypes;
-  if (state.embedAllNodes) return state.filters.edgeTypes; // show selected edge types in all-nodes embed
-  return EMBED_EDGE_TYPES; // projects-only: only SEMANTICALLY_NEAR
+  return EMBED_EDGE_TYPES; // both embed modes: semantic edges only (no structural starburst)
 }
 
 function buildVisibleEdgeIds(visibleNodeIds) {
@@ -3653,6 +3664,11 @@ function buildVisibleEdgeIds(visibleNodeIds) {
 
 function pruneIsolatedNodes(visibleNodeIds, visibleEdgeIds) {
   if (!visibleNodeIds.size) {
+    return visibleNodeIds;
+  }
+  // In all-nodes embed mode, every node is positioned by its semantic embedding —
+  // isolated non-project nodes are valid and must NOT be pruned.
+  if (state.embedActive && state.embedAllNodes) {
     return visibleNodeIds;
   }
   const narrowed =
@@ -4704,7 +4720,7 @@ function toggleEmbed(announce = true) {
       });
     }, 80);
     if (announce) {
-      showToast("Embed view — 2405 nodes in semantic space.", "success");
+      showToast("Semantic map — 2380 nodes in joint embedding space.", "success");
     }
     return;
   }
@@ -5181,7 +5197,10 @@ function handleZoom() {
   const scaleChanged = Math.abs(newScale - state.ui.zoomScale) > 0.04;
   state.ui.zoomScale = newScale;
   if (state.embedActive) {
-    scheduleClusterHullRender();
+    // Debounce hull renders during continuous zoom — rebuild only after zoom settles.
+    // Rebuilding on every zoom tick causes choppiness with 2400+ nodes.
+    window.clearTimeout(state.ui.hullZoomDebounceId);
+    state.ui.hullZoomDebounceId = window.setTimeout(scheduleClusterHullRender, 80);
   }
   closeContextMenu();
   if (scaleChanged) {
@@ -5353,10 +5372,8 @@ function closeContextMenu() {
 }
 
 function handleAfterDrawing() {
-  if (!state.ui.embedDrawingListenerActive) {
-    return;
-  }
-  scheduleClusterHullRender();
+  // Intentionally empty — hull renders are now driven by zoom/dragEnd/applyView
+  // to avoid rebuilding the SVG overlay on every animation frame.
 }
 
 function setEmbedDrawingListener(enabled) {
@@ -5367,6 +5384,10 @@ function setEmbedDrawingListener(enabled) {
   if (state.ui.hullRafId) {
     window.cancelAnimationFrame(state.ui.hullRafId);
     state.ui.hullRafId = 0;
+  }
+  if (state.ui.hullZoomDebounceId) {
+    window.clearTimeout(state.ui.hullZoomDebounceId);
+    state.ui.hullZoomDebounceId = 0;
   }
   state.ui.hoveredHullKey = "";
   state.ui.renderedHulls = [];
@@ -5382,43 +5403,57 @@ function scheduleClusterHullRender() {
 
 function renderClusterHulls() {
   state.ui.hullRafId = 0;
-  if (!state.embedActive || !state.network || !state.currentView.visibleProjectIds.length) {
+  if (!state.embedActive || !state.network) {
     dom.clusterOverlay.innerHTML = "";
     return;
   }
+  // In all-nodes mode, cluster all visible nodes; in projects-only, just projects
+  const hullNodeIds = state.embedAllNodes
+    ? Array.from(state.currentView.nodeIds)
+    : state.currentView.visibleProjectIds;
+  if (!hullNodeIds.length) {
+    dom.clusterOverlay.innerHTML = "";
+    return;
+  }
+
   const rect = dom.canvasSurface.getBoundingClientRect();
   dom.clusterOverlay.setAttribute("viewBox", "0 0 " + rect.width + " " + rect.height);
   dom.clusterOverlay.setAttribute("width", String(rect.width));
   dom.clusterOverlay.setAttribute("height", String(rect.height));
 
-  const positions = state.network.getPositions(state.currentView.visibleProjectIds);
+  const positions = state.network.getPositions(hullNodeIds);
   const groups = new Map();
-  for (const projectId of state.currentView.visibleProjectIds) {
-    const projectNode = state.caches.nodeById.get(projectId);
-    if (!projectNode || projectNode.type !== "Project") {
-      continue;
-    }
+  for (const nodeId of hullNodeIds) {
+    const node = state.caches.nodeById.get(nodeId);
+    if (!node) continue;
+
     let clusterKey, clusterLabel;
-    if (state.clusterLabelMode === "A") {
-      clusterKey = String(projectNode.props?.category ?? "");
+    if (state.embedAllNodes) {
+      // All-nodes mode: use k-means cluster assignments for all entity types
+      clusterKey = String(node.props?.cluster_k_all ?? "");
+      clusterLabel = node.props?.cluster_label_all
+        || state.caches.clusterLabelByKeyAll?.get(clusterKey)
+        || ("Cluster " + clusterKey);
+    } else if (state.clusterLabelMode === "A") {
+      if (node.type !== "Project") continue;
+      clusterKey = String(node.props?.category ?? "");
       clusterLabel = clusterKey;
     } else if (state.clusterLabelMode === "C") {
-      const ex = Number(projectNode.props?.embed_x);
-      const ey = Number(projectNode.props?.embed_y);
+      if (node.type !== "Project") continue;
+      const ex = Number(node.props?.embed_x);
+      const ey = Number(node.props?.embed_y);
       const region = (Number.isFinite(ex) && Number.isFinite(ey)) ? getVisualRegion(ex, ey) : null;
       clusterKey = region ? region.id : "";
       clusterLabel = region ? region.label : "";
     } else {
-      clusterKey = String(projectNode.props?.cluster_k ?? "");
-      clusterLabel = projectNode.props?.cluster_label || state.data.clusterLabelByKey.get(clusterKey) || ("Cluster " + clusterKey);
+      if (node.type !== "Project") continue;
+      clusterKey = String(node.props?.cluster_k ?? "");
+      clusterLabel = node.props?.cluster_label || state.caches.clusterLabelByKey.get(clusterKey) || ("Cluster " + clusterKey);
     }
-    if (!clusterKey) {
-      continue;
-    }
-    const canvasPosition = positions[projectId];
-    if (!canvasPosition) {
-      continue;
-    }
+    if (!clusterKey) continue;
+
+    const canvasPosition = positions[nodeId];
+    if (!canvasPosition) continue;
     const domPoint = state.network.canvasToDOM(canvasPosition);
     if (!groups.has(clusterKey)) {
       groups.set(clusterKey, { label: String(clusterLabel), points: [] });
@@ -5516,13 +5551,18 @@ function handleClusterHullClick(clientX, clientY) {
   }
   if (!clickedKey) return;
 
-  // Collect all visible project IDs in this cluster
+  // Collect all visible node IDs in this cluster (all nodes in all-nodes mode, projects-only otherwise)
+  const sourceIds = state.embedAllNodes
+    ? Array.from(state.currentView.nodeIds)
+    : state.currentView.visibleProjectIds;
   const clusterNodeIds = [];
-  for (const projectId of state.currentView.visibleProjectIds) {
-    const node = state.caches.nodeById.get(projectId);
+  for (const nodeId of sourceIds) {
+    const node = state.caches.nodeById.get(nodeId);
     if (!node) continue;
     let key;
-    if (state.clusterLabelMode === "A") {
+    if (state.embedAllNodes) {
+      key = String(node.props?.cluster_k_all ?? "");
+    } else if (state.clusterLabelMode === "A") {
       key = String(node.props?.category ?? "");
     } else if (state.clusterLabelMode === "C") {
       const ex = Number(node.props?.embed_x);
@@ -5532,7 +5572,7 @@ function handleClusterHullClick(clientX, clientY) {
     } else {
       key = String(node.props?.cluster_k ?? "");
     }
-    if (key === clickedKey) clusterNodeIds.push(projectId);
+    if (key === clickedKey) clusterNodeIds.push(nodeId);
   }
   if (!clusterNodeIds.length) return;
 

@@ -284,15 +284,27 @@ class GraphBuilder:
                     props["cluster_k"] = ec["cluster_k"]
                     props["cluster_label"] = cluster_label_map.get(ec["cluster_k"], f"Cluster {ec['cluster_k']}")
 
-            # Inject all-entity UMAP coords (keyed by full node ID like "project:foo")
+            # Inject all-entity UMAP coords + cluster assignment (keyed by full node ID)
             ec_all = embed_coords_all.get(n["id"])
             if ec_all:
                 props["embed_all_x"] = ec_all["x"]
                 props["embed_all_y"] = ec_all["y"]
+                if "cluster_k_all" in ec_all:
+                    props["cluster_k_all"] = ec_all["cluster_k_all"]
+                    props["cluster_label_all"] = ec_all.get("cluster_label_all", f"Cluster {ec_all['cluster_k_all']}")
 
             out_nodes.append({"id": n["id"], "type": n["type"], "label": n["label"], "props": props})
 
         out_edges = [dict(e) for e in self.edges]
+
+        # Load all-entity cluster labels if available
+        cluster_labels_all: dict[str, str] = {}
+        labels_all_path = GRAPH_DIR / "cluster-labels-all.json"
+        if labels_all_path.exists():
+            try:
+                cluster_labels_all = json.loads(labels_all_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
 
         data = {
             "meta": {
@@ -303,7 +315,8 @@ class GraphBuilder:
             },
             "categories": categories,
             "yearRange": year_range,
-            "clusterLabels": cluster_label_map,  # int-keyed cluster → label (Set B)
+            "clusterLabels": cluster_label_map,      # project-only Set-B clusters
+            "clusterLabelsAll": cluster_labels_all,  # all-entity k-means clusters
             "nodes": out_nodes,
             "edges": out_edges,
         }
