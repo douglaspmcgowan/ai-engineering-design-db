@@ -4770,8 +4770,9 @@ function disablePhysics() {
   window.clearInterval(state.timers.physicsInterval);
   state.timers.physicsInterval = 0;
   if (state.network) {
+    // setOptions is the correct way to disable; stopSimulation() separately
+    // corrupts internal state and prevents re-enabling physics afterwards
     state.network.setOptions({ physics: { enabled: false } });
-    state.network.stopSimulation();
   }
   state.ui.physicsActive = false;
   if (dom.physToggle) dom.physToggle.textContent = "▶ Start physics";
