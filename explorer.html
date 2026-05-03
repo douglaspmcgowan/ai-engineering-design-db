@@ -482,6 +482,30 @@ a:hover {
   background: rgba(19, 19, 22, 0.85);
   overflow: hidden;
 }
+/* Dim filter controls while embed view is active */
+.sidebar.embed-active .sidebar-section {
+  opacity: 0.28;
+  pointer-events: none;
+}
+.sidebar-embed-notice {
+  display: none;
+  font-size: 10px;
+  color: var(--fg-muted);
+  text-align: center;
+  padding: 6px 4px 2px;
+  line-height: 1.4;
+}
+.sidebar.embed-active .sidebar-embed-notice { display: block; }
+/* Dim out-of-view links in detail panel */
+.project-row.is-out-of-view,
+.detail-pill.is-out-of-view {
+  opacity: 0.38;
+  cursor: default;
+}
+.project-row.is-out-of-view:hover,
+.detail-pill.is-out-of-view:hover {
+  background: transparent;
+}
 
 .sidebar-section summary {
   list-style: none;
@@ -1642,7 +1666,8 @@ a:hover {
 </div>
 
 <main class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" id="filter-sidebar">
+    <div class="sidebar-embed-notice">Filters paused in embed view</div>
     <div class="sidebar-inner">
       <details class="sidebar-section" data-accordion open>
         <summary>
@@ -2730,9 +2755,11 @@ function renderSearchSuggestions() {
   for (const node of state.data.nodes) {
     if (!terms.every((t) => node.searchText.includes(t))) continue;
     const labelLower = node.label.toLowerCase();
-    const labelMatch = terms.every((t) => labelLower.includes(t));
-    matches.push({ node, score: labelMatch ? 1 : 0 });
-    if (matches.length >= 20) break;
+    const idLower = node.id.toLowerCase();
+    // Score: 2 = id starts with query, 1 = label matches all terms, 0 = body only
+    const score = terms.every((t) => idLower.startsWith(t)) ? 2
+      : terms.every((t) => labelLower.includes(t)) ? 1 : 0;
+    matches.push({ node, score });
   }
   if (!matches.length) {
     el.classList.add("is-hidden");
@@ -4354,10 +4381,11 @@ function renderOrganizationDetail(node, neighborIds) {
   const topProjects = aggregate.topProjects.length
     ? aggregate.topProjects.map((projectId) => {
         const projectNode = state.caches.nodeById.get(projectId);
+        const outOfView = !state.currentView.nodeIds.has(projectId);
         return (
-          "<button class='project-row' type='button' data-node-link='" + escapeHtml(projectId) + "'>" +
+          "<button class='project-row" + (outOfView ? " is-out-of-view" : "") + "' type='button' data-node-link='" + escapeHtml(projectId) + "'>" +
             "<div class='project-row-title'>" + escapeHtml(projectNode?.label || projectId) + "</div>" +
-            "<div class='project-row-meta'>" + escapeHtml(projectNode?.props?.year || "Unknown") + " | " + escapeHtml(projectNode?.props?.category || "Unknown") + "</div>" +
+            "<div class='project-row-meta'>" + escapeHtml(projectNode?.props?.year || "Unknown") + " | " + escapeHtml(projectNode?.props?.category || "Unknown") + (outOfView ? " · filtered out" : "") + "</div>" +
           "</button>"
         );
       }).join("")
@@ -4383,10 +4411,11 @@ function renderGenericNodeDetail(node, neighborIds) {
   const topProjectsMarkup = aggregate.topProjects.length
     ? aggregate.topProjects.map((projectId) => {
         const projectNode = state.caches.nodeById.get(projectId);
+        const outOfView = !state.currentView.nodeIds.has(projectId);
         return (
-          "<button class='project-row' type='button' data-node-link='" + escapeHtml(projectId) + "'>" +
+          "<button class='project-row" + (outOfView ? " is-out-of-view" : "") + "' type='button' data-node-link='" + escapeHtml(projectId) + "'>" +
             "<div class='project-row-title'>" + escapeHtml(projectNode?.label || projectId) + "</div>" +
-            "<div class='project-row-meta'>" + escapeHtml(projectNode?.props?.year || "Unknown") + " | " + escapeHtml(projectNode?.props?.category || "Unknown") + "</div>" +
+            "<div class='project-row-meta'>" + escapeHtml(projectNode?.props?.year || "Unknown") + " | " + escapeHtml(projectNode?.props?.category || "Unknown") + (outOfView ? " · filtered out" : "") + "</div>" +
           "</button>"
         );
       }).join("")
@@ -4507,15 +4536,25 @@ function initDiscoverPanel() {
   const d2Btn   = document.getElementById("discover-depth-2");
   const exitBtn = document.getElementById("discover-exit");
 
-  if (prevBtn) prevBtn.addEventListener("click", () => {
-    if (!state.focus) return;
+  function getFocusNeighborIds() {
+    if (!state.focus) return [];
+    const seen = new Set();
     const neighborIds = [];
     for (const edgeId of (state.caches.incidentEdgeIdsByNode.get(state.focus.rootId) || [])) {
       const edge = state.caches.edgeById.get(edgeId);
       if (!edge) continue;
       const otherId = edge.source === state.focus.rootId ? edge.target : edge.source;
-      if (state.currentView.nodeIds.has(otherId)) neighborIds.push(otherId);
+      if (state.currentView.nodeIds.has(otherId) && !seen.has(otherId)) {
+        seen.add(otherId);
+        neighborIds.push(otherId);
+      }
     }
+    return neighborIds;
+  }
+
+  if (prevBtn) prevBtn.addEventListener("click", () => {
+    if (!state.focus) return;
+    const neighborIds = getFocusNeighborIds();
     if (!neighborIds.length) return;
     state.focus.neighborIndex = ((state.focus.neighborIndex - 1) + neighborIds.length) % neighborIds.length;
     expandFocusToNode(neighborIds[state.focus.neighborIndex]);
@@ -4523,13 +4562,7 @@ function initDiscoverPanel() {
 
   if (nextBtn) nextBtn.addEventListener("click", () => {
     if (!state.focus) return;
-    const neighborIds = [];
-    for (const edgeId of (state.caches.incidentEdgeIdsByNode.get(state.focus.rootId) || [])) {
-      const edge = state.caches.edgeById.get(edgeId);
-      if (!edge) continue;
-      const otherId = edge.source === state.focus.rootId ? edge.target : edge.source;
-      if (state.currentView.nodeIds.has(otherId)) neighborIds.push(otherId);
-    }
+    const neighborIds = getFocusNeighborIds();
     if (!neighborIds.length) return;
     state.focus.neighborIndex = (state.focus.neighborIndex + 1) % neighborIds.length;
     expandFocusToNode(neighborIds[state.focus.neighborIndex]);
@@ -4703,6 +4736,7 @@ function toggleEmbed(announce = true) {
     }
     state.embedActive = true;
     state.embedAllNodes = true; // default to all 2405 nodes in joint UMAP
+    document.getElementById("filter-sidebar")?.classList.add("embed-active");
     setEmbedDrawingListener(true);
     applyGraphTheme();
     if (dom.embedAllToggle) {
@@ -4726,6 +4760,7 @@ function toggleEmbed(announce = true) {
   }
   state.embedActive = false;
   state.embedAllNodes = false;
+  document.getElementById("filter-sidebar")?.classList.remove("embed-active");
   setEmbedDrawingListener(false);
   applyGraphTheme();
   if (dom.embedAllToggle) dom.embedAllToggle.classList.add("is-hidden");
