@@ -372,7 +372,7 @@ a:hover {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: var(--left-w, 240px) minmax(0, 1fr) var(--tools-w, 220px) var(--detail-width);
+  grid-template-columns: var(--left-w, 240px) minmax(0, 1fr) var(--tools-w, 280px) var(--detail-width);
   height: calc(100vh - var(--topbar-height) - var(--subbar-height));
   margin-top: calc(var(--topbar-height) + var(--subbar-height));
 }
@@ -636,6 +636,96 @@ a:hover {
 .phys-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .phys-presets .ghost-button { font-size: 10px; padding: 4px 6px; }
 .phys-wide-btn { width: 100%; font-size: 10px; padding: 5px; margin-top: 2px; }
+
+/* Physics timer */
+.phys-timer {
+  font: 600 10px/1 var(--font-mono);
+  color: var(--fg-faint);
+  text-align: center;
+  padding: 3px 0;
+  letter-spacing: 0.04em;
+  min-height: 14px;
+}
+.phys-timer.is-running { color: #f97316; }
+
+/* Discover panel (shown in tools-panel when focus mode is active) */
+.discover-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+.discover-panel.is-hidden { display: none; }
+.discover-node-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.discover-node-meta {
+  font: 500 10px/1.3 var(--font-mono);
+  color: var(--fg-faint);
+  letter-spacing: 0.03em;
+}
+.discover-node-desc {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+.discover-neighbors {
+  font: 500 10px/1.3 var(--font-mono);
+  color: var(--fg-faint);
+  margin-top: 2px;
+}
+.discover-nav-row {
+  display: flex;
+  gap: 5px;
+}
+.discover-nav-row .ghost-button {
+  flex: 1;
+  font-size: 10px;
+  padding: 5px 4px;
+}
+.discover-section-label {
+  font: 600 9px/1 var(--font-mono);
+  color: var(--fg-faint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 0 2px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.discover-neighbor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.discover-neighbor-item {
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--fg-muted);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.discover-neighbor-item:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--fg);
+}
+/* JS adds/removes is-hidden on #discover-panel and .sidebar-inner directly */
 
 .stats-grid {
   display: grid;
@@ -1584,7 +1674,25 @@ a:hover {
 
   <aside class="tools-panel">
     <div class="resize-handle" data-panel="tools" title="Drag to resize"></div>
-    <div class="sidebar-inner">
+    <!-- Discover/focus panel — visible only when focus mode is active -->
+    <div id="discover-panel" class="discover-panel is-hidden">
+      <div class="discover-node-title" id="discover-node-title">—</div>
+      <div class="discover-node-meta" id="discover-node-meta"></div>
+      <div class="discover-node-desc" id="discover-node-desc"></div>
+      <div class="discover-section-label">Navigate</div>
+      <div class="discover-nav-row">
+        <button id="discover-prev" class="ghost-button" title="Previous neighbor">← Prev</button>
+        <button id="discover-next" class="ghost-button" title="Next neighbor">Next →</button>
+      </div>
+      <div class="discover-nav-row">
+        <button id="discover-depth-1" class="ghost-button" title="Show 1-hop neighbors">1-hop</button>
+        <button id="discover-depth-2" class="ghost-button" title="Show 2-hop neighbors">2-hop</button>
+        <button id="discover-exit" class="ghost-button" title="Exit discover mode" style="flex:1.4">Exit</button>
+      </div>
+      <div class="discover-section-label">Neighbors <span id="discover-neighbors-count" style="font-weight:400"></span></div>
+      <ul class="discover-neighbor-list" id="discover-neighbor-list"></ul>
+    </div>
+    <div class="sidebar-inner" id="tools-sidebar-inner">
       <details class="sidebar-section" data-accordion open>
         <summary>
           <span class="summary-title">View Presets</span>
@@ -1612,6 +1720,12 @@ a:hover {
         <div class="section-body">
           <div class="phys-lab">
             <button id="phys-toggle" class="ghost-button phys-wide-btn" type="button">▶ Start physics</button>
+            <div id="phys-timer" class="phys-timer"></div>
+            <div class="phys-row">
+              <label class="phys-label" for="phys-duration">Duration</label>
+              <input id="phys-duration" class="phys-slider" type="range" min="2" max="30" step="1" value="7">
+              <span id="phys-duration-val" class="phys-val">7s</span>
+            </div>
             <div class="phys-row">
               <label class="phys-label" for="phys-grav">Gravity</label>
               <input id="phys-grav" class="phys-slider" type="range" min="-30000" max="-500" step="500" value="-15000">
@@ -2122,6 +2236,14 @@ const dom = {
   statsNote: document.getElementById("stats-note"),
   statsSummary: document.getElementById("stats-summary"),
   physToggle: document.getElementById("phys-toggle"),
+  physTimer: document.getElementById("phys-timer"),
+  discoverPanel: document.getElementById("discover-panel"),
+  toolsSidebarInner: document.getElementById("tools-sidebar-inner"),
+  discoverNodeTitle: document.getElementById("discover-node-title"),
+  discoverNodeMeta: document.getElementById("discover-node-meta"),
+  discoverNodeDesc: document.getElementById("discover-node-desc"),
+  discoverNeighborList: document.getElementById("discover-neighbor-list"),
+  discoverNeighborsCount: document.getElementById("discover-neighbors-count"),
   canvasSurface: document.getElementById("canvas-surface"),
   network: document.getElementById("network"),
   clusterOverlay: document.getElementById("cluster-overlay"),
@@ -2217,6 +2339,8 @@ const state = {
   },
   timers: {
     physics: 0,
+    physicsInterval: 0,
+    physicsStarted: 0,
     flash: 0,
   },
   caches: {
@@ -3621,7 +3745,9 @@ function applyView(options = {}) {
   dom.forceButton.classList.toggle("is-active", state.forceEnabled);
   closeContextMenu();
 
-  if (nodesToAdd.length && state.forceEnabled && !state.embedActive && !state.focus) {
+  // Only auto-start physics when explicitly requested (initial load, preset apply).
+  // Filter/edge-type changes do NOT restart physics — nodes reposition smoothly.
+  if (options.restartPhysics && state.forceEnabled && !state.embedActive && !state.focus) {
     settlePhysics();
   } else if (state.embedActive) {
     disablePhysics();
@@ -3697,15 +3823,24 @@ function updateStats() {
   if (!state.data) {
     return;
   }
-  const projectCount = state.data.nodes.reduce((accumulator, node) => accumulator + (node.type === "Project" ? 1 : 0), 0);
+  const totalProjects = state.data.nodes.reduce((acc, node) => acc + (node.type === "Project" ? 1 : 0), 0);
+  const totalNodes = state.data.meta?.nodeCount || state.data.nodes.length;
+  const totalEdges = state.data.meta?.edgeCount || state.data.edges.length;
+
+  // Visible project count from current view
+  const visibleProjectCount = Array.from(state.currentView.nodeIds).filter((id) => {
+    const n = state.caches.nodeById.get(id);
+    return n && n.type === "Project";
+  }).length;
+
   dom.statsGrid.innerHTML =
-    "<div class='stat-card'><div class='stat-label'>Projects</div><div class='stat-value'>" + formatNumber(projectCount) + "</div></div>" +
-    "<div class='stat-card'><div class='stat-label'>Nodes</div><div class='stat-value'>" + formatNumber(state.data.meta?.nodeCount || state.data.nodes.length) + "</div></div>" +
-    "<div class='stat-card'><div class='stat-label'>Edges</div><div class='stat-value'>" + formatNumber(state.data.meta?.edgeCount || state.data.edges.length) + "</div></div>";
+    "<div class='stat-card'><div class='stat-label'>Projects</div><div class='stat-value'>" + formatNumber(visibleProjectCount) + "</div></div>" +
+    "<div class='stat-card'><div class='stat-label'>Nodes</div><div class='stat-value'>" + formatNumber(state.currentView.nodeIds.size) + "</div></div>" +
+    "<div class='stat-card'><div class='stat-label'>Edges</div><div class='stat-value'>" + formatNumber(state.currentView.edgeIds.size) + "</div></div>";
   dom.statsNote.textContent =
-    "Visible: " + formatNumber(state.currentView.nodeIds.size) +
-    " nodes / " + formatNumber(state.currentView.edgeIds.size) +
-    " edges. Version " + String(state.data.meta?.version || "unknown") + ".";
+    "Total: " + formatNumber(totalProjects) + " projects / " +
+    formatNumber(totalNodes) + " nodes / " + formatNumber(totalEdges) + " edges. " +
+    "Version 2026-05.";
 }
 
 function renderBreadcrumb() {
@@ -4054,6 +4189,121 @@ function focusCameraOnNode(nodeId) {
   });
 }
 
+// ─── Discover panel ──────────────────────────────────────────────────────────
+
+function renderDiscoverPanel() {
+  const isActive = Boolean(state.focus);
+  if (!dom.discoverPanel || !dom.toolsSidebarInner) return;
+
+  if (!isActive) {
+    dom.discoverPanel.classList.add("is-hidden");
+    dom.toolsSidebarInner.style.display = "";
+    return;
+  }
+
+  // Show discover panel, hide normal tools
+  dom.discoverPanel.classList.remove("is-hidden");
+  dom.toolsSidebarInner.style.display = "none";
+
+  const rootNode = state.caches.nodeById.get(state.focus.rootId);
+  if (!rootNode) return;
+
+  // Node title + meta
+  dom.discoverNodeTitle.textContent = rootNode.label || state.focus.rootId;
+  const degree = (state.caches.incidentEdgeIdsByNode.get(state.focus.rootId) || []).length;
+  dom.discoverNodeMeta.textContent =
+    rootNode.type + " · " + degree + " connection" + (degree !== 1 ? "s" : "") +
+    (rootNode.props?.year ? " · " + rootNode.props.year : "");
+  dom.discoverNodeDesc.textContent = truncateText(rootNode.props?.description || "", 160);
+
+  // Depth buttons state
+  const d1Btn = document.getElementById("discover-depth-1");
+  const d2Btn = document.getElementById("discover-depth-2");
+  if (d1Btn) d1Btn.classList.toggle("is-active", state.focus.depth === 1);
+  if (d2Btn) d2Btn.classList.toggle("is-active", state.focus.depth === 2);
+
+  // Neighbor list — direct neighbors visible in current view
+  const neighborIds = [];
+  for (const edgeId of (state.caches.incidentEdgeIdsByNode.get(state.focus.rootId) || [])) {
+    const edge = state.caches.edgeById.get(edgeId);
+    if (!edge) continue;
+    const otherId = edge.source === state.focus.rootId ? edge.target : edge.source;
+    if (state.currentView.nodeIds.has(otherId)) neighborIds.push(otherId);
+  }
+  dom.discoverNeighborsCount.textContent = "(" + neighborIds.length + " visible)";
+  dom.discoverNeighborList.innerHTML = neighborIds.slice(0, 30).map((nid) => {
+    const n = state.caches.nodeById.get(nid);
+    const label = n ? n.label : nid;
+    const color = getNodeColor(n?.type || "Project");
+    return "<li class='discover-neighbor-item' data-node-link='" + escapeHtml(nid) + "'>" +
+      "<span style='color:" + color + ";margin-right:5px;'>●</span>" +
+      escapeHtml(truncateText(label, 28)) +
+      "</li>";
+  }).join("");
+
+  // Wire neighbor clicks
+  for (const li of dom.discoverNeighborList.querySelectorAll("[data-node-link]")) {
+    li.addEventListener("click", () => {
+      const nid = li.dataset.nodeLink;
+      expandFocusToNode(nid);
+    });
+  }
+}
+
+function initDiscoverPanel() {
+  const prevBtn = document.getElementById("discover-prev");
+  const nextBtn = document.getElementById("discover-next");
+  const d1Btn   = document.getElementById("discover-depth-1");
+  const d2Btn   = document.getElementById("discover-depth-2");
+  const exitBtn = document.getElementById("discover-exit");
+
+  if (prevBtn) prevBtn.addEventListener("click", () => {
+    if (!state.focus) return;
+    const neighborIds = [];
+    for (const edgeId of (state.caches.incidentEdgeIdsByNode.get(state.focus.rootId) || [])) {
+      const edge = state.caches.edgeById.get(edgeId);
+      if (!edge) continue;
+      const otherId = edge.source === state.focus.rootId ? edge.target : edge.source;
+      if (state.currentView.nodeIds.has(otherId)) neighborIds.push(otherId);
+    }
+    if (!neighborIds.length) return;
+    state.focus.neighborIndex = ((state.focus.neighborIndex - 1) + neighborIds.length) % neighborIds.length;
+    expandFocusToNode(neighborIds[state.focus.neighborIndex]);
+  });
+
+  if (nextBtn) nextBtn.addEventListener("click", () => {
+    if (!state.focus) return;
+    const neighborIds = [];
+    for (const edgeId of (state.caches.incidentEdgeIdsByNode.get(state.focus.rootId) || [])) {
+      const edge = state.caches.edgeById.get(edgeId);
+      if (!edge) continue;
+      const otherId = edge.source === state.focus.rootId ? edge.target : edge.source;
+      if (state.currentView.nodeIds.has(otherId)) neighborIds.push(otherId);
+    }
+    if (!neighborIds.length) return;
+    state.focus.neighborIndex = (state.focus.neighborIndex + 1) % neighborIds.length;
+    expandFocusToNode(neighborIds[state.focus.neighborIndex]);
+  });
+
+  if (d1Btn) d1Btn.addEventListener("click", () => {
+    if (!state.focus) return;
+    state.focus.depth = 1;
+    applyView({ fit: false });
+    renderDiscoverPanel();
+  });
+
+  if (d2Btn) d2Btn.addEventListener("click", () => {
+    if (!state.focus) return;
+    state.focus.depth = 2;
+    applyView({ fit: false });
+    renderDiscoverPanel();
+  });
+
+  if (exitBtn) exitBtn.addEventListener("click", () => exitFocus(true));
+}
+
+// ─── End Discover panel ───────────────────────────────────────────────────────
+
 function activateFocus(nodeId, depth = 1) {
   // Exit embed mode when entering discovery focus
   if (state.embedActive) {
@@ -4070,6 +4320,7 @@ function activateFocus(nodeId, depth = 1) {
   state.selection.primaryId = nodeId;
   updateFocusExitButtonLabel();
   applyView({ fit: false, previousFocusDepth: previousDepth, focusNodeId: nodeId });
+  renderDiscoverPanel();
   showToast(depth === 1 ? "Exploring enabled." : "2-hop exploring enabled.", "success");
 }
 
@@ -4094,6 +4345,7 @@ function expandFocusToNode(nodeId) {
   if (!isNewAnchor) {
     focusCameraOnNode(nodeId);
   }
+  renderDiscoverPanel();
   const count = state.focus.accumulatedIds.size;
   showToast(count + " anchor" + (count === 1 ? "" : "s") + " in discovery.", "success");
 }
@@ -4104,6 +4356,7 @@ function exitFocus(announce = true) {
     return;
   }
   state.focus = null;
+  renderDiscoverPanel();
   applyView({ fit: true });
   if (announce) {
     showToast("Exploring exited.", "success");
@@ -4175,7 +4428,7 @@ function toggleEmbed(announce = true) {
     window.setTimeout(() => {
       state.network?.fit({
         nodes: Array.from(state.currentView.nodeIds),
-        padding: 60,
+        padding: 120,
         animation: { duration: 600, easingFunction: "easeInOutQuad" },
       });
     }, 80);
@@ -4204,7 +4457,7 @@ function resetToInitialPositions() {
     settlePhysics();
   }
   window.setTimeout(() => {
-    state.network?.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+    state.network?.fit({ padding: 120, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
   }, 80);
   showToast("Reset to UMAP seed positions.", "success");
 }
@@ -4269,11 +4522,18 @@ function applyViewPreset(name) {
     input.checked = state.filters.edgeTypes.has(type);
   }
 
-  // Stage physics sliders (applyView → settlePhysics will pick them up)
+  // Apply physics preset sliders first, then restart physics
   const physicsPreset = PHYSICS_PRESETS[preset.physics];
   if (physicsPreset) setPhysicsLabSliders(physicsPreset);
 
   applyView({ fit: true });
+  // Explicitly restart physics with the new preset params
+  if (state.network && !state.embedActive && state.forceEnabled) {
+    // Ensure all nodes are un-fixed so they can move under physics
+    const unfixUpdates = Array.from(state.currentView.nodeIds).map((id) => ({ id, fixed: { x: false, y: false } }));
+    if (unfixUpdates.length) state.datasets.nodes.update(unfixUpdates);
+    settlePhysics();
+  }
   showToast("View: " + preset.label, "success");
 }
 
@@ -4303,14 +4563,15 @@ function removeOverlap() {
     },
     stabilization: { enabled: false },
     maxVelocity: 30,
-    minVelocity: 0.5,
+    minVelocity: 0.1,
   }});
+  state.network.startSimulation(); // ensure re-runs work after physics was disabled
   state.ui.physicsActive = true;
   if (dom.physToggle) dom.physToggle.textContent = "■ Stop physics";
 
   state.timers.physics = window.setTimeout(() => {
     disablePhysics();
-    state.network?.fit({ padding: 60, animation: { duration: 400, easingFunction: "easeInOutQuad" } });
+    state.network?.fit({ padding: 120, animation: { duration: 400, easingFunction: "easeInOutQuad" } });
     showToast("Overlap removed.", "success");
   }, 1800);
 }
@@ -4358,7 +4619,7 @@ function runGephiPhases() {
     if (!state.network) return;
     clampOutlierNodes();
     if (!state.ui.continuousPhysics) disablePhysics();
-    state.network.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+    state.network.fit({ padding: 120, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     showToast("Gephi phases complete.", "success");
   }, 6800));
 }
@@ -4366,13 +4627,14 @@ function runGephiPhases() {
 function initPhysicsLab() {
   // Sync value labels as sliders move
   const sliders = [
-    ["phys-grav", "phys-grav-val", (v) => String(v)],
-    ["phys-cg",   "phys-cg-val",   (v) => Number(v).toFixed(3)],
-    ["phys-sl",   "phys-sl-val",   (v) => String(v)],
-    ["phys-sc",   "phys-sc-val",   (v) => Number(v).toFixed(2)],
-    ["phys-ao",   "phys-ao-val",   (v) => Number(v).toFixed(2)],
-    ["phys-damp", "phys-damp-val", (v) => Number(v).toFixed(2)],
-    ["phys-iter", "phys-iter-val", (v) => String(v)],
+    ["phys-grav",     "phys-grav-val",     (v) => String(v)],
+    ["phys-cg",       "phys-cg-val",       (v) => Number(v).toFixed(3)],
+    ["phys-sl",       "phys-sl-val",       (v) => String(v)],
+    ["phys-sc",       "phys-sc-val",       (v) => Number(v).toFixed(2)],
+    ["phys-ao",       "phys-ao-val",       (v) => Number(v).toFixed(2)],
+    ["phys-damp",     "phys-damp-val",     (v) => Number(v).toFixed(2)],
+    ["phys-iter",     "phys-iter-val",     (v) => String(v)],
+    ["phys-duration", "phys-duration-val", (v) => String(v) + "s"],
   ];
   for (const [sliderId, labelId, fmt] of sliders) {
     const slider = document.getElementById(sliderId);
@@ -4464,7 +4726,7 @@ function fitVisibleGraph(duration = 280) {
   }
   state.network.fit({
     nodes: Array.from(state.currentView.nodeIds),
-    padding: 60,
+    padding: 120,
     animation: {
       duration,
       easingFunction: "easeInOutQuad",
@@ -4474,11 +4736,18 @@ function fitVisibleGraph(duration = 280) {
 
 function disablePhysics() {
   window.clearTimeout(state.timers.physics);
+  window.clearInterval(state.timers.physicsInterval);
+  state.timers.physicsInterval = 0;
   if (state.network) {
     state.network.setOptions({ physics: { enabled: false } });
+    state.network.stopSimulation();
   }
   state.ui.physicsActive = false;
   if (dom.physToggle) dom.physToggle.textContent = "▶ Start physics";
+  if (dom.physTimer) {
+    dom.physTimer.textContent = "";
+    dom.physTimer.classList.remove("is-running");
+  }
 }
 
 function clampOutlierNodes() {
@@ -4519,14 +4788,22 @@ function clampOutlierNodes() {
   syncPositionCacheFromNetwork();
 }
 
+function getPhysicsDurationMs() {
+  const el = document.getElementById("phys-duration");
+  return el ? Number(el.value) * 1000 : 7000;
+}
+
 function settlePhysics() {
   if (!state.network || state.embedActive || !state.forceEnabled) {
     disablePhysics();
     return;
   }
   window.clearTimeout(state.timers.physics);
+  window.clearInterval(state.timers.physicsInterval);
   state.ui.physicsActive = true;
+  state.timers.physicsStarted = Date.now();
   if (dom.physToggle) dom.physToggle.textContent = "■ Stop physics";
+
   // Build physics options from lab sliders if available, else use compiled defaults
   const labP = getPhysicsLabParams();
   const physicsOpts = labP ? {
@@ -4545,16 +4822,33 @@ function settlePhysics() {
     minVelocity: 0.75,
   } : FORCE_OPTIONS;
   state.network.setOptions({ physics: physicsOpts });
-  // 7 s timer — let the galaxy form visibly, then freeze + fit
+  state.network.startSimulation(); // explicit start to ensure re-runs work
+
+  const durationMs = getPhysicsDurationMs();
+  const durationS = (durationMs / 1000).toFixed(0);
+
+  // Live timer display — updates every 500ms
+  function updatePhysTimer() {
+    if (!state.ui.physicsActive) return;
+    const elapsed = ((Date.now() - state.timers.physicsStarted) / 1000).toFixed(1);
+    if (dom.physTimer) {
+      dom.physTimer.textContent = elapsed + "s / " + durationS + "s";
+      dom.physTimer.classList.add("is-running");
+    }
+  }
+  updatePhysTimer();
+  state.timers.physicsInterval = window.setInterval(updatePhysTimer, 500);
+
+  // Duration timer — let the galaxy form visibly, then freeze + fit
   state.timers.physics = window.setTimeout(() => {
     clampOutlierNodes();
     if (!state.ui.continuousPhysics) {
       disablePhysics();
     }
     if (!state.focus && !state.embedActive) {
-      state.network?.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+      state.network?.fit({ padding: 120, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     }
-  }, 7000);
+  }, durationMs);
 }
 
 function handleNetworkStabilized() {
@@ -4562,12 +4856,10 @@ function handleNetworkStabilized() {
     disablePhysics();
     return;
   }
+  // Don't stop physics here — let the duration timer in settlePhysics() control when to stop.
+  // This prevents early termination when the graph finds a local minimum too quickly.
   clampOutlierNodes();
-  disablePhysics();
   scheduleClusterHullRender();
-  if (!state.focus) {
-    state.network.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
-  }
 }
 
 function handleDragEnd() {
@@ -4654,19 +4946,28 @@ function renderTooltip() {
     "<div class='tooltip-title'>" + escapeHtml(node.label) + "</div>" +
     "<div class='tooltip-meta'>" + escapeHtml(node.type) + "</div>" +
     (description ? "<div class='tooltip-copy'>" + escapeHtml(description) + "</div>" : "");
+
+  // Measure real dimensions before final placement (visibility:hidden avoids flash)
+  dom.tooltip.style.visibility = "hidden";
+  dom.tooltip.style.left = "0px";
+  dom.tooltip.style.top = "0px";
   dom.tooltip.classList.remove("is-hidden");
+  const w = dom.tooltip.offsetWidth || 200;
+  const h = dom.tooltip.offsetHeight || 60;
+
   const padding = 14;
-  const rect = dom.tooltip.getBoundingClientRect();
-  let left = state.ui.hoverPosition.x + 14;
-  let top = state.ui.hoverPosition.y + 14;
-  if (left + rect.width > window.innerWidth - padding) {
-    left = state.ui.hoverPosition.x - rect.width - 14;
-  }
-  if (top + rect.height > window.innerHeight - padding) {
-    top = state.ui.hoverPosition.y - rect.height - 14;
-  }
+  const { x, y } = state.ui.hoverPosition;
+  // Prefer right of cursor, flip left if it would clip
+  let left = x + 16;
+  if (left + w > window.innerWidth - padding) left = x - w - 16;
+  // Prefer below cursor but centered, flip if would clip bottom
+  let top = y - Math.round(h / 3);
+  if (top < padding) top = padding;
+  if (top + h > window.innerHeight - padding) top = window.innerHeight - h - padding;
+
+  dom.tooltip.style.visibility = "";
   dom.tooltip.style.left = Math.max(padding, left) + "px";
-  dom.tooltip.style.top = Math.max(padding, top) + "px";
+  dom.tooltip.style.top = top + "px";
 }
 
 function hideTooltip() {
@@ -5005,7 +5306,13 @@ function loadGraph(rawData, sourceLabel) {
   initializeNetwork();
   setEmbedDrawingListener(false);
   applyGraphTheme();
-  applyView({ fit: true, fitDuration: 0 });
+  applyView({ fit: true, fitDuration: 0, restartPhysics: true });
+  // Start very zoomed out so the galaxy+debris animation is visible
+  window.setTimeout(() => {
+    if (state.network) {
+      state.network.moveTo({ scale: 0.10, animation: false });
+    }
+  }, 50);
   setLoadingState(false);
   showToast("Loaded " + sourceLabel + ".", "success");
 
@@ -5219,6 +5526,7 @@ function bindEvents() {
     if (btn) btn.addEventListener("click", () => applyViewPreset(name));
   }
   initPhysicsLab();
+  initDiscoverPanel();
   if (dom.physToggle) {
     dom.physToggle.addEventListener("click", () => {
       if (state.ui.physicsActive) {
