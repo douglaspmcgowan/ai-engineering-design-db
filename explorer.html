@@ -4686,7 +4686,7 @@ function toggleEmbed(announce = true) {
       }
     }
     state.embedActive = true;
-    state.embedAllNodes = false; // default to projects-only; user can switch
+    state.embedAllNodes = true; // default to all 2405 nodes in joint UMAP
     setEmbedDrawingListener(true);
     applyGraphTheme();
     if (dom.embedAllToggle) {
@@ -4704,7 +4704,7 @@ function toggleEmbed(announce = true) {
       });
     }, 80);
     if (announce) {
-      showToast("Embed view enabled — showing 831 projects.", "success");
+      showToast("Embed view — 2405 nodes in semantic space.", "success");
     }
     return;
   }
@@ -5878,7 +5878,8 @@ function bindEvents() {
     dom.embedAllToggle.addEventListener("click", () => {
       if (!state.embedActive) return;
       state.embedAllNodes = !state.embedAllNodes;
-      dom.embedAllToggle.textContent = state.embedAllNodes ? "All nodes" : "Projects only";
+      // Label shows what clicking again will do (the other mode)
+      dom.embedAllToggle.textContent = state.embedAllNodes ? "Projects only" : "All nodes";
       applyView({ fit: false });
       window.setTimeout(() => {
         state.network?.fit({
