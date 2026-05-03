@@ -372,7 +372,7 @@ a:hover {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 220px var(--detail-width);
+  grid-template-columns: var(--left-w, 240px) minmax(0, 1fr) var(--tools-w, 220px) var(--detail-width);
   height: calc(100vh - var(--topbar-height) - var(--subbar-height));
   margin-top: calc(var(--topbar-height) + var(--subbar-height));
 }
@@ -385,6 +385,7 @@ a:hover {
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%),
     rgba(19, 19, 22, 0.94);
   padding: 16px 16px 16px 12px;
+  position: relative;
 }
 
 .tools-panel .sidebar-inner {
@@ -392,10 +393,29 @@ a:hover {
   gap: 10px;
 }
 
+/* Draggable resize handles on sidebar edges */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 20;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.resize-handle:hover,
+.resize-handle.is-dragging {
+  background: rgba(91, 143, 255, 0.45);
+}
+.sidebar .resize-handle  { right: -3px; }
+.tools-panel .resize-handle { left: -3px; }
+
 .sidebar {
   min-width: 0;
   overflow-y: auto;
   border-right: 1px solid var(--border);
+  position: relative;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%),
     rgba(19, 19, 22, 0.94);
@@ -1508,9 +1528,62 @@ a:hover {
       </details>
 
     </div>
+    <div class="resize-handle" data-panel="left" title="Drag to resize"></div>
   </aside>
 
+  <section class="canvas-column">
+    <div id="canvas-surface" class="canvas-surface">
+      <div id="network"></div>
+      <svg id="cluster-overlay" class="cluster-overlay" aria-hidden="true"></svg>
+
+      <div class="canvas-actions">
+        <button id="fit-button" class="ghost-button" type="button">Fit</button>
+        <button id="focus-exit-button" class="ghost-button is-hidden" type="button">Exit Exploring</button>
+      </div>
+
+      <div id="cluster-label-toggle" class="cluster-label-toggle is-hidden">
+        <button id="cluster-label-a" class="ghost-button" type="button">Category</button>
+        <button id="cluster-label-b" class="ghost-button is-active" type="button">Semantic</button>
+        <button id="cluster-label-c" class="ghost-button" type="button">Regions</button>
+      </div>
+
+      <div id="loading-overlay" class="canvas-overlay">
+        <div class="overlay-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <h2>Loading graph</h2>
+          <p id="loading-copy">Fetching ./graph/graph-data.json and building indexes.</p>
+        </div>
+      </div>
+
+      <div id="drop-overlay" class="drop-overlay is-hidden">
+        <div class="overlay-card">
+          <h2>Drop to load dataset</h2>
+          <p>Drop a graph JSON file anywhere on the canvas to replace the current dataset.</p>
+        </div>
+      </div>
+
+      <div id="empty-overlay" class="empty-overlay is-hidden">
+        <div class="overlay-card">
+          <h3>No nodes match the current view</h3>
+          <p>Broaden the active filters, clear search, or exit focus mode.</p>
+          <div class="inline-actions" style="margin-top: 14px;">
+            <button id="empty-reset-button" class="ghost-button is-strong" type="button">Reset view</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tooltip" class="tooltip is-hidden" role="tooltip"></div>
+      <div id="context-menu" class="context-menu is-hidden">
+        <button id="context-zoom-button" type="button">Zoom to node</button>
+        <button id="context-select-button" type="button">Select &amp; show details</button>
+        <button id="context-focus-button" type="button">Focus / discover</button>
+        <button id="context-hide-button" type="button">Remove from view</button>
+      </div>
+    </div>
+  </section>
+
   <aside class="tools-panel">
+    <div class="resize-handle" data-panel="tools" title="Drag to resize"></div>
     <div class="sidebar-inner">
       <details class="sidebar-section" data-accordion open>
         <summary>
@@ -1610,57 +1683,6 @@ a:hover {
       </details>
     </div>
   </aside>
-
-  <section class="canvas-column">
-    <div id="canvas-surface" class="canvas-surface">
-      <div id="network"></div>
-      <svg id="cluster-overlay" class="cluster-overlay" aria-hidden="true"></svg>
-
-      <div class="canvas-actions">
-        <button id="fit-button" class="ghost-button" type="button">Fit</button>
-        <button id="focus-exit-button" class="ghost-button is-hidden" type="button">Exit Exploring</button>
-      </div>
-
-      <div id="cluster-label-toggle" class="cluster-label-toggle is-hidden">
-        <button id="cluster-label-a" class="ghost-button" type="button">Category</button>
-        <button id="cluster-label-b" class="ghost-button is-active" type="button">Semantic</button>
-        <button id="cluster-label-c" class="ghost-button" type="button">Regions</button>
-      </div>
-
-      <div id="loading-overlay" class="canvas-overlay">
-        <div class="overlay-card">
-          <div class="spinner" aria-hidden="true"></div>
-          <h2>Loading graph</h2>
-          <p id="loading-copy">Fetching ./graph/graph-data.json and building indexes.</p>
-        </div>
-      </div>
-
-      <div id="drop-overlay" class="drop-overlay is-hidden">
-        <div class="overlay-card">
-          <h2>Drop to load dataset</h2>
-          <p>Drop a graph JSON file anywhere on the canvas to replace the current dataset.</p>
-        </div>
-      </div>
-
-      <div id="empty-overlay" class="empty-overlay is-hidden">
-        <div class="overlay-card">
-          <h3>No nodes match the current view</h3>
-          <p>Broaden the active filters, clear search, or exit focus mode.</p>
-          <div class="inline-actions" style="margin-top: 14px;">
-            <button id="empty-reset-button" class="ghost-button is-strong" type="button">Reset view</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="tooltip" class="tooltip is-hidden" role="tooltip"></div>
-      <div id="context-menu" class="context-menu is-hidden">
-        <button id="context-zoom-button" type="button">Zoom to node</button>
-        <button id="context-select-button" type="button">Select &amp; show details</button>
-        <button id="context-focus-button" type="button">Focus / discover</button>
-        <button id="context-hide-button" type="button">Remove from view</button>
-      </div>
-    </div>
-  </section>
 
   <aside class="detail-panel">
     <div class="detail-shell">
@@ -1867,8 +1889,8 @@ const FORCE_OPTIONS = {
     avoidOverlap: 0.20,
   },
   stabilization: { iterations: 100 },
-  maxVelocity: 120,
-  minVelocity: 0.1,
+  maxVelocity: 50,
+  minVelocity: 0.75,
 };
 
 const NODE_METRICS = {
@@ -4464,8 +4486,8 @@ function settlePhysics() {
       damping: labP.damping,
     },
     stabilization: { iterations: labP.iterations },
-    maxVelocity: 120,
-    minVelocity: 0.1,
+    maxVelocity: 50,
+    minVelocity: 0.75,
   } : FORCE_OPTIONS;
   state.network.setOptions({ physics: physicsOpts });
   state.timers.physics = window.setTimeout(() => {
@@ -5079,6 +5101,40 @@ function handleGlobalKeydown(event) {
   }
 }
 
+function initResizeHandles() {
+  const layout = document.querySelector(".layout");
+  if (!layout) return;
+  for (const handle of document.querySelectorAll(".resize-handle")) {
+    const panel = handle.dataset.panel; // "left" or "tools"
+    handle.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      handle.classList.add("is-dragging");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      const startX = e.clientX;
+      const prop = panel === "left" ? "--left-w" : "--tools-w";
+      const startVal = parseInt(
+        getComputedStyle(layout).getPropertyValue(prop) || (panel === "left" ? "240" : "220"),
+        10
+      );
+      const onMove = (me) => {
+        const delta = panel === "left" ? me.clientX - startX : startX - me.clientX;
+        const next = Math.max(160, Math.min(420, startVal + delta));
+        layout.style.setProperty(prop, next + "px");
+      };
+      const onUp = () => {
+        handle.classList.remove("is-dragging");
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  }
+}
+
 function bindEvents() {
   dom.breadcrumbRoot.addEventListener("click", () => {
     if (state.focus) {
@@ -5110,6 +5166,7 @@ function bindEvents() {
       }
     });
   }
+  initResizeHandles();
   dom.discoverButton.addEventListener("click", () => {
     if (!state.selection.primaryId) {
       showToast("Click a node to select it, then press Discover to enter focus mode.", "warn");
