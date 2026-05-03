@@ -1777,8 +1777,13 @@ a:hover {
               <button id="phys-preset-tight" class="ghost-button" type="button" title="Tight cluster islands">Tight</button>
               <button id="phys-preset-spread" class="ghost-button" type="button" title="Maximum spread">Spread</button>
             </div>
+            <div class="phys-row">
+              <label class="phys-label" for="phys-gephi-mult">G.Speed</label>
+              <input id="phys-gephi-mult" class="phys-slider" type="range" min="0.3" max="3.0" step="0.1" value="1.0">
+              <span id="phys-gephi-mult-val" class="phys-val">1.0×</span>
+            </div>
             <button id="phys-gephi-phases" class="ghost-button phys-wide-btn" type="button"
-              title="Multi-phase: expansion (3s) → cooling (2s) → cluster separation (1.5s)">
+              title="Multi-phase: expansion → cooling → clustering. Speed multiplier scales all phase durations.">
               ▶ Run Gephi Phases
             </button>
             <button id="phys-remove-overlap" class="ghost-button phys-wide-btn" type="button"
@@ -4579,6 +4584,11 @@ function removeOverlap() {
 // Tracked Gephi phase timers so a re-click cancels the previous run
 const _gephiTimers = [];
 
+function getGephiMultiplier() {
+  const el = document.getElementById("phys-gephi-mult");
+  return el ? Math.max(0.3, Number(el.value)) : 1.0;
+}
+
 function runGephiPhases() {
   if (!state.network || state.embedActive) {
     showToast("Exit embed mode first.", "warn");
@@ -4587,16 +4597,36 @@ function runGephiPhases() {
   // Cancel any running phase sequence
   for (const t of _gephiTimers) window.clearTimeout(t);
   _gephiTimers.length = 0;
-  window.clearTimeout(state.timers.physics); // cancel settlePhysics timer too
+  window.clearTimeout(state.timers.physics);
+  window.clearInterval(state.timers.physicsInterval);
 
-  showToast("Gephi phases: expansion → cooling → clustering…", "success");
+  const m = getGephiMultiplier(); // speed multiplier (0.3 = fast, 3.0 = slow/cinematic)
+  const t1 = Math.round(3000 * m);   // end of phase 1 (expansion)
+  const t2 = Math.round(5000 * m);   // end of phase 2 (cooling)
+  const t3 = Math.round(6800 * m);   // finalize
+
+  const totalS = (t3 / 1000).toFixed(1);
+  showToast("Gephi phases (" + totalS + "s): expansion → cooling → clustering…", "success");
+
   // Phase 1: Blast nodes apart (strong repulsion, no overlap avoidance)
   state.network.setOptions({ physics: { enabled: true, solver: "barnesHut", barnesHut: {
     gravitationalConstant: -25000, centralGravity: 0.001,
     springLength: 280, springConstant: 0.06, avoidOverlap: 0, damping: 0.08,
   }, stabilization: { enabled: false }, maxVelocity: 200 }});
+  state.network.startSimulation();
   state.ui.physicsActive = true;
   if (dom.physToggle) dom.physToggle.textContent = "■ Stop physics";
+
+  // Live timer display during phases
+  state.timers.physicsStarted = Date.now();
+  state.timers.physicsInterval = window.setInterval(() => {
+    if (!state.ui.physicsActive) { window.clearInterval(state.timers.physicsInterval); return; }
+    const elapsed = ((Date.now() - state.timers.physicsStarted) / 1000).toFixed(1);
+    if (dom.physTimer) {
+      dom.physTimer.textContent = elapsed + "s / " + totalS + "s";
+      dom.physTimer.classList.add("is-running");
+    }
+  }, 500);
 
   // Phase 2: Cooling
   _gephiTimers.push(window.setTimeout(() => {
@@ -4605,7 +4635,7 @@ function runGephiPhases() {
       gravitationalConstant: -15000, centralGravity: 0.004,
       springLength: 220, springConstant: 0.09, avoidOverlap: 0.08, damping: 0.14,
     }}});
-  }, 3000));
+  }, t1));
   // Phase 3: Cluster separation
   _gephiTimers.push(window.setTimeout(() => {
     if (!state.network) return;
@@ -4613,7 +4643,7 @@ function runGephiPhases() {
       gravitationalConstant: -15000, centralGravity: 0.006,
       springLength: 200, springConstant: 0.10, avoidOverlap: 0.25, damping: 0.22,
     }}});
-  }, 5000));
+  }, t2));
   // Finalize
   _gephiTimers.push(window.setTimeout(() => {
     if (!state.network) return;
@@ -4621,7 +4651,7 @@ function runGephiPhases() {
     if (!state.ui.continuousPhysics) disablePhysics();
     state.network.fit({ padding: 120, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     showToast("Gephi phases complete.", "success");
-  }, 6800));
+  }, t3));
 }
 
 function initPhysicsLab() {
@@ -4634,7 +4664,8 @@ function initPhysicsLab() {
     ["phys-ao",       "phys-ao-val",       (v) => Number(v).toFixed(2)],
     ["phys-damp",     "phys-damp-val",     (v) => Number(v).toFixed(2)],
     ["phys-iter",     "phys-iter-val",     (v) => String(v)],
-    ["phys-duration", "phys-duration-val", (v) => String(v) + "s"],
+    ["phys-duration",   "phys-duration-val",   (v) => String(v) + "s"],
+    ["phys-gephi-mult", "phys-gephi-mult-val", (v) => Number(v).toFixed(1) + "×"],
   ];
   for (const [sliderId, labelId, fmt] of sliders) {
     const slider = document.getElementById(sliderId);
