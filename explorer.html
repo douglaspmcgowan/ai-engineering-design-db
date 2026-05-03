@@ -372,9 +372,24 @@ a:hover {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) var(--detail-width);
+  grid-template-columns: 240px minmax(0, 1fr) 220px var(--detail-width);
   height: calc(100vh - var(--topbar-height) - var(--subbar-height));
   margin-top: calc(var(--topbar-height) + var(--subbar-height));
+}
+
+.tools-panel {
+  min-width: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%),
+    rgba(19, 19, 22, 0.94);
+  padding: 16px 16px 16px 12px;
+}
+
+.tools-panel .sidebar-inner {
+  display: grid;
+  gap: 10px;
 }
 
 .sidebar {
@@ -1306,6 +1321,10 @@ a:hover {
     grid-template-rows: minmax(0, 1fr) auto;
   }
 
+  .tools-panel {
+    display: none;
+  }
+
   .sidebar {
     order: 2;
     max-height: 300px;
@@ -1488,7 +1507,12 @@ a:hover {
         </div>
       </details>
 
-      <details class="sidebar-section" data-accordion>
+    </div>
+  </aside>
+
+  <aside class="tools-panel">
+    <div class="sidebar-inner">
+      <details class="sidebar-section" data-accordion open>
         <summary>
           <span class="summary-title">View Presets</span>
           <span class="summary-meta">Quick</span>
@@ -1507,13 +1531,14 @@ a:hover {
         </div>
       </details>
 
-      <details class="sidebar-section" data-accordion>
+      <details class="sidebar-section" data-accordion open>
         <summary>
           <span class="summary-title">Physics Lab</span>
           <span id="physics-lab-summary" class="summary-meta">barnesHut</span>
         </summary>
         <div class="section-body">
           <div class="phys-lab">
+            <button id="phys-toggle" class="ghost-button phys-wide-btn" type="button">▶ Start physics</button>
             <div class="phys-row">
               <label class="phys-label" for="phys-grav">Gravity</label>
               <input id="phys-grav" class="phys-slider" type="range" min="-30000" max="-500" step="500" value="-15000">
@@ -1573,7 +1598,7 @@ a:hover {
         </div>
       </details>
 
-      <details class="sidebar-section" data-accordion>
+      <details class="sidebar-section" data-accordion open>
         <summary>
           <span class="summary-title">Stats</span>
           <span id="stats-summary" class="summary-meta">Live</span>
@@ -2070,6 +2095,7 @@ const dom = {
   statsGrid: document.getElementById("stats-grid"),
   statsNote: document.getElementById("stats-note"),
   statsSummary: document.getElementById("stats-summary"),
+  physToggle: document.getElementById("phys-toggle"),
   canvasSurface: document.getElementById("canvas-surface"),
   network: document.getElementById("network"),
   clusterOverlay: document.getElementById("cluster-overlay"),
@@ -2161,6 +2187,7 @@ const state = {
     hoveredHullKey: "",
     renderedHulls: [],
     continuousPhysics: false,
+    physicsActive: false,
   },
   timers: {
     physics: 0,
@@ -4373,6 +4400,8 @@ function disablePhysics() {
   if (state.network) {
     state.network.setOptions({ physics: { enabled: false } });
   }
+  state.ui.physicsActive = false;
+  if (dom.physToggle) dom.physToggle.textContent = "▶ Start physics";
 }
 
 function clampOutlierNodes() {
@@ -4419,6 +4448,8 @@ function settlePhysics() {
     return;
   }
   window.clearTimeout(state.timers.physics);
+  state.ui.physicsActive = true;
+  if (dom.physToggle) dom.physToggle.textContent = "■ Stop physics";
   // Build physics options from lab sliders if available, else use compiled defaults
   const labP = getPhysicsLabParams();
   const physicsOpts = labP ? {
@@ -5070,6 +5101,15 @@ function bindEvents() {
     if (btn) btn.addEventListener("click", () => applyViewPreset(name));
   }
   initPhysicsLab();
+  if (dom.physToggle) {
+    dom.physToggle.addEventListener("click", () => {
+      if (state.ui.physicsActive) {
+        disablePhysics();
+      } else {
+        settlePhysics();
+      }
+    });
+  }
   dom.discoverButton.addEventListener("click", () => {
     if (!state.selection.primaryId) {
       showToast("Click a node to select it, then press Discover to enter focus mode.", "warn");
