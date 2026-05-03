@@ -4776,6 +4776,7 @@ function resetToInitialPositions() {
   if (!state.data || !state.network) return;
   state.caches.nodePositionCache = new Map(state.data.initialPositionsById);
   state.caches.pendingRestorePositions = new Map();
+  state.pinnedNodeIds = new Set(); // unpin all nodes on reset
   applyView({ fit: false });
   if (state.forceEnabled && !state.embedActive) {
     settlePhysics();
@@ -5817,10 +5818,16 @@ function loadDroppedFile(file) {
 
 function handleGlobalKeydown(event) {
   if (isTypingContext(event.target)) {
-    if (event.key === "Escape" && state.filters.search && event.target === dom.searchInput) {
-      state.filters.search = "";
-      dom.searchInput.value = "";
-      applyView({ fit: false });
+    if (event.key === "Escape") {
+      // Always let Escape close an open modal even when focus is inside it
+      if (state.ui.openModal === "feedback") { closeFeedback(); return; }
+      if (state.ui.openModal === "help")     { closeHelp(false); return; }
+      // Clear active search when Escape pressed from search input
+      if (state.filters.search && event.target === dom.searchInput) {
+        state.filters.search = "";
+        dom.searchInput.value = "";
+        applyView({ fit: false });
+      }
     }
     return;
   }
