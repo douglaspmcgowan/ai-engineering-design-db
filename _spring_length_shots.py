@@ -12,6 +12,11 @@ import os
 from pathlib import Path
 
 try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+try:
     from playwright.async_api import async_playwright
 except ImportError:
     print("Install playwright: pip install playwright && playwright install chromium")

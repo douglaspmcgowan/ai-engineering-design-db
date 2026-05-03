@@ -1639,8 +1639,8 @@ a:hover {
             </div>
             <div class="phys-row">
               <label class="phys-label" for="phys-damp">Damping</label>
-              <input id="phys-damp" class="phys-slider" type="range" min="0.02" max="0.40" step="0.01" value="0.15">
-              <span id="phys-damp-val" class="phys-val">0.15</span>
+              <input id="phys-damp" class="phys-slider" type="range" min="0.02" max="0.40" step="0.01" value="0.22">
+              <span id="phys-damp-val" class="phys-val">0.22</span>
             </div>
             <div class="phys-row">
               <label class="phys-label" for="phys-iter">Iterations</label>
@@ -1666,6 +1666,10 @@ a:hover {
             <button id="phys-gephi-phases" class="ghost-button phys-wide-btn" type="button"
               title="Multi-phase: expansion (3s) → cooling (2s) → cluster separation (1.5s)">
               ▶ Run Gephi Phases
+            </button>
+            <button id="phys-remove-overlap" class="ghost-button phys-wide-btn" type="button"
+              title="Push overlapping nodes apart without restructuring the layout (1.8s)">
+              Remove Overlap
             </button>
           </div>
         </div>
@@ -1785,7 +1789,7 @@ const STORAGE_KEYS = {
 
 // Physics Lab presets — each matches the barnesHut sub-object + iterations
 const PHYSICS_PRESETS = {
-  default: { gravitationalConstant: -15000, centralGravity: 0.006, springLength: 200, springConstant: 0.10, avoidOverlap: 0.20, damping: 0.15, iterations: 100 },
+  default: { gravitationalConstant: -15000, centralGravity: 0.006, springLength: 200, springConstant: 0.10, avoidOverlap: 0.20, damping: 0.22, iterations: 100 },
   gephi:   { gravitationalConstant: -20000, centralGravity: 0.003, springLength: 250, springConstant: 0.08, avoidOverlap: 0.15, damping: 0.10, iterations: 300 },
   tight:   { gravitationalConstant: -18000, centralGravity: 0.005, springLength: 180, springConstant: 0.15, avoidOverlap: 0.25, damping: 0.15, iterations: 150 },
   spread:  { gravitationalConstant: -12000, centralGravity: 0.003, springLength: 260, springConstant: 0.07, avoidOverlap: 0.20, damping: 0.12, iterations: 100 },
@@ -1885,12 +1889,12 @@ const FORCE_OPTIONS = {
     centralGravity: 0.006,
     springLength: 200,
     springConstant: 0.10,
-    damping: 0.15,
+    damping: 0.22,          // higher damping → less oscillation at equilibrium
     avoidOverlap: 0.20,
   },
-  stabilization: { iterations: 100 },
+  stabilization: { enabled: false }, // live animation from UMAP seed; no pre-compute pass
   maxVelocity: 50,
-  minVelocity: 0.75,
+  minVelocity: 0.75,        // vis-network fires 'stabilized' when all nodes below this
 };
 
 const NODE_METRICS = {
@@ -4273,41 +4277,90 @@ function applyViewPreset(name) {
   showToast("View: " + preset.label, "success");
 }
 
+// Remove-overlap mode — pushes overlapping nodes apart without restructuring the layout.
+// Equivalent to Gephi's "Prevent Overlap" post-process.
+function removeOverlap() {
+  if (!state.network || state.embedActive) {
+    showToast("Not available in embed mode.", "warn");
+    return;
+  }
+  window.clearTimeout(state.timers.physics);
+  for (const t of _gephiTimers) window.clearTimeout(t);
+  _gephiTimers.length = 0;
+
+  showToast("Removing overlaps…", "success");
+  // Zero out all structural forces; only avoidOverlap acts
+  state.network.setOptions({ physics: {
+    enabled: true,
+    solver: "barnesHut",
+    barnesHut: {
+      gravitationalConstant: 0,
+      centralGravity: 0,
+      springConstant: 0,
+      springLength: 200,
+      avoidOverlap: 1.0,
+      damping: 0.5,
+    },
+    stabilization: { enabled: false },
+    maxVelocity: 30,
+    minVelocity: 0.5,
+  }});
+  state.ui.physicsActive = true;
+  if (dom.physToggle) dom.physToggle.textContent = "■ Stop physics";
+
+  state.timers.physics = window.setTimeout(() => {
+    disablePhysics();
+    state.network?.fit({ padding: 60, animation: { duration: 400, easingFunction: "easeInOutQuad" } });
+    showToast("Overlap removed.", "success");
+  }, 1800);
+}
+
+// Tracked Gephi phase timers so a re-click cancels the previous run
+const _gephiTimers = [];
+
 function runGephiPhases() {
   if (!state.network || state.embedActive) {
     showToast("Exit embed mode first.", "warn");
     return;
   }
+  // Cancel any running phase sequence
+  for (const t of _gephiTimers) window.clearTimeout(t);
+  _gephiTimers.length = 0;
+  window.clearTimeout(state.timers.physics); // cancel settlePhysics timer too
+
   showToast("Gephi phases: expansion → cooling → clustering…", "success");
   // Phase 1: Blast nodes apart (strong repulsion, no overlap avoidance)
   state.network.setOptions({ physics: { enabled: true, solver: "barnesHut", barnesHut: {
     gravitationalConstant: -25000, centralGravity: 0.001,
     springLength: 280, springConstant: 0.06, avoidOverlap: 0, damping: 0.08,
   }, stabilization: { enabled: false }, maxVelocity: 200 }});
-  // Phase 2: Cooling — ease forces, nodes drift to equilibrium
-  window.setTimeout(() => {
+  state.ui.physicsActive = true;
+  if (dom.physToggle) dom.physToggle.textContent = "■ Stop physics";
+
+  // Phase 2: Cooling
+  _gephiTimers.push(window.setTimeout(() => {
     if (!state.network) return;
     state.network.setOptions({ physics: { barnesHut: {
       gravitationalConstant: -15000, centralGravity: 0.004,
-      springLength: 220, springConstant: 0.09, avoidOverlap: 0.08, damping: 0.12,
+      springLength: 220, springConstant: 0.09, avoidOverlap: 0.08, damping: 0.14,
     }}});
-  }, 3000);
-  // Phase 3: Cluster separation — overlap avoidance separates nodes within clusters
-  window.setTimeout(() => {
+  }, 3000));
+  // Phase 3: Cluster separation
+  _gephiTimers.push(window.setTimeout(() => {
     if (!state.network) return;
     state.network.setOptions({ physics: { barnesHut: {
       gravitationalConstant: -15000, centralGravity: 0.006,
-      springLength: 200, springConstant: 0.10, avoidOverlap: 0.25, damping: 0.15,
+      springLength: 200, springConstant: 0.10, avoidOverlap: 0.25, damping: 0.22,
     }}});
-  }, 5000);
+  }, 5000));
   // Finalize
-  window.setTimeout(() => {
+  _gephiTimers.push(window.setTimeout(() => {
     if (!state.network) return;
     clampOutlierNodes();
     if (!state.ui.continuousPhysics) disablePhysics();
     state.network.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     showToast("Gephi phases complete.", "success");
-  }, 6800);
+  }, 6800));
 }
 
 function initPhysicsLab() {
@@ -4366,6 +4419,8 @@ function initPhysicsLab() {
   // Gephi phases button
   const gephasEl = document.getElementById("phys-gephi-phases");
   if (gephasEl) gephasEl.addEventListener("click", runGephiPhases);
+  const removeOverlapEl = document.getElementById("phys-remove-overlap");
+  if (removeOverlapEl) removeOverlapEl.addEventListener("click", removeOverlap);
 }
 
 // ─── End Physics Lab ─────────────────────────────────────────────────────────
@@ -4485,11 +4540,12 @@ function settlePhysics() {
       avoidOverlap: labP.avoidOverlap,
       damping: labP.damping,
     },
-    stabilization: { iterations: labP.iterations },
+    stabilization: { enabled: false }, // live animation, no invisible pre-compute
     maxVelocity: 50,
     minVelocity: 0.75,
   } : FORCE_OPTIONS;
   state.network.setOptions({ physics: physicsOpts });
+  // 7 s timer — let the galaxy form visibly, then freeze + fit
   state.timers.physics = window.setTimeout(() => {
     clampOutlierNodes();
     if (!state.ui.continuousPhysics) {
@@ -4498,7 +4554,7 @@ function settlePhysics() {
     if (!state.focus && !state.embedActive) {
       state.network?.fit({ padding: 60, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     }
-  }, 3500);
+  }, 7000);
 }
 
 function handleNetworkStabilized() {
@@ -4662,13 +4718,19 @@ function handleNetworkContextMenu(params) {
     return;
   }
   state.ui.contextNodeId = nodeId;
-  const menuWidth = 180;
-  const menuHeight = 44;
+  // Show briefly off-screen to measure real height, then position correctly
+  dom.contextMenu.style.visibility = "hidden";
+  dom.contextMenu.style.left = "0px";
+  dom.contextMenu.style.top = "0px";
+  dom.contextMenu.classList.remove("is-hidden");
+  const menuWidth = dom.contextMenu.offsetWidth || 180;
+  const menuHeight = dom.contextMenu.offsetHeight || 140;
+  dom.contextMenu.style.visibility = "";
   const left = Math.min(sourceEvent.clientX, window.innerWidth - menuWidth - 12);
   const top = Math.min(sourceEvent.clientY, window.innerHeight - menuHeight - 12);
   dom.contextMenu.style.left = left + "px";
   dom.contextMenu.style.top = top + "px";
-  dom.contextMenu.classList.remove("is-hidden");
+  // already visible from the measurement step above
 }
 
 function closeContextMenu() {
@@ -5160,6 +5222,9 @@ function bindEvents() {
   if (dom.physToggle) {
     dom.physToggle.addEventListener("click", () => {
       if (state.ui.physicsActive) {
+        // Cancel any running Gephi phase timers too
+        for (const t of _gephiTimers) window.clearTimeout(t);
+        _gephiTimers.length = 0;
         disablePhysics();
       } else {
         settlePhysics();
