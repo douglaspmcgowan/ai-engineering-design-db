@@ -5306,13 +5306,14 @@ function loadGraph(rawData, sourceLabel) {
   initializeNetwork();
   setEmbedDrawingListener(false);
   applyGraphTheme();
-  applyView({ fit: true, fitDuration: 0, restartPhysics: true });
-  // Start very zoomed out so the galaxy+debris animation is visible
+  applyView({ fit: true, fitDuration: 0 });
+  // Start very zoomed out, then run Gephi phases for the galaxy+debris opening animation
   window.setTimeout(() => {
     if (state.network) {
       state.network.moveTo({ scale: 0.10, animation: false });
+      runGephiPhases();
     }
-  }, 50);
+  }, 80);
   setLoadingState(false);
   showToast("Loaded " + sourceLabel + ".", "success");
 
