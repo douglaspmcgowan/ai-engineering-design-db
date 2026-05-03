@@ -35,6 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 IN_FILE = ROOT / "consolidated.jsonl"
 GRAPH_DIR = ROOT / "graph"
 EMBED_COORDS = GRAPH_DIR / "embed-coords.json"
+EMBED_COORDS_ALL = GRAPH_DIR / "embed-coords-all.json"  # all-entity UMAP coords
 CLUSTER_LABELS = GRAPH_DIR / "cluster-labels.json"
 
 # ── Node type constants ──────────────────────────────────────────────────────
@@ -236,7 +237,16 @@ class GraphBuilder:
         if EMBED_COORDS.exists():
             try:
                 embed_coords = json.loads(EMBED_COORDS.read_text(encoding="utf-8"))
-                print(f"Loaded embed coords for {len(embed_coords)} nodes")
+                print(f"Loaded embed coords for {len(embed_coords)} project nodes")
+            except Exception:
+                pass
+
+        # Load all-entity UMAP coords (keyed by full node ID e.g. "project:foo")
+        embed_coords_all: dict[str, dict] = {}
+        if EMBED_COORDS_ALL.exists():
+            try:
+                embed_coords_all = json.loads(EMBED_COORDS_ALL.read_text(encoding="utf-8"))
+                print(f"Loaded all-entity embed coords for {len(embed_coords_all)} nodes")
             except Exception:
                 pass
 
@@ -266,13 +276,20 @@ class GraphBuilder:
                 props["industry_application"] = rec.get("industry_application", [])
                 props["tags"] = rec.get("tags", [])
                 props["name"] = rec.get("name", n["label"])
-                # Inject UMAP 2D coords for embed view
+                # Inject UMAP 2D coords for embed view (project-only embedding)
                 ec = embed_coords.get(rec_id)
                 if ec:
                     props["embed_x"] = ec["x"]
                     props["embed_y"] = ec["y"]
                     props["cluster_k"] = ec["cluster_k"]
                     props["cluster_label"] = cluster_label_map.get(ec["cluster_k"], f"Cluster {ec['cluster_k']}")
+
+            # Inject all-entity UMAP coords (keyed by full node ID like "project:foo")
+            ec_all = embed_coords_all.get(n["id"])
+            if ec_all:
+                props["embed_all_x"] = ec_all["x"]
+                props["embed_all_y"] = ec_all["y"]
+
             out_nodes.append({"id": n["id"], "type": n["type"], "label": n["label"], "props": props})
 
         out_edges = [dict(e) for e in self.edges]

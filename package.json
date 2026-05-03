@@ -1,0 +1,28 @@
+{
+  "name": "ai-engineering-design-db",
+  "version": "1.0.0",
+  "description": "A systematic catalog of AI/ML models, tools, and academic projects for engineering design — text-to-CAD, generative topology, simulation surrogates, neural operators, generative materials, manufacturability AI, CAD copilots, and adjacent areas.",
+  "main": "playwright.config.js",
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/douglaspmcgowan/ai-engineering-design-db.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/douglaspmcgowan/ai-engineering-design-db/issues"
+  },
+  "homepage": "https://github.com/douglaspmcgowan/ai-engineering-design-db#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

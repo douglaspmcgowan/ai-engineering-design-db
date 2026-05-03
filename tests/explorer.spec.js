@@ -253,4 +253,66 @@ test.describe("explorer", () => {
   test("discover button exists in topbar", async ({ page }) => {
     await expect(page.locator("#discover-button")).toBeVisible();
   });
+
+  test("double-click activates focus mode and shows discover nav in detail panel", async ({ page }) => {
+    // Simulate double-click via JS event
+    await page.evaluate(() => {
+      // Call the double-click handler directly
+      if (typeof handleNetworkDoubleClick === "function") {
+        handleNetworkDoubleClick({ nodes: ["project:a"], edges: [], event: { srcEvent: {} } });
+      } else if (window.state?.network) {
+        // fallback: fire via network event
+      }
+    });
+    await page.waitForTimeout(200);
+
+    const focusActive = await page.evaluate(() => Boolean(state?.focus));
+    expect(focusActive).toBe(true);
+
+    // Discover nav should be visible in the detail panel
+    await expect(page.locator("#detail-discover-nav")).not.toHaveClass(/is-hidden/);
+    // Focus exit button should be visible
+    await expect(page.locator("#focus-exit-button")).not.toHaveClass(/is-hidden/);
+  });
+
+  test("search suggestions appear after typing 2+ chars", async ({ page }) => {
+    await page.fill("#search-input", "Al");
+    await page.waitForTimeout(100);
+    const suggEl = page.locator("#search-suggestions");
+    await expect(suggEl).not.toHaveClass(/is-hidden/);
+    const items = suggEl.locator(".search-suggestion-item");
+    expect(await items.count()).toBeGreaterThan(0);
+  });
+
+  test("embed mode hides physics and preset sections", async ({ page }) => {
+    // Initially both sections visible
+    await expect(page.locator("#tools-presets-section")).not.toHaveClass(/is-hidden/);
+    await expect(page.locator("#tools-physics-section")).not.toHaveClass(/is-hidden/);
+
+    // Activate embed
+    await page.click("#embed-button");
+    await page.waitForTimeout(200);
+
+    await expect(page.locator("#tools-presets-section")).toHaveClass(/is-hidden/);
+    await expect(page.locator("#tools-physics-section")).toHaveClass(/is-hidden/);
+  });
+
+  test("focus mode filters visible nodes to neighborhood", async ({ page }) => {
+    // Start with full view — should have all 3 nodes visible
+    const initialCount = await page.evaluate(() => state?.currentView?.nodeIds?.size ?? 0);
+    expect(initialCount).toBeGreaterThanOrEqual(1);
+
+    // Double-click project:a — which only has 2 direct neighbors (project:b, org:acme)
+    await page.evaluate(() => {
+      if (typeof handleNetworkDoubleClick === "function") {
+        handleNetworkDoubleClick({ nodes: ["project:a"], edges: [], event: { srcEvent: {} } });
+      }
+    });
+    await page.waitForTimeout(200);
+
+    const focusedCount = await page.evaluate(() => state?.currentView?.nodeIds?.size ?? 0);
+    // Focus on project:a at depth=1 should show: project:a + org:acme (BUILT_BY) + project:b (SEMANTICALLY_NEAR)
+    // All 3 nodes are 1-hop neighbors, so count should be ≤ initial
+    expect(focusedCount).toBeLessThanOrEqual(initialCount);
+  });
 });

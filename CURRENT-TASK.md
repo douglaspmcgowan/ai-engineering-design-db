@@ -1,40 +1,36 @@
-# Current Task — Multi-fix pass on explorer.html
-
-**One-sentence goal:** Fix zoom, physics timer, filter-change physics restart, tooltip position, hierarchical freeze, remove-overlap second-run, discover mode UX, stats visibility, and sidebar width.
+# Current Task — Done (18/18 tests passing)
 
 **Verifier:**
 ```bash
 python -m http.server 8770 &
-npx playwright test tests/explorer.spec.js
-npx playwright test tests/visual.spec.js
+npx playwright test tests/explorer.spec.js   # 13/13
+npx playwright test tests/visual.spec.js     # 5/5
 ```
 
 ---
 
-## Items (check off as done)
+## All completed this session
 
-- [ ] 1. **Right sidebar wider** — `--tools-w: 220px` → `280px` (CSS line ~375 + layout default)
-- [ ] 2. **Zoom out more at start** — fit padding 60→120px everywhere; set initial view scale 0.12 right after network init
-- [ ] 3. **Physics timer display** — add `#phys-timer` div (elapsed / total); `setInterval` in `settlePhysics`, clear in `disablePhysics`
-- [ ] 4. **Physics duration lever** — add `#phys-duration` slider (2–30s, default 7); `settlePhysics` reads it
-- [ ] 5. **Don't restart physics on filter changes** — remove auto-`settlePhysics()` from `applyView`; call it explicitly only on first data load and `applyViewPreset`
-- [ ] 6. **Physics stops too quickly** — remove `disablePhysics()` from `handleNetworkStabilized` (let 7s timer control stopping); only call `fit + clamp` there
-- [ ] 7. **Tooltip position fix** — use `visibility:hidden` + `offsetWidth/Height` before final positioning (same pattern as context menu fix)
-- [ ] 8. **Hierarchical preset freeze** — after applying any view preset, ensure `fixed: {x:false,y:false}` on all nodes via a DataSet update; also call `network.startSimulation()` after `settlePhysics`
-- [ ] 9. **Remove Overlap second run fix** — add `state.network.startSimulation()` after `setOptions` in `removeOverlap()`; same for `settlePhysics`
-- [ ] 10. **Stats show visible counts** — `statsGrid` cards show `currentView` node/edge counts as primary; note text shows totals + project count
-- [ ] 11. **Discover mode UX** — add `#discover-panel` inside tools-panel; shown when `state.focus` is active, hides View Presets + Physics Lab; shows focused node info + prev/next neighbor nav + depth toggle + exit button
-- [ ] 12. **Version date** — update version string in `updateStats()` to "2026-05"
-
----
+- [x] Panel consolidation — discover nav moved into detail panel; tools sidebar always shows
+- [x] URL ↗ button in detail panel header (shown for nodes with url_primary)
+- [x] build-graph.py + graph-data.json rebuilt with embed_all_x/y for all 2405 nodes
+- [x] Multi-word tokenized search (all tokens must match)
+- [x] Search suggestions dropdown — typeahead, click enters focus mode
+- [x] Search keyboard nav — ↑↓ arrows + Enter consistent with click-on-suggestion
+- [x] Double-click focus bug fixed — viewport now fits to neighborhood (fit:true)
+- [x] Zoom choppiness fixed — removed competing focusCameraOnNode+fitVisibleGraph animations
+- [x] Discover mode node-type filter bug — focus roots are force-included in eligible set
+- [x] Embed mode hides Physics Lab + View Presets sections
+- [x] Embed all-nodes toggle ("Projects only" button in topbar, switches to 2405-node joint UMAP)
+- [x] Cluster click-to-zoom — clicking a hull in embed mode zooms to that cluster
+- [x] Cursor pointer on cluster hull hover
+- [x] Discover affordance in empty detail panel tip + help modal overview + shortcuts list
+- [x] Codex UX review completed
+- [x] Node pinning — right-click → "📌 Pin node" / "📌 Unpin node"; orange border indicator; physics runs around pinned nodes; cleared on reset
+- [x] Semantic similarity search — "🔍 Find similar" button in detail Actions section (nodes with embed coords); computes top-12 UMAP nearest neighbors; activates similarity focus mode with "Similar to: X . Exit" label
+- [x] Search results mini semantic map — SVG dot-map appended below search suggestions when ≥3 results have embed coords; edges drawn between result nodes; click dot to enter focus on that node
 
 ## Key files
-- Explorer: `explorer.html` (~5300 lines) — ALL code in one file
-- Tests: `tests/explorer.spec.js` (unit), `tests/visual.spec.js` (visual)
-- Rules: `CLAUDE.md` — never break barnesHut physics, always test with Playwright
-
-## Key constraints
-- NEVER set `stabilization: { enabled: true }` in any physics options — causes invisible pre-compute
-- Always call `network.startSimulation()` explicitly after `setOptions({ physics: { enabled: true } })`
-- Physics is barnesHut only — do not switch to ForceAtlas2Based
-- CSS Grid columns follow DOM order — tools-panel must come AFTER canvas-column in HTML
+- Explorer: `explorer.html` (~6250 lines)
+- Tests: `tests/explorer.spec.js` (13 tests), `tests/visual.spec.js` (5 tests)
+- Graph data: `graph/graph-data.json` (2405 nodes, 8795 edges, embed_all_x/y injected)

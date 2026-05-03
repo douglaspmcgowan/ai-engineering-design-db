@@ -217,6 +217,55 @@ a:hover {
   right: 12px;
 }
 
+/* Search suggestions dropdown */
+.search-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 400;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  max-height: 380px;
+  overflow-y: auto;
+}
+.search-suggestions.is-hidden { display: none; }
+.search-mini-map {
+  border-top: 1px solid var(--border);
+  padding: 6px 8px 8px;
+}
+.search-mini-map-title {
+  font-size: 10px;
+  color: var(--fg-faint);
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.search-mini-map svg {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.02);
+}
+.search-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.search-suggestion-item:last-child { border-bottom: none; }
+.search-suggestion-item:hover,
+.search-suggestion-item.kbd-focus { background: var(--surface-2); }
+.search-sugg-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-sugg-type { color: var(--fg-faint); font: 500 9px/1 var(--font-mono); flex: none; letter-spacing: 0.04em; text-transform: uppercase; }
+
 .topbar-actions,
 .canvas-actions,
 .inline-actions,
@@ -1012,6 +1061,45 @@ a:hover {
   overflow-y: auto;
 }
 
+/* Discover navigation bar inside detail panel (shown during focus mode) */
+.detail-discover-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+  flex: none;
+}
+.detail-discover-nav.is-hidden { display: none; }
+.detail-discover-nav .discover-nav-row {
+  display: flex;
+  gap: 4px;
+}
+.detail-discover-nav .discover-nav-row .ghost-button {
+  flex: 1;
+  font-size: 10px;
+  padding: 4px 5px;
+}
+
+/* URL open button in detail header */
+.detail-url-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg-muted);
+  text-decoration: none;
+  font-size: 13px;
+}
+.detail-url-btn:hover { background: var(--surface-2); color: var(--fg); }
+.detail-url-btn.is-hidden { display: none; }
+
 .detail-section {
   display: grid;
   gap: 8px;
@@ -1529,11 +1617,13 @@ a:hover {
     <span class="search-prefix">/</span>
     <input id="search-input" class="search-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search nodes, orgs, categories, techniques, descriptions">
     <span class="search-suffix">Ctrl+K</span>
+    <div id="search-suggestions" class="search-suggestions is-hidden" role="listbox" aria-label="Search suggestions"></div>
   </div>
 
   <div class="topbar-actions">
     <button id="home-button" class="ghost-button" type="button">Home</button>
     <button id="embed-button" class="ghost-button" type="button">Embed</button>
+    <button id="embed-all-toggle" class="ghost-button is-hidden" type="button" title="Toggle between project-only and all-node embedding">Projects only</button>
     <button id="reset-button" class="ghost-button" type="button" title="Reset node positions to UMAP seed">Reset</button>
     <button id="discover-button" class="ghost-button" type="button">Discover</button>
     <button id="force-button" class="ghost-button is-active" type="button">Force</button>
@@ -1667,6 +1757,7 @@ a:hover {
         <button id="context-zoom-button" type="button">Zoom to node</button>
         <button id="context-select-button" type="button">Select &amp; show details</button>
         <button id="context-focus-button" type="button">Focus / discover</button>
+        <button id="context-pin-button" type="button">📌 Pin node</button>
         <button id="context-hide-button" type="button">Remove from view</button>
       </div>
     </div>
@@ -1674,26 +1765,8 @@ a:hover {
 
   <aside class="tools-panel">
     <div class="resize-handle" data-panel="tools" title="Drag to resize"></div>
-    <!-- Discover/focus panel — visible only when focus mode is active -->
-    <div id="discover-panel" class="discover-panel is-hidden">
-      <div class="discover-node-title" id="discover-node-title">—</div>
-      <div class="discover-node-meta" id="discover-node-meta"></div>
-      <div class="discover-node-desc" id="discover-node-desc"></div>
-      <div class="discover-section-label">Navigate</div>
-      <div class="discover-nav-row">
-        <button id="discover-prev" class="ghost-button" title="Previous neighbor">← Prev</button>
-        <button id="discover-next" class="ghost-button" title="Next neighbor">Next →</button>
-      </div>
-      <div class="discover-nav-row">
-        <button id="discover-depth-1" class="ghost-button" title="Show 1-hop neighbors">1-hop</button>
-        <button id="discover-depth-2" class="ghost-button" title="Show 2-hop neighbors">2-hop</button>
-        <button id="discover-exit" class="ghost-button" title="Exit discover mode" style="flex:1.4">Exit</button>
-      </div>
-      <div class="discover-section-label">Neighbors <span id="discover-neighbors-count" style="font-weight:400"></span></div>
-      <ul class="discover-neighbor-list" id="discover-neighbor-list"></ul>
-    </div>
-    <div class="sidebar-inner" id="tools-sidebar-inner">
-      <details class="sidebar-section" data-accordion open>
+    <div class="sidebar-inner">
+      <details id="tools-presets-section" class="sidebar-section" data-accordion open>
         <summary>
           <span class="summary-title">View Presets</span>
           <span class="summary-meta">Quick</span>
@@ -1712,7 +1785,7 @@ a:hover {
         </div>
       </details>
 
-      <details class="sidebar-section" data-accordion open>
+      <details id="tools-physics-section" class="sidebar-section" data-accordion open>
         <summary>
           <span class="summary-title">Physics Lab</span>
           <span id="physics-lab-summary" class="summary-meta">barnesHut</span>
@@ -1814,7 +1887,18 @@ a:hover {
           <div id="detail-kicker" class="detail-kicker">Selection</div>
           <div id="detail-title" class="detail-title">Node details</div>
         </div>
-        <button id="detail-close" class="detail-close" type="button" aria-label="Close detail panel">X</button>
+        <a id="detail-url-btn" class="detail-url-btn is-hidden" target="_blank" rel="noopener" title="Open node URL">↗</a>
+        <button id="detail-close" class="detail-close" type="button" aria-label="Close detail panel">✕</button>
+      </div>
+      <!-- Focus/discover navigation — shown only when focus mode active -->
+      <div id="detail-discover-nav" class="detail-discover-nav is-hidden">
+        <div class="discover-nav-row">
+          <button id="discover-prev" class="ghost-button" title="Previous neighbor">← Prev</button>
+          <button id="discover-next" class="ghost-button" title="Next neighbor">Next →</button>
+          <button id="discover-depth-1" class="ghost-button" title="Show 1-hop neighbors">1-hop</button>
+          <button id="discover-depth-2" class="ghost-button" title="Show 2-hop neighbors">2-hop</button>
+          <button id="discover-exit" class="ghost-button" style="flex:1.5" title="Exit focus mode">Exit focus</button>
+        </div>
       </div>
       <div id="detail-body" class="detail-body"></div>
     </div>
@@ -1836,6 +1920,10 @@ a:hover {
     </div>
     <div class="modal-body">
       <div id="help-overview-panel">
+        <div style="padding:0 0 10px; font-size:12px; color:var(--fg-muted); border-bottom:1px solid var(--border); margin-bottom:10px; line-height:1.6">
+          <strong style="color:var(--fg)">Double-click</strong> any node to explore its neighborhood. Click canvas to deselect.<br>
+          <strong style="color:var(--fg)">Search</strong> (Ctrl+K / /) to filter or jump to a node. Click a suggestion to enter focus mode.
+        </div>
         <div class="help-grid">
           <div class="help-panel">
             <div class="help-panel-title">Node types</div>
@@ -2047,16 +2135,18 @@ const EDGE_DESCRIPTIONS = {
 };
 
 const SHORTCUT_ROWS = [
-  { key: "/ or Ctrl+K", copy: "Focus the search field." },
-  { key: "Esc", copy: "Close modal, exit focus, or clear current selection/search." },
-  { key: "Space", copy: "Fit the visible graph to the viewport." },
-  { key: "?", copy: "Open the shortcuts tab." },
-  { key: "Tab", copy: "Cycle through focus neighbors and flash the next node." },
-  { key: "Backspace / Left", copy: "Step back from 2-hop to 1-hop, or exit focus." },
-  { key: "E", copy: "Toggle embed view." },
-  { key: "F", copy: "Toggle force layout settling." },
-  { key: "P", copy: "Open palette picker" },
-  { key: "Ctrl+click", copy: "Add or remove nodes from the current multi-selection." },
+  { key: "Double-click node", copy: "Explore neighborhood — filters graph to 1-hop neighbors." },
+  { key: "Double-click canvas", copy: "Exit focus/explore mode." },
+  { key: "/ or Ctrl+K", copy: "Focus search — type to filter; ↓↑ to pick; Enter to enter focus on selection." },
+  { key: "Esc", copy: "Close modal, exit focus, or clear search." },
+  { key: "Space", copy: "Fit visible graph to viewport." },
+  { key: "Tab", copy: "Cycle through focus neighbors (flashes next node)." },
+  { key: "Backspace / Left", copy: "Step back: 2-hop → 1-hop, or exit focus." },
+  { key: "E", copy: "Toggle embed / UMAP view." },
+  { key: "F", copy: "Toggle force-layout physics." },
+  { key: "?", copy: "Open this help panel." },
+  { key: "P", copy: "Open palette picker." },
+  { key: "Ctrl+click", copy: "Add/remove nodes from multi-selection." },
 ];
 
 const PALETTES = [
@@ -2218,6 +2308,7 @@ const dom = {
   breadcrumbTrail: document.getElementById("breadcrumb-trail"),
   searchInput: document.getElementById("search-input"),
   embedButton: document.getElementById("embed-button"),
+  embedAllToggle: document.getElementById("embed-all-toggle"),
   resetButton: document.getElementById("reset-button"),
   discoverButton: document.getElementById("discover-button"),
   forceButton: document.getElementById("force-button"),
@@ -2242,13 +2333,8 @@ const dom = {
   statsSummary: document.getElementById("stats-summary"),
   physToggle: document.getElementById("phys-toggle"),
   physTimer: document.getElementById("phys-timer"),
-  discoverPanel: document.getElementById("discover-panel"),
-  toolsSidebarInner: document.getElementById("tools-sidebar-inner"),
-  discoverNodeTitle: document.getElementById("discover-node-title"),
-  discoverNodeMeta: document.getElementById("discover-node-meta"),
-  discoverNodeDesc: document.getElementById("discover-node-desc"),
-  discoverNeighborList: document.getElementById("discover-neighbor-list"),
-  discoverNeighborsCount: document.getElementById("discover-neighbors-count"),
+  detailDiscoverNav: document.getElementById("detail-discover-nav"),
+  detailUrlBtn: document.getElementById("detail-url-btn"),
   canvasSurface: document.getElementById("canvas-surface"),
   network: document.getElementById("network"),
   clusterOverlay: document.getElementById("cluster-overlay"),
@@ -2268,6 +2354,7 @@ const dom = {
   contextZoomButton: document.getElementById("context-zoom-button"),
   contextSelectButton: document.getElementById("context-select-button"),
   contextFocusButton: document.getElementById("context-focus-button"),
+  contextPinButton: document.getElementById("context-pin-button"),
   contextHideButton: document.getElementById("context-hide-button"),
   clusterLabelC: document.getElementById("cluster-label-c"),
   detailKicker: document.getElementById("detail-kicker"),
@@ -2309,9 +2396,11 @@ const state = {
     search: "",
   },
   hiddenNodeIds: new Set(),
+  pinnedNodeIds: new Set(),
   paletteIndex: 0,
   forceEnabled: true,
   embedActive: false,
+  embedAllNodes: false,   // true = show all 2405 nodes in embed mode using embed_all_x/y
   clusterLabelMode: "B",
   focus: null,
   selection: {
@@ -2623,6 +2712,144 @@ function buildSearchText(node) {
     ...(Array.isArray(node.props?.tags) ? node.props.tags : []),
   ];
   return parts.filter(Boolean).join(" ").toLowerCase();
+}
+
+function renderSearchSuggestions() {
+  const el = document.getElementById("search-suggestions");
+  if (!el) return;
+  const q = (dom.searchInput?.value || "").trim();
+  if (q.length < 2 || !state.data) {
+    el.classList.add("is-hidden");
+    el.innerHTML = "";
+    return;
+  }
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = [];
+  for (const node of state.data.nodes) {
+    if (!terms.every((t) => node.searchText.includes(t))) continue;
+    const labelLower = node.label.toLowerCase();
+    const labelMatch = terms.every((t) => labelLower.includes(t));
+    matches.push({ node, score: labelMatch ? 1 : 0 });
+    if (matches.length >= 20) break;
+  }
+  if (!matches.length) {
+    el.classList.add("is-hidden");
+    return;
+  }
+  matches.sort((a, b) => b.score - a.score);
+  const shown = matches.slice(0, 12);
+  el.innerHTML = shown.map((m) => {
+    const color = getNodeColor(m.node.type);
+    return "<div class='search-suggestion-item' role='option' data-node-id='" + escapeHtml(m.node.id) + "'>" +
+      "<span style='color:" + color + ";font-size:7px;flex:none;margin-top:1px'>●</span>" +
+      "<span class='search-sugg-label'>" + escapeHtml(m.node.label) + "</span>" +
+      "<span class='search-sugg-type'>" + escapeHtml(m.node.type) + "</span>" +
+      "</div>";
+  }).join("");
+  el.classList.remove("is-hidden");
+  for (const item of el.querySelectorAll("[data-node-id]")) {
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const nodeId = item.dataset.nodeId;
+      el.classList.add("is-hidden");
+      // Clear search filter so full graph shows
+      dom.searchInput.value = "";
+      state.filters.search = "";
+      applyView({ fit: false });
+      // Small delay to ensure node is in view before focusing
+      window.setTimeout(() => {
+        selectSingleNode(nodeId);
+        focusCameraOnNode(nodeId);
+        activateFocus(nodeId, 1);
+      }, 60);
+    });
+  }
+  // Append semantic mini-map if enough results have embed coords
+  const miniMapHtml = buildSearchResultsMiniMap(shown.map((m) => m.node));
+  if (miniMapHtml) {
+    const mapDiv = document.createElement("div");
+    mapDiv.className = "search-mini-map";
+    mapDiv.innerHTML = "<div class='search-mini-map-title'>Semantic map</div>" + miniMapHtml;
+    el.appendChild(mapDiv);
+    mapDiv.querySelectorAll("[data-dot-node-id]").forEach((dot) => {
+      dot.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const dotNodeId = dot.dataset.dotNodeId;
+        el.classList.add("is-hidden");
+        dom.searchInput.value = "";
+        state.filters.search = "";
+        applyView({ fit: false });
+        window.setTimeout(() => {
+          selectSingleNode(dotNodeId);
+          focusCameraOnNode(dotNodeId);
+          activateFocus(dotNodeId, 1);
+        }, 60);
+      });
+    });
+  }
+}
+
+function buildSearchResultsMiniMap(nodes) {
+  if (!state.data) return "";
+  // Collect nodes that have embed coords
+  const embedded = nodes.map((n) => {
+    const ex = n.props?.embed_all_x ?? n.props?.embed_x;
+    const ey = n.props?.embed_all_y ?? n.props?.embed_y;
+    return { node: n, ex: Number(ex), ey: Number(ey) };
+  }).filter((item) => Number.isFinite(item.ex) && Number.isFinite(item.ey));
+  if (embedded.length < 3) return "";
+
+  // Normalize coords to SVG canvas
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const { ex, ey } of embedded) {
+    if (ex < minX) minX = ex; if (ex > maxX) maxX = ex;
+    if (ey < minY) minY = ey; if (ey > maxY) maxY = ey;
+  }
+  const W = 252, H = 110, PAD = 14;
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+  const scaleX = (W - PAD * 2) / rangeX;
+  const scaleY = (H - PAD * 2) / rangeY;
+  const toSVG = (ex, ey) => ({
+    x: PAD + (ex - minX) * scaleX,
+    y: PAD + (ey - minY) * scaleY,
+  });
+
+  const posMap = new Map();
+  for (const { node, ex, ey } of embedded) {
+    posMap.set(node.id, toSVG(ex, ey));
+  }
+  const nodeIdSet = new Set(embedded.map((e) => e.node.id));
+
+  // Draw edges between result nodes
+  const edgeParts = [];
+  for (const edge of state.data.edges) {
+    if (nodeIdSet.has(edge.source) && nodeIdSet.has(edge.target)) {
+      const s = posMap.get(edge.source);
+      const t = posMap.get(edge.target);
+      if (s && t) {
+        const edgeColor = getEdgeColor(edge.type);
+        edgeParts.push(
+          "<line x1='" + s.x.toFixed(1) + "' y1='" + s.y.toFixed(1) +
+          "' x2='" + t.x.toFixed(1) + "' y2='" + t.y.toFixed(1) +
+          "' stroke='" + edgeColor + "' stroke-width='0.9' stroke-opacity='0.35'/>"
+        );
+      }
+    }
+  }
+
+  // Draw dots
+  const dotParts = embedded.map(({ node }) => {
+    const p = posMap.get(node.id);
+    const color = getNodeColor(node.type);
+    return "<circle cx='" + p.x.toFixed(1) + "' cy='" + p.y.toFixed(1) +
+      "' r='4.5' fill='" + color + "' fill-opacity='0.92' stroke='none' " +
+      "style='cursor:pointer' data-dot-node-id='" + escapeHtml(node.id) + "'>" +
+      "<title>" + escapeHtml(node.label) + "</title></circle>";
+  });
+
+  return "<svg viewBox='0 0 " + W + " " + H + "' xmlns='http://www.w3.org/2000/svg'>" +
+    edgeParts.join("") + dotParts.join("") + "</svg>";
 }
 
 function summarizeProjects(projectIds) {
@@ -3352,30 +3579,38 @@ function isTypingContext(target) {
 
 function buildBaseEligibleNodeIds() {
   const eligible = new Set();
-  const search = state.filters.search.trim().toLowerCase();
+  const searchTerms = state.filters.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const embedMode = state.embedActive;
-  const allowedNodeTypes = embedMode ? new Set(["Project"]) : state.filters.nodeTypes;
+  const embedAllMode = embedMode && state.embedAllNodes;
+  // In embed-all mode, allow all node types that have embed_all coords
+  const allowedNodeTypes = embedMode
+    ? (embedAllMode ? new Set(Object.keys(NODE_METRICS)) : new Set(["Project"]))
+    : state.filters.nodeTypes;
 
   for (const node of state.data.nodes) {
     if (!allowedNodeTypes.has(node.type)) {
       continue;
     }
-    if (search && !node.searchText.includes(search)) {
+    if (searchTerms.length && !searchTerms.every((t) => node.searchText.includes(t))) {
       continue;
     }
-    if (node.type === "Project") {
-      if (embedMode && node.props?.embed_x == null) {
-        continue;
+    if (embedMode) {
+      // In embed mode, require appropriate coords
+      if (embedAllMode) {
+        if (node.props?.embed_all_x == null) continue;
+      } else {
+        // projects-only mode: only Project nodes with embed_x
+        if (node.type !== "Project" || node.props?.embed_x == null) continue;
       }
+    }
+    if (node.type === "Project" && !embedMode) {
       const category = String(node.props?.category || "");
       const year = Number(node.props?.year);
-      if (!embedMode) {
-        if (!state.filters.categories.has(category)) {
-          continue;
-        }
-        if (Number.isFinite(year) && (year < state.filters.yearMin || year > state.filters.yearMax)) {
-          continue;
-        }
+      if (!state.filters.categories.has(category)) {
+        continue;
+      }
+      if (Number.isFinite(year) && (year < state.filters.yearMin || year > state.filters.yearMax)) {
+        continue;
       }
     }
     if (state.hiddenNodeIds && state.hiddenNodeIds.has(node.id)) {
@@ -3388,7 +3623,9 @@ function buildBaseEligibleNodeIds() {
 }
 
 function getActiveEdgeTypeSet() {
-  return state.embedActive ? EMBED_EDGE_TYPES : state.filters.edgeTypes;
+  if (!state.embedActive) return state.filters.edgeTypes;
+  if (state.embedAllNodes) return state.filters.edgeTypes; // show selected edge types in all-nodes embed
+  return EMBED_EDGE_TYPES; // projects-only: only SEMANTICALLY_NEAR
 }
 
 function buildVisibleEdgeIds(visibleNodeIds) {
@@ -3401,7 +3638,8 @@ function buildVisibleEdgeIds(visibleNodeIds) {
     if (!visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target)) {
       continue;
     }
-    if (state.embedActive) {
+    if (state.embedActive && !state.embedAllNodes) {
+      // projects-only embed: only show project-project SEMANTICALLY_NEAR edges
       const sourceNode = state.caches.nodeById.get(edge.source);
       const targetNode = state.caches.nodeById.get(edge.target);
       if (sourceNode?.type !== "Project" || targetNode?.type !== "Project") {
@@ -3439,7 +3677,7 @@ function pruneIsolatedNodes(visibleNodeIds, visibleEdgeIds) {
     incidentCount.set(edge.source, (incidentCount.get(edge.source) || 0) + 1);
     incidentCount.set(edge.target, (incidentCount.get(edge.target) || 0) + 1);
   }
-  const search = state.filters.search.trim().toLowerCase();
+  const searchTerms = state.filters.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const pruned = new Set();
   for (const nodeId of visibleNodeIds) {
     const node = state.caches.nodeById.get(nodeId);
@@ -3454,7 +3692,7 @@ function pruneIsolatedNodes(visibleNodeIds, visibleEdgeIds) {
       pruned.add(nodeId);
       continue;
     }
-    if (search && node.searchText.includes(search)) {
+    if (searchTerms.length && searchTerms.every((t) => node.searchText.includes(t))) {
       pruned.add(nodeId);
     }
   }
@@ -3528,10 +3766,19 @@ function getFocusDisplayDepth(focusState = state.focus) {
 function getPreferredPosition(nodeId) {
   if (state.embedActive) {
     const node = state.caches.nodeById.get(nodeId);
-    const embedX = Number(node?.props?.embed_x);
-    const embedY = Number(node?.props?.embed_y);
-    if (Number.isFinite(embedX) && Number.isFinite(embedY)) {
-      return { x: embedX * 120, y: embedY * 120 };
+    if (state.embedAllNodes) {
+      // Use joint all-entity embedding
+      const ax = Number(node?.props?.embed_all_x);
+      const ay = Number(node?.props?.embed_all_y);
+      if (Number.isFinite(ax) && Number.isFinite(ay)) {
+        return { x: ax * 120, y: ay * 120 };
+      }
+    } else {
+      const embedX = Number(node?.props?.embed_x);
+      const embedY = Number(node?.props?.embed_y);
+      if (Number.isFinite(embedX) && Number.isFinite(embedY)) {
+        return { x: embedX * 120, y: embedY * 120 };
+      }
     }
   }
   if (state.caches.pendingRestorePositions.has(nodeId)) {
@@ -3553,6 +3800,7 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
   const isPrimary = state.selection.primaryId === nodeId;
   const isFocusRoot = state.focus?.rootId === nodeId;
   const isFlashing = state.selection.flashId === nodeId;
+  const isPinned = Boolean(state.pinnedNodeIds?.has(nodeId));
   const showAllLabels = Boolean(state.focus) || state.ui.zoomScale >= 0.65 || visibleNodeCount <= 180;
   let label = "";
   if (!state.embedActive) {
@@ -3581,14 +3829,14 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
       strokeWidth: 0,
     },
     shape: getNodeShape(node.type),
-    size: (state.embedActive && node.type === "Project" ? 6 : metrics.size + _degreeBoost) + (isSelected ? 2 : 0) + (isFlashing ? 2 : 0),
+    size: (state.embedActive ? (state.embedAllNodes ? metrics.size * 0.7 : 6) : metrics.size + _degreeBoost) + (isSelected ? 2 : 0) + (isFlashing ? 2 : 0),
     title: "",
     x: position.x,
     y: position.y,
-    fixed: state.embedActive ? { x: true, y: true } : { x: false, y: false },
+    fixed: (isPinned || state.embedActive) ? { x: true, y: true } : { x: false, y: false },
     color: {
       background: baseColor,
-      border: isPrimary || isFocusRoot || isFlashing ? palette.theme.fg : borderColor,
+      border: isPinned ? "#f0a85b" : (isPrimary || isFocusRoot || isFlashing ? palette.theme.fg : borderColor),
       highlight: {
         background: baseColor,
         border: palette.theme.fg,
@@ -3598,10 +3846,10 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
         border: palette.theme.fg,
       },
     },
-    borderWidth: isPrimary || isFocusRoot || isFlashing ? 2.6 : isSelected ? 2 : 1.2,
+    borderWidth: isPinned ? 2.8 : (isPrimary || isFocusRoot || isFlashing ? 2.6 : isSelected ? 2 : 1.2),
     shadow: false,
     opacity: isSelected ? 1 : 0.98,
-    physics: !state.embedActive,
+    physics: isPinned ? false : !state.embedActive,
   };
   return rendered;
 }
@@ -3633,8 +3881,12 @@ function buildRenderedEdge(edgeId) {
 
 function computeViewModel() {
   let baseEligibleNodeIds = buildBaseEligibleNodeIds();
-  if (state.focus && !baseEligibleNodeIds.has(state.focus.rootId)) {
-    state.focus = null;
+  if (state.focus) {
+    // Always keep focus-root nodes eligible even if their type is filtered out,
+    // so node-type toggles don't silently eject the user from discover mode.
+    for (const rootId of (state.focus.accumulatedIds?.size ? state.focus.accumulatedIds : [state.focus.rootId])) {
+      if (state.caches.nodeById.has(rootId)) baseEligibleNodeIds.add(rootId);
+    }
   }
   let visibleNodeIds = buildFocusNodeIds(baseEligibleNodeIds);
   let visibleEdgeIds = buildVisibleEdgeIds(visibleNodeIds);
@@ -3746,6 +3998,9 @@ function applyView(options = {}) {
   dom.focusExitButton.classList.toggle("is-hidden", !state.focus);
   dom.embedButton.classList.toggle("is-active", state.embedActive);
   dom.clusterLabelToggle.classList.toggle("is-hidden", !state.embedActive);
+  // Hide physics/preset panels in embed mode — irrelevant there
+  document.getElementById("tools-presets-section")?.classList.toggle("is-hidden", state.embedActive);
+  document.getElementById("tools-physics-section")?.classList.toggle("is-hidden", state.embedActive);
   syncClusterLabelToggleButtons();
   dom.forceButton.classList.toggle("is-active", state.forceEnabled);
   closeContextMenu();
@@ -3763,11 +4018,6 @@ function applyView(options = {}) {
   scheduleClusterHullRender();
   if (options.fit) {
     fitVisibleGraph(options.fitDuration || 280);
-  }
-  if (state.focus && options.focusNodeId && getFocusDisplayDepth() > previousFocusDepth) {
-    window.requestAnimationFrame(() => {
-      focusCameraOnNode(options.focusNodeId);
-    });
   }
 
   if (state.caches.pendingRestorePositions.size) {
@@ -3916,10 +4166,15 @@ function getVisibleNeighborIds(nodeId) {
 
 function renderDetailPanel() {
   const selectedIds = Array.from(state.selection.ids);
+  // Reset URL button
+  if (dom.detailUrlBtn) {
+    dom.detailUrlBtn.classList.add("is-hidden");
+    dom.detailUrlBtn.removeAttribute("href");
+  }
   if (!selectedIds.length) {
     dom.detailKicker.textContent = "Selection";
     dom.detailTitle.textContent = "Node details";
-    dom.detailBody.innerHTML = "<div class='detail-empty'>Select a node to inspect metadata, neighbor links, and focus controls.</div>";
+    dom.detailBody.innerHTML = "<div class='detail-empty'>Select a node to inspect metadata, neighbors, and links.<br><br><span style='color:var(--fg-muted)'>💡 <strong>Tip:</strong> <strong>Double-click</strong> any node to explore its neighborhood. <strong>Ctrl+K</strong> or <strong>/</strong> to search.</span></div>";
     return;
   }
 
@@ -3961,14 +4216,25 @@ function renderDetailPanel() {
   dom.detailKicker.textContent = node.type;
   dom.detailTitle.textContent = node.label;
 
+  // Show URL button in header if node has a primary URL
+  const primaryUrl = node.props?.url_primary || node.props?.url || null;
+  if (dom.detailUrlBtn && primaryUrl) {
+    dom.detailUrlBtn.href = primaryUrl;
+    dom.detailUrlBtn.classList.remove("is-hidden");
+  }
+
   const neighborIds = getVisibleNeighborIds(node.id);
   const focusButtonMarkup = state.focus && state.focus.rootId === node.id && state.focus.depth === 1
     ? "<button id='expand-focus-inline' class='ghost-button is-strong' type='button'>Expand 2-hop</button>"
     : "";
+  const hasEmbed = node.props?.embed_x != null || node.props?.embed_all_x != null;
+  const similarButtonMarkup = hasEmbed
+    ? "<button id='find-similar-inline' class='ghost-button' type='button'>🔍 Find similar</button>"
+    : "";
 
   let html = "";
-  if (focusButtonMarkup) {
-    html += "<div class='detail-section'><div class='detail-section-title'>Focus</div><div class='inline-actions'>" + focusButtonMarkup + "</div></div>";
+  if (focusButtonMarkup || similarButtonMarkup) {
+    html += "<div class='detail-section'><div class='detail-section-title'>Actions</div><div class='inline-actions'>" + focusButtonMarkup + similarButtonMarkup + "</div></div>";
   }
 
   if (node.type === "Project") {
@@ -3987,6 +4253,9 @@ function renderDetailPanel() {
     state.focus.depth = 2;
     applyView({ fit: true });
     showToast("Expanded to 2-hop neighborhood.", "success");
+  });
+  dom.detailBody.querySelector("#find-similar-inline")?.addEventListener("click", () => {
+    findSimilarNodes(nodeId);
   });
   wireDetailNodeLinks();
 }
@@ -4198,61 +4467,21 @@ function focusCameraOnNode(nodeId) {
 
 function renderDiscoverPanel() {
   const isActive = Boolean(state.focus);
-  if (!dom.discoverPanel || !dom.toolsSidebarInner) return;
+  if (!dom.detailDiscoverNav) return;
 
   if (!isActive) {
-    dom.discoverPanel.classList.add("is-hidden");
-    dom.toolsSidebarInner.style.display = "";
+    dom.detailDiscoverNav.classList.add("is-hidden");
     return;
   }
 
-  // Show discover panel, hide normal tools
-  dom.discoverPanel.classList.remove("is-hidden");
-  dom.toolsSidebarInner.style.display = "none";
+  // Show discover nav bar in detail panel
+  dom.detailDiscoverNav.classList.remove("is-hidden");
 
-  const rootNode = state.caches.nodeById.get(state.focus.rootId);
-  if (!rootNode) return;
-
-  // Node title + meta
-  dom.discoverNodeTitle.textContent = rootNode.label || state.focus.rootId;
-  const degree = (state.caches.incidentEdgeIdsByNode.get(state.focus.rootId) || []).length;
-  dom.discoverNodeMeta.textContent =
-    rootNode.type + " · " + degree + " connection" + (degree !== 1 ? "s" : "") +
-    (rootNode.props?.year ? " · " + rootNode.props.year : "");
-  dom.discoverNodeDesc.textContent = truncateText(rootNode.props?.description || "", 160);
-
-  // Depth buttons state
+  // Depth buttons active state
   const d1Btn = document.getElementById("discover-depth-1");
   const d2Btn = document.getElementById("discover-depth-2");
   if (d1Btn) d1Btn.classList.toggle("is-active", state.focus.depth === 1);
   if (d2Btn) d2Btn.classList.toggle("is-active", state.focus.depth === 2);
-
-  // Neighbor list — direct neighbors visible in current view
-  const neighborIds = [];
-  for (const edgeId of (state.caches.incidentEdgeIdsByNode.get(state.focus.rootId) || [])) {
-    const edge = state.caches.edgeById.get(edgeId);
-    if (!edge) continue;
-    const otherId = edge.source === state.focus.rootId ? edge.target : edge.source;
-    if (state.currentView.nodeIds.has(otherId)) neighborIds.push(otherId);
-  }
-  dom.discoverNeighborsCount.textContent = "(" + neighborIds.length + " visible)";
-  dom.discoverNeighborList.innerHTML = neighborIds.slice(0, 30).map((nid) => {
-    const n = state.caches.nodeById.get(nid);
-    const label = n ? n.label : nid;
-    const color = getNodeColor(n?.type || "Project");
-    return "<li class='discover-neighbor-item' data-node-link='" + escapeHtml(nid) + "'>" +
-      "<span style='color:" + color + ";margin-right:5px;'>●</span>" +
-      escapeHtml(truncateText(label, 28)) +
-      "</li>";
-  }).join("");
-
-  // Wire neighbor clicks
-  for (const li of dom.discoverNeighborList.querySelectorAll("[data-node-link]")) {
-    li.addEventListener("click", () => {
-      const nid = li.dataset.nodeLink;
-      expandFocusToNode(nid);
-    });
-  }
 }
 
 function initDiscoverPanel() {
@@ -4324,9 +4553,10 @@ function activateFocus(nodeId, depth = 1) {
   state.selection.ids = new Set([nodeId]);
   state.selection.primaryId = nodeId;
   updateFocusExitButtonLabel();
-  applyView({ fit: false, previousFocusDepth: previousDepth, focusNodeId: nodeId });
+  // fit:true so viewport flies to the neighborhood instead of staying on the full graph
+  applyView({ fit: true });
   renderDiscoverPanel();
-  showToast(depth === 1 ? "Exploring enabled." : "2-hop exploring enabled.", "success");
+  showToast(depth === 1 ? "Exploring 1-hop neighborhood." : "Exploring 2-hop neighborhood.", "success");
 }
 
 function expandFocusToNode(nodeId) {
@@ -4342,14 +4572,7 @@ function expandFocusToNode(nodeId) {
   state.selection.ids = new Set([nodeId]);
   state.selection.primaryId = nodeId;
   updateFocusExitButtonLabel();
-  applyView({
-    fit: false,
-    previousFocusDepth: previousDepth,
-    focusNodeId: isNewAnchor ? nodeId : "",
-  });
-  if (!isNewAnchor) {
-    focusCameraOnNode(nodeId);
-  }
+  applyView({ fit: true });
   renderDiscoverPanel();
   const count = state.focus.accumulatedIds.size;
   showToast(count + " anchor" + (count === 1 ? "" : "s") + " in discovery.", "success");
@@ -4391,6 +4614,44 @@ function stepBack() {
   }
 }
 
+function findSimilarNodes(nodeId, k = 12) {
+  const node = state.caches.nodeById.get(nodeId);
+  if (!node) return;
+  // Prefer joint embedding, fall back to project-only embedding
+  const ex = Number(node.props?.embed_all_x ?? node.props?.embed_x);
+  const ey = Number(node.props?.embed_all_y ?? node.props?.embed_y);
+  if (!Number.isFinite(ex) || !Number.isFinite(ey)) {
+    showToast("No semantic embedding available for this node.", "warn");
+    return;
+  }
+  const neighbors = [];
+  for (const n of state.data.nodes) {
+    if (n.id === nodeId) continue;
+    const nx = Number(n.props?.embed_all_x ?? n.props?.embed_x);
+    const ny = Number(n.props?.embed_all_y ?? n.props?.embed_y);
+    if (!Number.isFinite(nx) || !Number.isFinite(ny)) continue;
+    const d = Math.hypot(nx - ex, ny - ey);
+    neighbors.push({ id: n.id, d });
+  }
+  neighbors.sort((a, b) => a.d - b.d);
+  const topK = neighbors.slice(0, k).map((n) => n.id);
+  if (!topK.length) {
+    showToast("No similar nodes found.", "warn");
+    return;
+  }
+  state.focus = {
+    rootId: nodeId,
+    depth: 0,
+    accumulatedIds: new Set([nodeId, ...topK]),
+    neighborIndex: 0,
+    mode: "similarity",
+  };
+  selectSingleNode(nodeId);
+  applyView({ fit: true });
+  renderDiscoverPanel();
+  showToast("Showing " + topK.length + " semantically nearest nodes.", "success");
+}
+
 function cycleFocusNeighbor() {
   if (!state.focus || !state.currentView.focusNeighborIds.length) {
     return;
@@ -4425,8 +4686,13 @@ function toggleEmbed(announce = true) {
       }
     }
     state.embedActive = true;
+    state.embedAllNodes = false; // default to projects-only; user can switch
     setEmbedDrawingListener(true);
     applyGraphTheme();
+    if (dom.embedAllToggle) {
+      dom.embedAllToggle.classList.remove("is-hidden");
+      dom.embedAllToggle.textContent = "Projects only";
+    }
     // fit: false here — vis-network needs one render cycle to move fixed nodes
     // to their new embed coords before fit() can compute the correct bounding box.
     applyView({ fit: false });
@@ -4438,13 +4704,15 @@ function toggleEmbed(announce = true) {
       });
     }, 80);
     if (announce) {
-      showToast("Embed view enabled.", "success");
+      showToast("Embed view enabled — showing 831 projects.", "success");
     }
     return;
   }
   state.embedActive = false;
+  state.embedAllNodes = false;
   setEmbedDrawingListener(false);
   applyGraphTheme();
+  if (dom.embedAllToggle) dom.embedAllToggle.classList.add("is-hidden");
   applyView({ fit: true });
   if (announce) {
     showToast("Embed view disabled.", "success");
@@ -4744,7 +5012,11 @@ function updateFocusExitButtonLabel() {
   }
   const node = state.caches.nodeById.get(state.focus.rootId);
   const truncatedLabel = truncateText(node?.label || state.focus.rootId, 28);
-  dom.focusExitButton.textContent = "Exploring: " + truncatedLabel + " . Depth " + getFocusDisplayDepth() + " . Exit";
+  if (state.focus.mode === "similarity") {
+    dom.focusExitButton.textContent = "Similar to: " + truncatedLabel + " . Exit";
+  } else {
+    dom.focusExitButton.textContent = "Exploring: " + truncatedLabel + " . Depth " + getFocusDisplayDepth() + " . Exit";
+  }
 }
 
 function syncClusterLabelToggleButtons() {
@@ -5017,6 +5289,10 @@ function handleNetworkClick(params) {
     if (!additive) {
       clearSelection();
     }
+    // Cluster hull click — zoom into the cluster
+    if (state.embedActive && sourceEvent) {
+      handleClusterHullClick(sourceEvent.clientX, sourceEvent.clientY);
+    }
     return;
   }
   const nodeId = params.nodes[0];
@@ -5053,6 +5329,9 @@ function handleNetworkContextMenu(params) {
     return;
   }
   state.ui.contextNodeId = nodeId;
+  if (dom.contextPinButton) {
+    dom.contextPinButton.textContent = state.pinnedNodeIds?.has(nodeId) ? "📌 Unpin node" : "📌 Pin node";
+  }
   // Show briefly off-screen to measure real height, then position correctly
   dom.contextMenu.style.visibility = "hidden";
   dom.contextMenu.style.left = "0px";
@@ -5216,8 +5495,53 @@ function checkHullHover(clientX, clientY) {
   }
   if (newHovered !== state.ui.hoveredHullKey) {
     state.ui.hoveredHullKey = newHovered;
+    // Show pointer cursor when hovering a clickable cluster hull
+    const networkCanvas = dom.network?.querySelector("canvas");
+    if (networkCanvas) networkCanvas.style.cursor = newHovered ? "pointer" : "";
     scheduleClusterHullRender();
   }
+}
+
+function handleClusterHullClick(clientX, clientY) {
+  if (!state.ui.renderedHulls.length || !dom.canvasSurface) return;
+  const rect = dom.canvasSurface.getBoundingClientRect();
+  const domX = clientX - rect.left;
+  const domY = clientY - rect.top;
+  let clickedKey = "";
+  for (const hull of state.ui.renderedHulls) {
+    if (isPointInPolygon({ x: domX, y: domY }, hull.expandedHull)) {
+      clickedKey = hull.key;
+      break;
+    }
+  }
+  if (!clickedKey) return;
+
+  // Collect all visible project IDs in this cluster
+  const clusterNodeIds = [];
+  for (const projectId of state.currentView.visibleProjectIds) {
+    const node = state.caches.nodeById.get(projectId);
+    if (!node) continue;
+    let key;
+    if (state.clusterLabelMode === "A") {
+      key = String(node.props?.category ?? "");
+    } else if (state.clusterLabelMode === "C") {
+      const ex = Number(node.props?.embed_x);
+      const ey = Number(node.props?.embed_y);
+      const region = (Number.isFinite(ex) && Number.isFinite(ey)) ? getVisualRegion(ex, ey) : null;
+      key = region ? region.id : "";
+    } else {
+      key = String(node.props?.cluster_k ?? "");
+    }
+    if (key === clickedKey) clusterNodeIds.push(projectId);
+  }
+  if (!clusterNodeIds.length) return;
+
+  state.network.fit({
+    nodes: clusterNodeIds,
+    padding: 60,
+    animation: { duration: 320, easingFunction: "easeInOutQuad" },
+  });
+  showToast("Zoomed into cluster (" + clusterNodeIds.length + " nodes).", "success");
 }
 
 function convexHull(points) {
@@ -5390,6 +5714,7 @@ function resetFilters(options = {}) {
     state.focus = null;
   }
   state.hiddenNodeIds = new Set();
+  state.pinnedNodeIds = new Set();
   applyView({ fit: true });
 }
 
@@ -5549,6 +5874,22 @@ function bindEvents() {
   });
 
   dom.embedButton.addEventListener("click", () => toggleEmbed(true));
+  if (dom.embedAllToggle) {
+    dom.embedAllToggle.addEventListener("click", () => {
+      if (!state.embedActive) return;
+      state.embedAllNodes = !state.embedAllNodes;
+      dom.embedAllToggle.textContent = state.embedAllNodes ? "All nodes" : "Projects only";
+      applyView({ fit: false });
+      window.setTimeout(() => {
+        state.network?.fit({
+          nodes: Array.from(state.currentView.nodeIds),
+          padding: 120,
+          animation: { duration: 600, easingFunction: "easeInOutQuad" },
+        });
+      }, 80);
+      showToast(state.embedAllNodes ? "Embed: all 2405 nodes." : "Embed: 831 projects.", "success");
+    });
+  }
   dom.resetButton.addEventListener("click", resetToInitialPositions);
   // View preset buttons
   for (const [id, name] of [
@@ -5681,6 +6022,7 @@ function bindEvents() {
   });
 
   dom.searchInput.addEventListener("input", () => {
+    renderSearchSuggestions(); // immediate suggestions update
     window.clearTimeout(state.ui.searchDebounceId);
     state.ui.searchDebounceId = window.setTimeout(() => {
       state.filters.search = dom.searchInput.value.trim();
@@ -5688,18 +6030,75 @@ function bindEvents() {
     }, 120);
   });
 
+  dom.searchInput.addEventListener("focus", () => renderSearchSuggestions());
+  dom.searchInput.addEventListener("blur", () => {
+    // Delay so mousedown on a suggestion fires before blur hides it
+    window.setTimeout(() => {
+      const el = document.getElementById("search-suggestions");
+      if (el) el.classList.add("is-hidden");
+    }, 180);
+  });
+
   dom.searchInput.addEventListener("keydown", (event) => {
+    const suggEl = document.getElementById("search-suggestions");
+    const items = suggEl ? Array.from(suggEl.querySelectorAll(".search-suggestion-item")) : [];
+    const kbFocused = suggEl?.querySelector(".kbd-focus");
+    const kbIdx = kbFocused ? items.indexOf(kbFocused) : -1;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!items.length) return;
+      if (kbFocused) kbFocused.classList.remove("kbd-focus");
+      const next = items[Math.min(kbIdx + 1, items.length - 1)];
+      next.classList.add("kbd-focus");
+      next.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!items.length) return;
+      if (kbFocused) kbFocused.classList.remove("kbd-focus");
+      if (kbIdx > 0) items[kbIdx - 1].classList.add("kbd-focus");
+      return;
+    }
+
     if (event.key === "Enter") {
       event.preventDefault();
+      // If a suggestion is keyboard-focused, activate it
+      if (kbFocused) {
+        const nodeId = kbFocused.dataset.nodeId;
+        if (nodeId) {
+          if (suggEl) suggEl.classList.add("is-hidden");
+          dom.searchInput.value = "";
+          state.filters.search = "";
+          applyView({ fit: false });
+          window.setTimeout(() => {
+            selectSingleNode(nodeId);
+            focusCameraOnNode(nodeId);
+            activateFocus(nodeId, 1);
+          }, 60);
+          return;
+        }
+      }
+      // No suggestion selected: enter focus on first visible match
       const visibleIds = Array.from(state.currentView.nodeIds).sort(compareLabels);
       if (!visibleIds.length) {
         showToast("No visible nodes match that search.", "warn");
         return;
       }
-      selectSingleNode(visibleIds[0]);
-      focusCameraOnNode(visibleIds[0]);
+      if (suggEl) suggEl.classList.add("is-hidden");
+      const firstId = visibleIds[0];
+      dom.searchInput.value = "";
+      state.filters.search = "";
+      applyView({ fit: false });
+      window.setTimeout(() => {
+        selectSingleNode(firstId);
+        focusCameraOnNode(firstId);
+        activateFocus(firstId, 1);
+      }, 60);
     } else if (event.key === "Escape") {
       event.preventDefault();
+      if (suggEl) suggEl.classList.add("is-hidden");
       dom.searchInput.blur();
       if (dom.searchInput.value) {
         dom.searchInput.value = "";
@@ -5784,6 +6183,24 @@ function bindEvents() {
     if (state.selection.ids.has(nodeId)) clearSelection();
     applyView({ fit: false });
     showToast("Node hidden. Clear filters to restore.", "warn");
+  });
+  dom.contextPinButton?.addEventListener("click", () => {
+    const nodeId = state.ui.contextNodeId;
+    closeContextMenu();
+    if (!nodeId || !state.network) return;
+    if (state.pinnedNodeIds.has(nodeId)) {
+      state.pinnedNodeIds.delete(nodeId);
+      const pos = state.network.getPositions([nodeId])[nodeId] || { x: 0, y: 0 };
+      state.datasets.nodes.update({ id: nodeId, x: pos.x, y: pos.y, fixed: false, physics: true });
+      showToast("Node unpinned.", "success");
+    } else {
+      state.pinnedNodeIds.add(nodeId);
+      const pos = state.network.getPositions([nodeId])[nodeId] || { x: 0, y: 0 };
+      state.caches.nodePositionCache.set(nodeId, { x: pos.x, y: pos.y });
+      state.datasets.nodes.update({ id: nodeId, x: pos.x, y: pos.y, fixed: { x: true, y: true }, physics: false });
+      showToast("Node pinned — physics runs around it.", "success");
+    }
+    applyView({ fit: false });
   });
 
   document.addEventListener("keydown", handleGlobalKeydown);
