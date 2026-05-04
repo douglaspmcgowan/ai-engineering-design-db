@@ -103,7 +103,7 @@ a:hover {
   right: 0;
   height: var(--topbar-height);
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(240px, 420px) auto;
+  grid-template-columns: 1fr minmax(260px, 480px) 1fr;
   align-items: center;
   gap: 12px;
   padding: 0 16px;
@@ -280,6 +280,7 @@ a:hover {
 
 .topbar-actions {
   justify-content: flex-end;
+  justify-self: end;
 }
 
 .ghost-button {
@@ -335,6 +336,120 @@ a:hover {
 .palette-picker.is-hidden {
   display: none;
 }
+
+/* ── Settings menu & Mode menu ── */
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 152px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(19, 19, 22, 0.98);
+  box-shadow: var(--shadow-popover);
+  z-index: 50;
+  display: grid;
+  gap: 2px;
+}
+.settings-menu.is-hidden { display: none; }
+
+.settings-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-muted);
+  font: 500 12px/1 var(--font-mono);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--ease-slow) ease, color var(--ease-slow) ease;
+}
+.settings-menu-item:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+  transition-duration: var(--ease-fast);
+}
+.settings-menu-item.is-active { color: var(--accent); }
+
+.settings-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 4px;
+}
+
+/* ── Tour overlay ── */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  z-index: 200;
+  pointer-events: none;
+}
+.tour-overlay.is-hidden { display: none; }
+
+.tour-tooltip {
+  position: fixed;
+  z-index: 210;
+  width: 300px;
+  padding: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 107, 61, 0.15);
+  pointer-events: all;
+}
+.tour-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 6px;
+}
+.tour-step-text {
+  font-size: 12px;
+  color: var(--fg-muted);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tour-progress {
+  font-size: 10px;
+  color: var(--fg-faint);
+  font-family: var(--font-mono);
+  margin-top: 8px;
+  text-align: right;
+}
+/* Glowing outline on the highlighted element */
+.tour-highlight {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 3px !important;
+  border-radius: var(--radius) !important;
+  z-index: 205 !important;
+  position: relative !important;
+}
+
+/* ── Link-style button ── */
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-btn:hover { color: var(--fg); }
 
 .palette-option {
   display: flex;
@@ -1655,18 +1770,28 @@ a:hover {
   </div>
 
   <div class="topbar-actions">
-    <button id="home-button" class="ghost-button" type="button" title="Return to default view">Home</button>
-    <button id="embed-button" class="ghost-button" type="button" title="Toggle UMAP semantic layout (E)">Embed</button>
-    <button id="embed-all-toggle" class="ghost-button is-hidden" type="button" title="Toggle between project-only and all-node embedding">Projects only</button>
-    <button id="reset-button" class="ghost-button" type="button" title="Reset node positions to UMAP seed positions">Reset</button>
-    <button id="discover-button" class="ghost-button" type="button" title="Jump to a random node and explore its neighborhood">Discover</button>
-    <button id="force-button" class="ghost-button is-active" type="button" title="Toggle physics simulation on/off">Physics</button>
+    <button id="home-button" class="ghost-button" type="button" title="Home — reset all filters and exit focus mode">Home</button>
+    <button id="reset-button" class="ghost-button" type="button" title="Reset — snap node positions back to UMAP seed coordinates (keeps filters)">Reset</button>
     <div style="position: relative;">
-      <button id="palette-button" class="ghost-button" type="button" title="Change color palette">Palette</button>
+      <button id="mode-button" class="ghost-button" type="button" title="Switch view mode: Force graph · Embeddings · Discover">Mode ▾</button>
+      <div id="mode-menu" class="settings-menu is-hidden" role="menu">
+        <button class="settings-menu-item mode-menu-item" data-mode="force" type="button">⬡ Force graph</button>
+        <button class="settings-menu-item mode-menu-item" data-mode="embed" type="button">⬤ Embeddings</button>
+        <button class="settings-menu-item mode-menu-item" data-mode="discover" type="button">◈ Discover</button>
+      </div>
+    </div>
+    <button id="embed-all-toggle" class="ghost-button is-hidden" type="button" title="Toggle between project-only and all-node embedding">Projects only</button>
+    <button id="force-button" class="ghost-button is-active" type="button" title="Toggle physics simulation on/off (F)">Physics</button>
+    <div style="position: relative;">
+      <button id="settings-button" class="ghost-button" type="button" title="Settings">⚙</button>
+      <div id="settings-menu" class="settings-menu is-hidden" role="menu">
+        <button id="settings-palette-btn" class="settings-menu-item" type="button">🎨 Color palette</button>
+        <div class="settings-menu-divider"></div>
+        <button id="settings-feedback-btn" class="settings-menu-item" type="button">✉ Send feedback</button>
+      </div>
       <div id="palette-picker" class="palette-picker is-hidden" role="listbox" aria-label="Choose color palette"></div>
     </div>
-    <button id="help-button" class="ghost-button" type="button">?</button>
-    <button id="feedback-button" class="ghost-button" type="button">Feedback</button>
+    <button id="help-button" class="ghost-button" type="button" title="Help &amp; tutorials (?)">?</button>
   </div>
 </header>
 
@@ -1970,6 +2095,15 @@ a:hover {
             <div id="help-edge-types" class="help-item-list"></div>
           </div>
         </div>
+        <div style="margin-top:10px; padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-lg); background:rgba(28,28,32,0.72);">
+          <div class="help-panel-title" style="margin-bottom:6px">Buttons explained</div>
+          <div style="font-size:12px; color:var(--fg-muted); line-height:1.75; display:grid; gap:2px">
+            <div><strong style="color:var(--fg)">Home</strong> — Resets all filters and exits focus mode back to the full graph view.</div>
+            <div><strong style="color:var(--fg)">Reset</strong> — Snaps node positions back to UMAP seed coordinates and re-runs physics. Your current filters stay active.</div>
+            <div><strong style="color:var(--fg)">Mode ▾</strong> — Switches between <em>Force graph</em> (physics), <em>Embeddings</em> (semantic UMAP), and <em>Discover</em> (explore a node's connections).</div>
+            <div><strong style="color:var(--fg)">Physics</strong> — Toggles force-directed layout on/off. Turn off to freeze the graph in place.</div>
+          </div>
+        </div>
       </div>
       <div id="help-shortcuts-panel" class="is-hidden">
         <div class="help-panel">
@@ -1979,7 +2113,7 @@ a:hover {
       </div>
     </div>
     <div class="modal-footer">
-      <div class="modal-note">Press Esc to close the current modal or view.</div>
+      <div class="modal-note">Press Esc to close · <button id="help-start-tour" class="link-btn" type="button">General tour</button> · <button id="help-physics-tour" class="link-btn" type="button">Physics Lab tour</button></div>
       <div class="modal-actions">
         <button id="help-got-it" class="ghost-button is-strong" type="button">Got it</button>
       </div>
@@ -2011,13 +2145,26 @@ a:hover {
         </div>
       </div>
       <div class="modal-footer">
-        <div class="modal-note">Submitted through Formspree.</div>
+        <div class="modal-note">Submitted via Formspree → delivered to the researcher's inbox.</div>
         <div class="modal-actions">
           <button id="feedback-cancel" class="ghost-button" type="button">Cancel</button>
           <button id="feedback-submit" class="ghost-button is-strong" type="submit">Send</button>
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Interactive tour overlay -->
+<div id="tour-overlay" class="tour-overlay is-hidden" aria-hidden="true">
+  <div id="tour-tooltip" class="tour-tooltip">
+    <div id="tour-step-title" class="tour-step-title"></div>
+    <div id="tour-step-text" class="tour-step-text"></div>
+    <div class="tour-actions">
+      <button id="tour-skip" class="ghost-button" type="button">Skip tour</button>
+      <button id="tour-next" class="ghost-button is-strong" type="button">Next →</button>
+    </div>
+    <div id="tour-progress" class="tour-progress"></div>
   </div>
 </div>
 
@@ -2185,6 +2332,52 @@ const SHORTCUT_ROWS = [
   { key: "Ctrl+click", copy: "Add/remove nodes from multi-selection." },
 ];
 
+// ── Interactive tour step definitions ──────────────────────────────────────
+const GENERAL_TOUR_STEPS = [
+  { target: null, position: "center",
+    title: "Welcome to the AI Design DB",
+    text: "This graph maps ~800 AI engineering projects alongside the organizations, categories, and techniques that connect them. Let's take a quick tour." },
+  { target: "#search-input", position: "bottom",
+    title: "Search",
+    text: "Search for any project, organization, or category. Press Ctrl+K or / to focus. Click a suggestion to jump straight to that node in the graph." },
+  { target: "#filter-sidebar", position: "right",
+    title: "Filters",
+    text: "Filter by node type, edge type, category, or year range. Changes apply instantly — the graph updates live as you adjust." },
+  { target: "#canvas-surface", position: "center",
+    title: "The Graph",
+    text: "Single-click a node to see its details in the right panel. Double-click to enter Focus mode, which zooms into that node's neighborhood for deep exploration." },
+  { target: "#mode-button", position: "bottom",
+    title: "View Modes",
+    text: "Switch between Force graph (physics layout), Embeddings (semantic UMAP positions that cluster similar projects), and Discover (explore a node's connections)." },
+  { target: "#help-button", position: "bottom", isFinal: true,
+    title: "You're ready!",
+    text: "Press ? anytime to reopen this guide or launch a tutorial. Use the Physics Lab tour to learn how the force-directed layout works. Happy exploring!" },
+];
+
+const PHYSICS_TOUR_STEPS = [
+  { target: "#tools-physics-section", position: "left",
+    title: "Physics Lab",
+    text: "The Physics Lab controls the force-directed layout algorithm. Let's walk through its main controls. (Tip: it's in the right panel — you may need to scroll down.)",
+    onEnter() {
+      const s = document.getElementById("tools-physics-section");
+      if (s && !s.hasAttribute("open")) s.setAttribute("open", "");
+      // Also make sure the tools panel is visible (embed mode hides it)
+      if (state.embedActive) toggleEmbed(false);
+    } },
+  { target: ".phys-preset-row", position: "left",
+    title: "Layout Presets",
+    text: "4 presets change the global physics behavior: Default (balanced), Gephi (strong repulsion + long springs), Tight (dense clusters), Spread (wide open spacing). Click any to apply." },
+  { target: "#phys-gephi-mult", position: "left",
+    title: "G.Speed — Phase Duration",
+    text: "This slider (0.3–3.0×) scales how long each Gephi phase runs. Lower = fast layout. Higher = slow, cinematic animation great for demos or presentations." },
+  { target: "#phys-gephi-phases", position: "left",
+    title: "Run Gephi Phases",
+    text: "Click to run a 3-stage animation: Expansion (nodes push apart) → Cooling (movement slows) → Clustering (organic final settling). Works best starting from the Default preset." },
+  { target: null, position: "center", isFinal: true,
+    title: "Physics Lab tour complete",
+    text: "Try clicking 'Run Gephi Phases' now to see the graph animate through all three stages. The Physics button in the topbar toggles the simulation on/off at any time." },
+];
+
 const PALETTES = [
   {
     key: "default",
@@ -2343,15 +2536,17 @@ const dom = {
   breadcrumbRoot: document.getElementById("breadcrumb-root"),
   breadcrumbTrail: document.getElementById("breadcrumb-trail"),
   searchInput: document.getElementById("search-input"),
-  embedButton: document.getElementById("embed-button"),
   embedAllToggle: document.getElementById("embed-all-toggle"),
   resetButton: document.getElementById("reset-button"),
-  discoverButton: document.getElementById("discover-button"),
   forceButton: document.getElementById("force-button"),
-  paletteButton: document.getElementById("palette-button"),
+  modeButton: document.getElementById("mode-button"),
+  modeMenu: document.getElementById("mode-menu"),
+  settingsButton: document.getElementById("settings-button"),
+  settingsMenu: document.getElementById("settings-menu"),
+  settingsPaletteBtn: document.getElementById("settings-palette-btn"),
+  settingsFeedbackBtn: document.getElementById("settings-feedback-btn"),
   palettePicker: document.getElementById("palette-picker"),
   helpButton: document.getElementById("help-button"),
-  feedbackButton: document.getElementById("feedback-button"),
   filterSubbar: document.getElementById("filter-subbar"),
   filterChipRow: document.getElementById("filter-chip-row"),
   clearFiltersButton: document.getElementById("clear-filters-button"),
@@ -3216,7 +3411,7 @@ function applyPalette(index, announce) {
   root.setProperty("--accent", palette.theme.accent);
   root.setProperty("--accent-soft", palette.theme.accentSoft);
   root.setProperty("--grain-opacity", palette.theme.grainOpacity);
-  dom.paletteButton.title = "Palette: " + palette.label;
+  if (dom.settingsButton) dom.settingsButton.title = "Settings — palette: " + palette.label;
   renderHelpContent();
   if (state.network) {
     applyGraphTheme();
@@ -4079,7 +4274,7 @@ function applyView(options = {}) {
   dom.emptyOverlay.classList.toggle("is-hidden", nextNodeIds.size !== 0);
   updateFocusExitButtonLabel();
   dom.focusExitButton.classList.toggle("is-hidden", !state.focus);
-  dom.embedButton.classList.toggle("is-active", state.embedActive);
+  syncModeButton();
   dom.clusterLabelToggle.classList.toggle("is-hidden", !state.embedActive);
   // Hide physics/preset panels in embed mode — irrelevant there
   document.getElementById("tools-presets-section")?.classList.toggle("is-hidden", state.embedActive);
@@ -5887,6 +6082,7 @@ function handleGlobalKeydown(event) {
   if (isTypingContext(event.target)) {
     if (event.key === "Escape") {
       // Always let Escape close an open modal even when focus is inside it
+      if (!document.getElementById("tour-overlay").classList.contains("is-hidden")) { closeTour(); return; }
       if (state.ui.openModal === "feedback") { closeFeedback(); return; }
       if (state.ui.openModal === "help")     { closeHelp(false); return; }
       // Clear active search when Escape pressed from search input
@@ -5914,6 +6110,10 @@ function handleGlobalKeydown(event) {
 
   if (event.key === "Escape") {
     event.preventDefault();
+    if (!document.getElementById("tour-overlay").classList.contains("is-hidden")) {
+      closeTour();
+      return;
+    }
     if (state.ui.openModal === "feedback") {
       closeFeedback();
       return;
@@ -5974,9 +6174,146 @@ function handleGlobalKeydown(event) {
 
   if (event.key.toLowerCase() === "p") {
     event.preventDefault();
+    dom.settingsMenu?.classList.add("is-hidden");
     buildPalettePicker();
     dom.palettePicker.classList.toggle("is-hidden");
   }
+  // Esc closes tour
+  if (event.key === "Escape" && document.getElementById("tour-overlay") && !document.getElementById("tour-overlay").classList.contains("is-hidden")) {
+    closeTour();
+    return;
+  }
+}
+
+// ── Mode button label sync ──────────────────────────────────────────────────
+function syncModeButton() {
+  if (!dom.modeButton) return;
+  let label = "Mode ▾";
+  let active = false;
+  if (state.embedActive) {
+    label = "Embed ▾";
+    active = true;
+  } else if (state.focus) {
+    label = "Discover ▾";
+    active = true;
+  }
+  dom.modeButton.textContent = label;
+  dom.modeButton.classList.toggle("is-active", active);
+  // Highlight the matching item in the mode menu
+  if (dom.modeMenu) {
+    const mode = state.embedActive ? "embed" : (state.focus ? "discover" : "force");
+    for (const item of dom.modeMenu.querySelectorAll(".mode-menu-item")) {
+      item.classList.toggle("is-active", item.dataset.mode === mode);
+    }
+  }
+}
+
+// ── Tour system ─────────────────────────────────────────────────────────────
+let _tourSteps = [];
+let _tourIdx = 0;
+let _tourHighlightEl = null;
+
+function startTour(steps) {
+  if (!steps || !steps.length) return;
+  _tourSteps = steps;
+  _tourIdx = 0;
+  closeHelp();
+  document.getElementById("tour-overlay").setAttribute("aria-hidden", "false");
+  document.getElementById("tour-overlay").classList.remove("is-hidden");
+  showTourStep(0);
+}
+
+function showTourStep(idx) {
+  const step = _tourSteps[idx];
+  if (!step) { closeTour(); return; }
+
+  // Remove previous highlight
+  if (_tourHighlightEl) {
+    _tourHighlightEl.classList.remove("tour-highlight");
+    _tourHighlightEl = null;
+  }
+
+  // Run step's onEnter hook if provided
+  if (typeof step.onEnter === "function") step.onEnter();
+
+  const tooltip = document.getElementById("tour-tooltip");
+
+  // Highlight target element
+  if (step.target) {
+    const el = document.querySelector(step.target);
+    if (el) {
+      _tourHighlightEl = el;
+      el.classList.add("tour-highlight");
+      // Scroll element into view
+      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      // Give DOM a moment to settle, then position
+      window.requestAnimationFrame(() => positionTourTooltip(tooltip, el.getBoundingClientRect(), step.position));
+    } else {
+      centerTourTooltip(tooltip);
+    }
+  } else {
+    centerTourTooltip(tooltip);
+  }
+
+  document.getElementById("tour-step-title").textContent = step.title;
+  document.getElementById("tour-step-text").textContent = step.text;
+  document.getElementById("tour-progress").textContent = (idx + 1) + " / " + _tourSteps.length;
+  const nextBtn = document.getElementById("tour-next");
+  if (nextBtn) nextBtn.textContent = step.isFinal ? "Finish ✓" : "Next →";
+}
+
+function centerTourTooltip(tooltip) {
+  tooltip.style.top = "50%";
+  tooltip.style.left = "50%";
+  tooltip.style.transform = "translate(-50%, -50%)";
+}
+
+function positionTourTooltip(tooltip, rect, position) {
+  const MARGIN = 14;
+  const TW = 300; // tooltip width
+  const TH = tooltip.offsetHeight || 160;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  tooltip.style.transform = "";
+
+  let top, left;
+  switch (position) {
+    case "bottom":
+      top = Math.min(vh - TH - MARGIN, rect.bottom + MARGIN);
+      left = Math.max(MARGIN, Math.min(vw - TW - MARGIN, rect.left));
+      break;
+    case "top":
+      top = Math.max(MARGIN, rect.top - TH - MARGIN);
+      left = Math.max(MARGIN, Math.min(vw - TW - MARGIN, rect.left));
+      break;
+    case "right":
+      top = Math.max(MARGIN, Math.min(vh - TH - MARGIN, rect.top));
+      left = Math.min(vw - TW - MARGIN, rect.right + MARGIN);
+      break;
+    case "left":
+      top = Math.max(MARGIN, Math.min(vh - TH - MARGIN, rect.top));
+      left = Math.max(MARGIN, rect.left - TW - MARGIN);
+      break;
+    default: // center
+      centerTourTooltip(tooltip);
+      return;
+  }
+  tooltip.style.top = top + "px";
+  tooltip.style.left = left + "px";
+}
+
+function closeTour() {
+  if (_tourHighlightEl) {
+    _tourHighlightEl.classList.remove("tour-highlight");
+    _tourHighlightEl = null;
+  }
+  const overlay = document.getElementById("tour-overlay");
+  if (overlay) {
+    overlay.classList.add("is-hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+  _tourSteps = [];
+  _tourIdx = 0;
 }
 
 function initResizeHandles() {
@@ -6022,7 +6359,32 @@ function bindEvents() {
     }
   });
 
-  dom.embedButton.addEventListener("click", () => toggleEmbed(true));
+  // Mode dropdown
+  if (dom.modeButton) {
+    dom.modeButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      dom.modeMenu.classList.toggle("is-hidden");
+    });
+  }
+  for (const item of document.querySelectorAll(".mode-menu-item")) {
+    item.addEventListener("click", () => {
+      dom.modeMenu.classList.add("is-hidden");
+      const mode = item.dataset.mode;
+      if (mode === "embed") {
+        if (!state.embedActive) toggleEmbed(true);
+      } else if (mode === "force") {
+        if (state.embedActive) toggleEmbed(false);
+        if (state.focus) exitFocus(true);
+      } else if (mode === "discover") {
+        if (!state.selection.primaryId) {
+          showToast("Click a node first, then choose Discover to explore its connections.", "warn");
+        } else {
+          if (state.embedActive) toggleEmbed(false);
+          activateFocus(state.selection.primaryId, 1);
+        }
+      }
+    });
+  }
   if (dom.embedAllToggle) {
     dom.embedAllToggle.addEventListener("click", () => {
       if (!state.embedActive) return;
@@ -6066,21 +6428,39 @@ function bindEvents() {
     });
   }
   initResizeHandles();
-  dom.discoverButton.addEventListener("click", () => {
-    if (!state.selection.primaryId) {
-      showToast("Click a node to select it, then press Discover to enter focus mode.", "warn");
-      return;
-    }
-    activateFocus(state.selection.primaryId, 1);
-  });
   dom.forceButton.addEventListener("click", () => toggleForce(true));
-  dom.paletteButton.addEventListener("click", (event) => {
-    event.stopPropagation();
-    buildPalettePicker();
-    dom.palettePicker.classList.toggle("is-hidden");
-  });
+  // Settings menu (palette + feedback)
+  if (dom.settingsButton) {
+    dom.settingsButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      dom.settingsMenu.classList.toggle("is-hidden");
+      dom.palettePicker.classList.add("is-hidden");
+    });
+  }
+  if (dom.settingsPaletteBtn) {
+    dom.settingsPaletteBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      dom.settingsMenu.classList.add("is-hidden");
+      buildPalettePicker();
+      dom.palettePicker.classList.toggle("is-hidden");
+    });
+  }
+  if (dom.settingsFeedbackBtn) {
+    dom.settingsFeedbackBtn.addEventListener("click", () => {
+      dom.settingsMenu.classList.add("is-hidden");
+      openFeedback();
+    });
+  }
   dom.helpButton.addEventListener("click", () => openHelp(localStorage.getItem(STORAGE_KEYS.visited) ? "shortcuts" : "overview"));
-  dom.feedbackButton.addEventListener("click", openFeedback);
+  // Tour launch buttons (inside help modal)
+  document.getElementById("help-start-tour")?.addEventListener("click", () => startTour(GENERAL_TOUR_STEPS));
+  document.getElementById("help-physics-tour")?.addEventListener("click", () => startTour(PHYSICS_TOUR_STEPS));
+  // Tour navigation
+  document.getElementById("tour-next")?.addEventListener("click", () => {
+    _tourIdx++;
+    if (_tourIdx >= _tourSteps.length) { closeTour(); } else { showTourStep(_tourIdx); }
+  });
+  document.getElementById("tour-skip")?.addEventListener("click", closeTour);
   dom.fitButton.addEventListener("click", () => fitVisibleGraph());
   dom.focusExitButton.addEventListener("click", () => exitFocus(true));
   dom.clusterLabelA.addEventListener("click", () => {
@@ -6358,8 +6738,17 @@ function bindEvents() {
     if (!dom.contextMenu.contains(event.target)) {
       closeContextMenu();
     }
-    if (!dom.palettePicker.contains(event.target) && event.target !== dom.paletteButton) {
+    // Close palette picker unless click was inside it or the settings palette btn
+    if (!dom.palettePicker.contains(event.target) && event.target !== dom.settingsPaletteBtn) {
       dom.palettePicker.classList.add("is-hidden");
+    }
+    // Close mode menu unless click was inside it
+    if (dom.modeMenu && !dom.modeMenu.contains(event.target) && event.target !== dom.modeButton) {
+      dom.modeMenu.classList.add("is-hidden");
+    }
+    // Close settings menu unless click was inside it
+    if (dom.settingsMenu && !dom.settingsMenu.contains(event.target) && event.target !== dom.settingsButton) {
+      dom.settingsMenu.classList.add("is-hidden");
     }
   });
   dom.palettePicker.addEventListener("click", (event) => {

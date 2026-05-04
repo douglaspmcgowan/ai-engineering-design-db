@@ -201,11 +201,12 @@ test.describe("explorer", () => {
   test("page loads and topbar renders", async ({ page }) => {
     await expect(page.locator(".topbar")).toBeVisible();
     await expect(page.locator("#search-input")).toBeVisible();
-    await expect(page.locator("#palette-button")).toBeVisible();
+    await expect(page.locator("#settings-button")).toBeVisible();
   });
 
-  test("palette button opens picker menu", async ({ page }) => {
-    await page.click("#palette-button");
+  test("palette button opens picker menu via settings menu", async ({ page }) => {
+    await page.click("#settings-button");
+    await page.click("#settings-palette-btn");
     await expect(page.locator("#palette-picker")).toBeVisible();
     expect(await page.locator(".palette-option").count()).toBeGreaterThanOrEqual(2);
   });
@@ -226,9 +227,10 @@ test.describe("explorer", () => {
     await expect(second).toHaveJSProperty("open", true);
   });
 
-  test("embed button toggles embed mode", async ({ page }) => {
-    await page.click("#embed-button");
-    await expect(page.locator("#embed-button")).toHaveClass(/is-active/);
+  test("embed mode activates via mode menu", async ({ page }) => {
+    await page.click("#mode-button");
+    await page.click("[data-mode='embed']");
+    await expect(page.locator("#mode-button")).toHaveClass(/is-active/);
   });
 
   test("focus exit button is hidden initially", async ({ page }) => {
@@ -240,8 +242,9 @@ test.describe("explorer", () => {
     await expect(page.locator("#help-modal")).not.toHaveClass(/is-hidden/);
   });
 
-  test("feedback modal opens on feedback button click", async ({ page }) => {
-    await page.click("#feedback-button");
+  test("feedback modal opens via settings menu", async ({ page }) => {
+    await page.click("#settings-button");
+    await page.click("#settings-feedback-btn");
     await expect(page.locator("#feedback-modal")).not.toHaveClass(/is-hidden/);
   });
 
@@ -250,8 +253,10 @@ test.describe("explorer", () => {
     await expect(page.locator("#search-input")).toBeFocused();
   });
 
-  test("discover button exists in topbar", async ({ page }) => {
-    await expect(page.locator("#discover-button")).toBeVisible();
+  test("mode button exists in topbar with mode menu", async ({ page }) => {
+    await expect(page.locator("#mode-button")).toBeVisible();
+    await page.click("#mode-button");
+    await expect(page.locator("[data-mode='discover']")).toBeVisible();
   });
 
   test("double-click activates focus mode and shows discover nav in detail panel", async ({ page }) => {
@@ -289,8 +294,9 @@ test.describe("explorer", () => {
     await expect(page.locator("#tools-presets-section")).not.toHaveClass(/is-hidden/);
     await expect(page.locator("#tools-physics-section")).not.toHaveClass(/is-hidden/);
 
-    // Activate embed
-    await page.click("#embed-button");
+    // Activate embed via mode menu
+    await page.click("#mode-button");
+    await page.click("[data-mode='embed']");
     await page.waitForTimeout(200);
 
     await expect(page.locator("#tools-presets-section")).toHaveClass(/is-hidden/);
