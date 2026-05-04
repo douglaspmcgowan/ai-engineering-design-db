@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Engineering Design DB Explorer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='5' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='4' cy='25' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='28' cy='25' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='16' cy='19' r='2.5' fill='%23ff9d7a'/%3E%3Cline x1='16' y1='5' x2='4' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='16' y1='5' x2='28' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='4' y1='25' x2='28' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='16' y1='5' x2='16' y2='19' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3Cline x1='16' y1='19' x2='4' y2='25' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3Cline x1='16' y1='19' x2='28' y2='25' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -122,13 +123,9 @@ a:hover {
 
 .brand-mark {
   flex: none;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 35% 35%, #ffd7cb, transparent 40%),
-    var(--accent);
-  box-shadow: 0 0 18px rgba(255, 107, 61, 0.35);
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 6px rgba(255, 107, 61, 0.4));
 }
 
 .breadcrumb {
@@ -1000,6 +997,22 @@ a:hover {
   display: none;
 }
 
+.embed-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 500 11px/1 var(--font-mono);
+  color: var(--fg-faint);
+  background: rgba(10,10,11,0.72);
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+}
+.embed-hint.is-hidden { display: none; }
+
 .canvas-overlay,
 .drop-overlay,
 .empty-overlay {
@@ -1491,6 +1504,7 @@ a:hover {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  align-items: start;
 }
 
 .help-panel {
@@ -1500,6 +1514,7 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: rgba(28, 28, 32, 0.72);
+  align-self: start;
 }
 
 .help-panel-title {
@@ -1755,7 +1770,18 @@ a:hover {
 
 <header class="topbar">
   <div class="brand-wrap">
-    <div class="brand-mark" aria-hidden="true"></div>
+    <svg class="brand-mark" aria-hidden="true" width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="11" cy="3.5" r="2.5" fill="var(--accent)"/>
+      <circle cx="3" cy="17.5" r="2.5" fill="var(--accent)"/>
+      <circle cx="19" cy="17.5" r="2.5" fill="var(--accent)"/>
+      <circle cx="11" cy="13" r="1.8" fill="color-mix(in srgb, var(--accent) 70%, white)"/>
+      <line x1="11" y1="3.5" x2="3" y2="17.5" stroke="var(--accent)" stroke-width="1.2" stroke-opacity="0.55"/>
+      <line x1="11" y1="3.5" x2="19" y2="17.5" stroke="var(--accent)" stroke-width="1.2" stroke-opacity="0.55"/>
+      <line x1="3" y1="17.5" x2="19" y2="17.5" stroke="var(--accent)" stroke-width="1.2" stroke-opacity="0.55"/>
+      <line x1="11" y1="3.5" x2="11" y2="13" stroke="var(--accent)" stroke-width="1" stroke-opacity="0.4"/>
+      <line x1="11" y1="13" x2="3" y2="17.5" stroke="var(--accent)" stroke-width="1" stroke-opacity="0.4"/>
+      <line x1="11" y1="13" x2="19" y2="17.5" stroke="var(--accent)" stroke-width="1" stroke-opacity="0.4"/>
+    </svg>
     <nav class="breadcrumb" aria-label="Breadcrumb">
       <button id="breadcrumb-root" class="crumb-button" type="button">AI Engineering Design DB</button>
       <div id="breadcrumb-trail" class="breadcrumb"></div>
@@ -1770,8 +1796,7 @@ a:hover {
   </div>
 
   <div class="topbar-actions">
-    <button id="home-button" class="ghost-button" type="button" title="Home — reset all filters and exit focus mode">Home</button>
-    <button id="reset-button" class="ghost-button" type="button" title="Reset — snap node positions back to UMAP seed coordinates (keeps filters)">Reset</button>
+    <button id="home-button" class="ghost-button" type="button" title="Home — reset all filters, exit focus mode, return to full graph">Home</button>
     <div style="position: relative;">
       <button id="mode-button" class="ghost-button" type="button" title="Switch view mode: Force graph · Embeddings · Discover">Mode ▾</button>
       <div id="mode-menu" class="settings-menu is-hidden" role="menu">
@@ -1881,10 +1906,12 @@ a:hover {
         <button id="focus-exit-button" class="ghost-button is-hidden" type="button">Exit Exploring</button>
       </div>
 
-      <div id="cluster-label-toggle" class="cluster-label-toggle is-hidden">
-        <button id="cluster-label-a" class="ghost-button" type="button">Category</button>
-        <button id="cluster-label-b" class="ghost-button is-active" type="button">Semantic</button>
-        <button id="cluster-label-c" class="ghost-button" type="button">Regions</button>
+      <div id="embed-hint" class="embed-hint is-hidden">Scroll to zoom · Click a cluster region to zoom in · Double-click a node to explore</div>
+
+      <div id="cluster-label-toggle" class="cluster-label-toggle is-hidden" title="Choose how clusters are labeled">
+        <button id="cluster-label-a" class="ghost-button" type="button" title="Group by project category">By Category</button>
+        <button id="cluster-label-b" class="ghost-button" type="button" title="Group by AI topic cluster (k-means on embeddings)">By Topic</button>
+        <button id="cluster-label-c" class="ghost-button is-active" type="button" title="Group by spatial region inferred from the UMAP layout">By Region</button>
       </div>
 
       <div id="loading-overlay" class="canvas-overlay">
@@ -2023,6 +2050,10 @@ a:hover {
               title="Push overlapping nodes apart without restructuring the layout (1.8s)">
               Remove Overlap
             </button>
+            <button id="reset-button" class="ghost-button phys-wide-btn" type="button"
+              title="Snap all node positions back to UMAP seed coordinates and restart physics (keeps current filters active)">
+              ↺ Reset to Seed Positions
+            </button>
           </div>
         </div>
       </details>
@@ -2082,8 +2113,12 @@ a:hover {
     <div class="modal-body">
       <div id="help-overview-panel">
         <div style="padding:0 0 10px; font-size:12px; color:var(--fg-muted); border-bottom:1px solid var(--border); margin-bottom:10px; line-height:1.6">
-          <strong style="color:var(--fg)">Double-click</strong> any node to explore its neighborhood. Click canvas to deselect.<br>
-          <strong style="color:var(--fg)">Search</strong> (Ctrl+K / /) to filter or jump to a node. Click a suggestion to enter focus mode.
+          <strong style="color:var(--fg)">Search</strong> (Ctrl+K or /) — type to filter the graph live. Click a suggestion to fly to that node.<br>
+          <strong style="color:var(--fg)">Double-click</strong> a node to explore its neighborhood. Single-click opens the detail panel.
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px">
+          <button id="help-start-tour" class="ghost-button" type="button" style="height:36px; font-size:12px; border-color:var(--accent); color:var(--accent)">▶ General tour</button>
+          <button id="help-physics-tour" class="ghost-button" type="button" style="height:36px; font-size:12px">⚡ Physics Lab tour</button>
         </div>
         <div class="help-grid">
           <div class="help-panel">
@@ -2098,10 +2133,10 @@ a:hover {
         <div style="margin-top:10px; padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-lg); background:rgba(28,28,32,0.72);">
           <div class="help-panel-title" style="margin-bottom:6px">Buttons explained</div>
           <div style="font-size:12px; color:var(--fg-muted); line-height:1.75; display:grid; gap:2px">
-            <div><strong style="color:var(--fg)">Home</strong> — Resets all filters and exits focus mode back to the full graph view.</div>
-            <div><strong style="color:var(--fg)">Reset</strong> — Snaps node positions back to UMAP seed coordinates and re-runs physics. Your current filters stay active.</div>
-            <div><strong style="color:var(--fg)">Mode ▾</strong> — Switches between <em>Force graph</em> (physics), <em>Embeddings</em> (semantic UMAP), and <em>Discover</em> (explore a node's connections).</div>
+            <div><strong style="color:var(--fg)">Home</strong> — Resets all filters and exits focus mode back to the full graph.</div>
+            <div><strong style="color:var(--fg)">Mode ▾</strong> — Switches between <em>Force graph</em> (physics), <em>Embeddings</em> (semantic UMAP layout), and <em>Discover</em> (explore a node's connections).</div>
             <div><strong style="color:var(--fg)">Physics</strong> — Toggles force-directed layout on/off. Turn off to freeze the graph in place.</div>
+            <div><strong style="color:var(--fg)">↺ Reset to Seed Positions</strong> — In the Physics Lab panel: snaps node positions back to UMAP seed coordinates and restarts physics. Keeps current filters active.</div>
           </div>
         </div>
       </div>
@@ -2113,7 +2148,7 @@ a:hover {
       </div>
     </div>
     <div class="modal-footer">
-      <div class="modal-note">Press Esc to close · <button id="help-start-tour" class="link-btn" type="button">General tour</button> · <button id="help-physics-tour" class="link-btn" type="button">Physics Lab tour</button></div>
+      <div class="modal-note">Press Esc to close · double-click any node to explore its neighborhood</div>
       <div class="modal-actions">
         <button id="help-got-it" class="ghost-button is-strong" type="button">Got it</button>
       </div>
@@ -2320,7 +2355,7 @@ const EDGE_DESCRIPTIONS = {
 const SHORTCUT_ROWS = [
   { key: "Double-click node", copy: "Explore neighborhood — filters graph to 1-hop neighbors." },
   { key: "Double-click canvas", copy: "Exit focus/explore mode." },
-  { key: "/ or Ctrl+K", copy: "Focus search — type to filter; ↓↑ to pick; Enter to enter focus on selection." },
+  { key: "/ or Ctrl+K", copy: "Focus search — type to filter the graph. ↓↑ to pick a suggestion; Enter to jump to it. Click a suggestion to fly to that node (detail panel opens). Double-click any node to explore its neighborhood." },
   { key: "Esc", copy: "Close modal, exit focus, or clear search." },
   { key: "Space", copy: "Fit visible graph to viewport." },
   { key: "Tab", copy: "Cycle through focus neighbors (flashes next node)." },
@@ -2632,7 +2667,7 @@ const state = {
   forceEnabled: true,
   embedActive: false,
   embedAllNodes: false,   // true = show all 2405 nodes in embed mode using embed_all_x/y
-  clusterLabelMode: "B",
+  clusterLabelMode: "C",
   focus: null,
   selection: {
     ids: new Set(),
@@ -3016,15 +3051,14 @@ function renderSearchSuggestions() {
       e.preventDefault();
       const nodeId = item.dataset.nodeId;
       el.classList.add("is-hidden");
-      // Clear search filter so full graph shows
+      // Clear search filter so full graph shows, then fly to the node
       dom.searchInput.value = "";
       state.filters.search = "";
       applyView({ fit: false });
-      // Small delay to ensure node is in view before focusing
       window.setTimeout(() => {
         selectSingleNode(nodeId);
         focusCameraOnNode(nodeId);
-        activateFocus(nodeId, 1);
+        // Do NOT auto-enter focus mode — user can double-click to explore
       }, 60);
     });
   }
@@ -4276,6 +4310,7 @@ function applyView(options = {}) {
   dom.focusExitButton.classList.toggle("is-hidden", !state.focus);
   syncModeButton();
   dom.clusterLabelToggle.classList.toggle("is-hidden", !state.embedActive);
+  document.getElementById("embed-hint")?.classList.toggle("is-hidden", !state.embedActive);
   // Hide physics/preset panels in embed mode — irrelevant there
   document.getElementById("tools-presets-section")?.classList.toggle("is-hidden", state.embedActive);
   document.getElementById("tools-physics-section")?.classList.toggle("is-hidden", state.embedActive);
@@ -5786,13 +5821,20 @@ function renderClusterHulls() {
     const labelText = escapeHtml(group.label);
     const labelWidth = labelText.length * 6.5 + 12;
     const safeKey = escapeHtml(clusterKey);
+    // Adaptive label: only show if hull is large enough to be readable
+    const hullSpan = Math.max(
+      ...group.points.map(p => p.x), -Infinity) - Math.min(...group.points.map(p => p.x), Infinity);
+    const showLabel = group.points.length >= 4; // always show if enough points
+    const labelHtml = showLabel ? (
+      "<g>" +
+        "<rect x='" + (centroid.x - labelWidth / 2).toFixed(1) + "' y='" + (centroid.y - 13).toFixed(1) + "' width='" + labelWidth.toFixed(1) + "' height='18' rx='4' fill='rgba(10,10,11,0.8)'></rect>" +
+        "<text x='" + centroid.x.toFixed(1) + "' y='" + centroid.y.toFixed(1) + "' fill='" + textColor + "' text-anchor='middle' dominant-baseline='middle' style='font-family: JetBrains Mono, monospace; font-size: 11px; font-weight: 500; letter-spacing:0.02em;'>" + labelText + "</text>" +
+      "</g>"
+    ) : "";
     fragments.push(
       "<g class='hull-group' data-key='" + safeKey + "'>" +
       "<polygon points='" + pointsAttribute + "' fill='" + fillColor + "' fill-opacity='" + fillOpacity + "' stroke='" + fillColor + "' stroke-opacity='" + strokeOpacity + "' stroke-width='" + strokeWidth + "'></polygon>" +
-      "<g>" +
-        "<rect x='" + (centroid.x - labelWidth / 2).toFixed(1) + "' y='" + (centroid.y - 13).toFixed(1) + "' width='" + labelWidth.toFixed(1) + "' height='18' rx='4' fill='rgba(10,10,11,0.72)'></rect>" +
-        "<text x='" + centroid.x.toFixed(1) + "' y='" + centroid.y.toFixed(1) + "' fill='" + textColor + "' text-anchor='middle' dominant-baseline='middle' style='font-family: JetBrains Mono, monospace; font-size: 11px; font-weight: 500;'>" + labelText + "</text>" +
-      "</g>" +
+      labelHtml +
       "</g>"
     );
   }
@@ -6451,7 +6493,7 @@ function bindEvents() {
       openFeedback();
     });
   }
-  dom.helpButton.addEventListener("click", () => openHelp(localStorage.getItem(STORAGE_KEYS.visited) ? "shortcuts" : "overview"));
+  dom.helpButton.addEventListener("click", () => openHelp("overview"));
   // Tour launch buttons (inside help modal)
   document.getElementById("help-start-tour")?.addEventListener("click", () => startTour(GENERAL_TOUR_STEPS));
   document.getElementById("help-physics-tour")?.addEventListener("click", () => startTour(PHYSICS_TOUR_STEPS));
@@ -6594,7 +6636,7 @@ function bindEvents() {
 
     if (event.key === "Enter") {
       event.preventDefault();
-      // If a suggestion is keyboard-focused, activate it
+      // If a suggestion is keyboard-focused, jump to it
       if (kbFocused) {
         const nodeId = kbFocused.dataset.nodeId;
         if (nodeId) {
@@ -6605,12 +6647,13 @@ function bindEvents() {
           window.setTimeout(() => {
             selectSingleNode(nodeId);
             focusCameraOnNode(nodeId);
-            activateFocus(nodeId, 1);
+            // Tip: double-click the node to explore its neighborhood
+            showToast("Jumped to node. Double-click to explore its neighborhood.", "success");
           }, 60);
           return;
         }
       }
-      // No suggestion selected: enter focus on first visible match
+      // No suggestion keyboard-focused: jump to first visible match
       const visibleIds = Array.from(state.currentView.nodeIds).sort(compareLabels);
       if (!visibleIds.length) {
         showToast("No visible nodes match that search.", "warn");
@@ -6624,7 +6667,7 @@ function bindEvents() {
       window.setTimeout(() => {
         selectSingleNode(firstId);
         focusCameraOnNode(firstId);
-        activateFocus(firstId, 1);
+        showToast("Jumped to node. Double-click to explore its neighborhood.", "success");
       }, 60);
     } else if (event.key === "Escape") {
       event.preventDefault();
