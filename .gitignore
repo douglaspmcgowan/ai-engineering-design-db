@@ -27,3 +27,8 @@ desktop.ini
 *.gslides
 
 .vercel
+
+# session management artifacts (operational, not project docs)
+CURRENT-TASK.md
+BACKGROUND-TASKS.md
+node_modules/

@@ -17,6 +17,28 @@ Then: embeddings + a proposed knowledge graph.
 - `raw/` — per-domain JSONL files from research agents
 - `consolidated.jsonl` — merged + deduped database
 - `embeddings.jsonl` — vector embeddings per record
-- `scripts/consolidate.py` — merge + dedupe
-- `scripts/embed.py` — generate embeddings
-- `KNOWLEDGE-GRAPH.md` — proposed graph structure with node/edge types
+- `graph/graph-data.json` — vis-network graph loaded by explorer.html
+- `scripts/` — data pipeline and utility scripts
+- `explorer.html` — single-file SPA graph explorer (deployed on Vercel)
+
+## Pipeline
+
+After adding records to `raw/`, rebuild the graph in order:
+
+```bash
+npm run pipeline
+# expands to:
+python scripts/consolidate.py        # merge + dedupe raw/*.jsonl → consolidated.jsonl
+python scripts/embed.py              # embed records → embeddings.jsonl
+python scripts/project-embeddings.py # UMAP projection → graph/embed-coords.json
+python scripts/embed-all-entities.py # UMAP all nodes → graph/embed-coords-all.json
+python scripts/build-graph.py        # assemble → graph/graph-data.json
+```
+
+## Testing
+
+```bash
+npm test              # fast unit tests (mocked vis-network)
+npm run test:all      # all test suites
+npm run test:visual   # visual/physics tests (starts HTTP server automatically)
+```

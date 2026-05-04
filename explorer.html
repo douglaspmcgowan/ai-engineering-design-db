@@ -2549,7 +2549,7 @@ const REGION_NAME_TO_CODE = (() => {
       try {
         regionName = displayNames.of(code);
       } catch (_error) {
-        regionName = "";
+        regionName = ""; // Intl.DisplayNames.of() throws on invalid codes (e.g. "AA", "ZZ") — silently default
       }
       if (regionName && regionName !== code) {
         map.set(regionName.toLowerCase(), code);
@@ -6828,20 +6828,27 @@ function bindEvents() {
 }
 
 async function loadDefaultGraph() {
+  const ctrl = new AbortController();
+  const timeoutId = window.setTimeout(() => ctrl.abort(), 15000);
   try {
     setLoadingState(true, "Fetching ./graph/graph-data.json and building indexes.");
-    const response = await fetch("./graph/graph-data.json").then((result) => {
+    const response = await fetch("./graph/graph-data.json", { signal: ctrl.signal }).then((result) => {
       if (!result.ok) {
         throw new Error("Unable to fetch ./graph/graph-data.json");
       }
       return result;
     });
+    window.clearTimeout(timeoutId);
     const data = await response.json();
     loadGraph(data, "./graph/graph-data.json");
   } catch (error) {
+    window.clearTimeout(timeoutId);
     setLoadingState(false);
     dom.emptyOverlay.classList.remove("is-hidden");
-    showToast(error.message || "Default graph could not be loaded.", "warn");
+    const msg = error.name === "AbortError"
+      ? "Graph load timed out after 15s. Try reloading the page."
+      : (error.message || "Default graph could not be loaded.");
+    showToast(msg, "warn");
   }
 }
 

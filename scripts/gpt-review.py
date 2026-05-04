@@ -43,8 +43,8 @@ FILE BELOW (first 55000 chars):
 
 client = OpenAI()
 resp = client.chat.completions.create(
-    model="gpt-4.1",
+    model="gpt-5.5",
     messages=[{"role": "user", "content": PROMPT}],
-    max_tokens=2000,
+    max_completion_tokens=2000,
 )
 print(resp.choices[0].message.content)

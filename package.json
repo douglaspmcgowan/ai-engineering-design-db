@@ -8,7 +8,10 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx playwright test tests/explorer.spec.js",
+    "test:all": "npx playwright test",
+    "test:visual": "python -m http.server 8770 & sleep 1 && npx playwright test tests/visual.spec.js --headed",
+    "pipeline": "python scripts/consolidate.py && python scripts/embed.py && python scripts/project-embeddings.py && python scripts/embed-all-entities.py && python scripts/build-graph.py"
   },
   "repository": {
     "type": "git",

@@ -8,8 +8,8 @@ How to extend, rebuild, and explore this database in a future session. Written f
 
 A flat-file JSONL database of AI/ML projects, papers, products, and datasets relevant to engineering design (CAD, simulation, materials, manufacturing, optimization). Plus a knowledge-graph layer and a graph explorer app on top.
 
-**Current scale:** 831 records → 2,405 graph nodes, 8,795 edges (7,940 structural + 583 semantic-from-descriptions + 109 deep-citations-from-abstracts + 76 authored + venue/cosine).
-Categories: 40. Venues: 242. People: 75. Paper abstracts cached: 437/491 (89%). Top citations: FNO (40 in-edges), PINN (27), DreamFusion (7).
+**Current scale:** 842 records → 2,449 graph nodes, 8,884 edges (structural + semantic-from-descriptions + deep-citations-from-abstracts + authored + venue/cosine).
+Categories: 42. Top citations: FNO (40 in-edges), PINN (27), DreamFusion (7). *(Update after each pipeline rebuild.)*
 
 ---
 

@@ -63,9 +63,9 @@ With 2000+ nodes, very high avoidOverlap forces ALL nodes to repel equally → s
 High centralGravity pulls everything toward one center regardless of connections → featureless blob with no visible clusters.
 
 ## Key architecture
-- `explorer.html` — single-file SPA, ~4900 lines
+- `explorer.html` — single-file SPA, ~6850 lines
 - `graph/` — `graph-data.json` loaded at runtime
-- `graph/embed-coords.json` — UMAP 2D positions (embed_x, embed_y) for 831 project nodes
+- `graph/embed-coords.json` — UMAP 2D positions (embed_x, embed_y) for 842 project nodes
 - Node initial positions: projects start at UMAP × 120, other nodes at centroid of neighbor projects
 - Default types: Project, Organization, Category (3 types) + BUILT_BY, IN_CATEGORY edges (2 types)
 
