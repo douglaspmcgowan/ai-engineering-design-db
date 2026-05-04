@@ -254,7 +254,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
+  padding: 6px 12px;
   cursor: pointer;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
@@ -263,8 +263,10 @@ a:hover {
 .search-suggestion-item:last-child { border-bottom: none; }
 .search-suggestion-item:hover,
 .search-suggestion-item.kbd-focus { background: var(--surface-2); }
-.search-sugg-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.search-sugg-type { color: var(--fg-faint); font: 500 9px/1 var(--font-mono); flex: none; letter-spacing: 0.04em; text-transform: uppercase; }
+.search-sugg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.search-sugg-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-sugg-meta { font-size: 10px; color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-sugg-type { color: var(--fg-faint); font: 500 9px/1 var(--font-mono); flex: none; letter-spacing: 0.04em; text-transform: uppercase; align-self: flex-start; margin-top: 2px; }
 
 .topbar-actions,
 .canvas-actions,
@@ -1105,6 +1107,14 @@ a:hover {
   font-size: 10px;
   padding: 4px 5px;
 }
+.discover-neighbor-count {
+  font-size: 11px;
+  color: var(--fg-secondary, var(--fg-muted));
+  text-align: center;
+  padding: 1px 0 0;
+  min-height: 14px;
+  letter-spacing: 0.01em;
+}
 
 /* URL open button in detail header */
 .detail-url-btn {
@@ -1645,14 +1655,14 @@ a:hover {
   </div>
 
   <div class="topbar-actions">
-    <button id="home-button" class="ghost-button" type="button">Home</button>
-    <button id="embed-button" class="ghost-button" type="button">Embed</button>
+    <button id="home-button" class="ghost-button" type="button" title="Return to default view">Home</button>
+    <button id="embed-button" class="ghost-button" type="button" title="Toggle UMAP semantic layout (E)">Embed</button>
     <button id="embed-all-toggle" class="ghost-button is-hidden" type="button" title="Toggle between project-only and all-node embedding">Projects only</button>
-    <button id="reset-button" class="ghost-button" type="button" title="Reset node positions to UMAP seed">Reset</button>
-    <button id="discover-button" class="ghost-button" type="button">Discover</button>
-    <button id="force-button" class="ghost-button is-active" type="button">Force</button>
+    <button id="reset-button" class="ghost-button" type="button" title="Reset node positions to UMAP seed positions">Reset</button>
+    <button id="discover-button" class="ghost-button" type="button" title="Jump to a random node and explore its neighborhood">Discover</button>
+    <button id="force-button" class="ghost-button is-active" type="button" title="Toggle physics simulation on/off">Physics</button>
     <div style="position: relative;">
-      <button id="palette-button" class="ghost-button" type="button">Palette</button>
+      <button id="palette-button" class="ghost-button" type="button" title="Change color palette">Palette</button>
       <div id="palette-picker" class="palette-picker is-hidden" role="listbox" aria-label="Choose color palette"></div>
     </div>
     <button id="help-button" class="ghost-button" type="button">?</button>
@@ -1713,7 +1723,7 @@ a:hover {
         </div>
       </details>
 
-      <details class="sidebar-section" data-accordion>
+      <details class="sidebar-section" data-accordion open>
         <summary>
           <span class="summary-title">Year Range</span>
           <span id="years-summary" class="summary-meta">-</span>
@@ -1810,7 +1820,7 @@ a:hover {
         </div>
       </details>
 
-      <details id="tools-physics-section" class="sidebar-section" data-accordion open>
+      <details id="tools-physics-section" class="sidebar-section" data-accordion>
         <summary>
           <span class="summary-title">Physics Lab</span>
           <span id="physics-lab-summary" class="summary-meta">barnesHut</span>
@@ -1924,6 +1934,7 @@ a:hover {
           <button id="discover-depth-2" class="ghost-button" title="Show 2-hop neighbors">2-hop</button>
           <button id="discover-exit" class="ghost-button" style="flex:1.5" title="Exit focus mode">Exit focus</button>
         </div>
+        <div id="discover-neighbor-count" class="discover-neighbor-count"></div>
       </div>
       <div id="detail-body" class="detail-body"></div>
     </div>
@@ -2167,8 +2178,8 @@ const SHORTCUT_ROWS = [
   { key: "Space", copy: "Fit visible graph to viewport." },
   { key: "Tab", copy: "Cycle through focus neighbors (flashes next node)." },
   { key: "Backspace / Left", copy: "Step back: 2-hop → 1-hop, or exit focus." },
-  { key: "E", copy: "Toggle embed / UMAP view." },
-  { key: "F", copy: "Toggle force-layout physics." },
+  { key: "E", copy: "Toggle UMAP semantic layout." },
+  { key: "F", copy: "Toggle physics simulation on/off." },
   { key: "?", copy: "Open this help panel." },
   { key: "P", copy: "Open palette picker." },
   { key: "Ctrl+click", copy: "Add/remove nodes from multi-selection." },
@@ -2672,6 +2683,15 @@ function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(Number(value) || 0);
 }
 
+// Convert machine-formatted values to human-readable display strings.
+// e.g. "research-prototype" → "Research prototype", "open-source-tool" → "Open source tool"
+function humanizeValue(value) {
+  if (!value) return value;
+  return String(value)
+    .replace(/-/g, " ")
+    .replace(/\b\w/, (ch) => ch.toUpperCase());
+}
+
 function normalizeCountryCode(value) {
   if (!value && value !== 0) {
     return "";
@@ -2774,9 +2794,24 @@ function renderSearchSuggestions() {
   const shown = matches.slice(0, 12);
   el.innerHTML = shown.map((m) => {
     const color = getNodeColor(m.node.type);
+    // Build a meta line with context — year + humanized category for projects, just type otherwise
+    let metaLine = "";
+    if (m.node.type === "Project") {
+      const year = m.node.props?.year || "";
+      const cat = humanizeValue(m.node.props?.category || "");
+      const org = m.node.props?.organization || "";
+      const parts = [year, cat].filter(Boolean);
+      if (org) parts.push(org);
+      metaLine = parts.slice(0, 3).join(" · ");
+    } else if (m.node.type === "Organization" && m.node.props?.country) {
+      metaLine = m.node.props.country;
+    }
     return "<div class='search-suggestion-item' role='option' data-node-id='" + escapeHtml(m.node.id) + "'>" +
-      "<span style='color:" + color + ";font-size:7px;flex:none;margin-top:1px'>●</span>" +
-      "<span class='search-sugg-label'>" + escapeHtml(m.node.label) + "</span>" +
+      "<span style='color:" + color + ";font-size:7px;flex:none;margin-top:3px'>●</span>" +
+      "<div class='search-sugg-body'>" +
+        "<span class='search-sugg-label'>" + escapeHtml(m.node.label) + "</span>" +
+        (metaLine ? "<span class='search-sugg-meta'>" + escapeHtml(metaLine) + "</span>" : "") +
+      "</div>" +
       "<span class='search-sugg-type'>" + escapeHtml(m.node.type) + "</span>" +
       "</div>";
   }).join("");
@@ -3461,7 +3496,7 @@ function buildSidebarControls() {
     spacer.style.width = "10px";
 
     const label = document.createElement("span");
-    label.textContent = category;
+    label.textContent = humanizeValue(category);
 
     const count = document.createElement("span");
     count.className = "option-count";
@@ -4212,6 +4247,18 @@ function getVisibleNeighborIds(nodeId) {
   return neighbors;
 }
 
+// Returns count of ALL unique neighbors across ALL edge types, regardless of current view/filters.
+function getTotalNeighborCount(nodeId) {
+  const seen = new Set();
+  for (const edgeId of (state.caches.incidentEdgeIdsByNode.get(nodeId) || [])) {
+    const edge = state.caches.edgeById.get(edgeId);
+    if (!edge) continue;
+    const otherId = edge.source === nodeId ? edge.target : edge.source;
+    seen.add(otherId);
+  }
+  return seen.size;
+}
+
 function renderDetailPanel() {
   const selectedIds = Array.from(state.selection.ids);
   // Reset URL button
@@ -4309,14 +4356,16 @@ function renderDetailPanel() {
 }
 
 function renderProjectDetail(node, neighborIds) {
+  const totalNeighbors = getTotalNeighborCount(node.id);
   const metaCards = [
     { label: "Year", value: node.props?.year || "Unknown" },
-    { label: "Status", value: node.props?.status || "Unknown" },
-    { label: "Category", value: node.props?.category || "Unknown" },
+    { label: "Status", value: humanizeValue(node.props?.status) || "Unknown" },
+    { label: "Category", value: humanizeValue(node.props?.category) || "Unknown" },
     { label: "Organization", value: node.props?.organization || "Unknown" },
+    { label: "Neighbors", value: formatNumber(neighborIds.length) + " of " + formatNumber(totalNeighbors) + " visible" },
   ];
   const metaGrid = metaCards.map((item) =>
-    "<div class='meta-card'><div class='meta-card-label'>" + escapeHtml(item.label) + "</div><div class='meta-card-value'>" + escapeHtml(item.value) + "</div></div>"
+    "<div class='meta-card'><div class='meta-card-label'>" + escapeHtml(item.label) + "</div><div class='meta-card-value'>" + escapeHtml(String(item.value)) + "</div></div>"
   ).join("");
   const techniques = Array.isArray(node.props?.techniques) ? node.props.techniques : [];
   const industries = Array.isArray(node.props?.industry_application) ? node.props.industry_application : [];
@@ -4400,7 +4449,7 @@ function renderOrganizationDetail(node, neighborIds) {
       "<div class='meta-card'><div class='meta-card-label'>Country</div><div class='meta-card-value'>" + escapeHtml(countryDisplay) + "</div></div>" +
       "<div class='meta-card'><div class='meta-card-label'>Projects</div><div class='meta-card-value'>" + formatNumber(aggregate.count) + "</div></div>" +
       "<div class='meta-card'><div class='meta-card-label'>Year range</div><div class='meta-card-value'>" + escapeHtml(yearRange) + "</div></div>" +
-      "<div class='meta-card'><div class='meta-card-label'>Visible neighbors</div><div class='meta-card-value'>" + formatNumber(neighborIds.length) + "</div></div>" +
+      "<div class='meta-card'><div class='meta-card-label'>Neighbors</div><div class='meta-card-value'>" + formatNumber(neighborIds.length) + " of " + formatNumber(getTotalNeighborCount(node.id)) + " visible</div></div>" +
     "</div></div>" +
     "<div class='detail-section'><div class='detail-section-title'>Top categories</div><div class='meta-list'>" + categoryPills + "</div></div>" +
     "<div class='detail-section'><div class='detail-section-title'>Top projects</div><div class='link-list'>" + topProjects + "</div></div>" +
@@ -4429,8 +4478,8 @@ function renderGenericNodeDetail(node, neighborIds) {
     "<div class='detail-section'><div class='detail-section-title'>Overview</div><div class='meta-grid'>" +
       "<div class='meta-card'><div class='meta-card-label'>Type</div><div class='meta-card-value'>" + escapeHtml(node.type) + "</div></div>" +
       "<div class='meta-card'><div class='meta-card-label'>Connected projects</div><div class='meta-card-value'>" + formatNumber(aggregate.count) + "</div></div>" +
-      "<div class='meta-card'><div class='meta-card-label'>Year range</div><div class='meta-card-value'>" + escapeHtml(aggregate.yearMin !== null && aggregate.yearMax !== null ? aggregate.yearMin + " - " + aggregate.yearMax : "Unknown") + "</div></div>" +
-      "<div class='meta-card'><div class='meta-card-label'>Visible neighbors</div><div class='meta-card-value'>" + formatNumber(neighborIds.length) + "</div></div>" +
+      "<div class='meta-card'><div class='meta-card-label'>Year range</div><div class='meta-card-value'>" + escapeHtml(aggregate.yearMin !== null && aggregate.yearMax !== null ? aggregate.yearMin + "–" + aggregate.yearMax : "Unknown") + "</div></div>" +
+      "<div class='meta-card'><div class='meta-card-label'>Neighbors</div><div class='meta-card-value'>" + formatNumber(neighborIds.length) + " of " + formatNumber(getTotalNeighborCount(node.id)) + " visible</div></div>" +
     "</div></div>" +
     "<div class='detail-section'><div class='detail-section-title'>Top organizations</div><div class='meta-list'>" + topOrganizationsMarkup + "</div></div>" +
     "<div class='detail-section'><div class='detail-section-title'>Connected projects</div><div class='link-list'>" + topProjectsMarkup + "</div></div>" +
@@ -4532,6 +4581,19 @@ function renderDiscoverPanel() {
   const d2Btn = document.getElementById("discover-depth-2");
   if (d1Btn) d1Btn.classList.toggle("is-active", state.focus.depth === 1);
   if (d2Btn) d2Btn.classList.toggle("is-active", state.focus.depth === 2);
+
+  // Neighbor count indicator: "X visible / Y total"
+  const countEl = document.getElementById("discover-neighbor-count");
+  if (countEl && state.focus) {
+    const rootId = state.focus.rootId;
+    const visibleCount = getVisibleNeighborIds(rootId).length;
+    const totalCount = getTotalNeighborCount(rootId);
+    if (totalCount > 0) {
+      countEl.textContent = visibleCount + " of " + totalCount + " neighbors visible under current filters";
+    } else {
+      countEl.textContent = "";
+    }
+  }
 }
 
 function initDiscoverPanel() {

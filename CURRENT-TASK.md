@@ -1,36 +1,41 @@
-# Current Task — Done (18/18 tests passing)
+# Current Task — Data Fixes + UX/UI Improvements
+
+**Goal:** Fix missing data fields in raw JSONL files, add total neighbor count to discover mode, then do UX/UI research and improvements.
 
 **Verifier:**
 ```bash
 python -m http.server 8770 &
-npx playwright test tests/explorer.spec.js   # 13/13
-npx playwright test tests/visual.spec.js     # 5/5
+npx playwright test tests/explorer.spec.js   # must pass
+npx playwright test tests/visual.spec.js     # must pass
+npx playwright test tests/audit.spec.js      # must pass
 ```
 
 ---
 
-## All completed this session
+## Steps
 
-- [x] Panel consolidation — discover nav moved into detail panel; tools sidebar always shows
-- [x] URL ↗ button in detail panel header (shown for nodes with url_primary)
-- [x] build-graph.py + graph-data.json rebuilt with embed_all_x/y for all 2405 nodes
-- [x] Multi-word tokenized search (all tokens must match)
-- [x] Search suggestions dropdown — typeahead, click enters focus mode
-- [x] Search keyboard nav — ↑↓ arrows + Enter consistent with click-on-suggestion
-- [x] Double-click focus bug fixed — viewport now fits to neighborhood (fit:true)
-- [x] Zoom choppiness fixed — removed competing focusCameraOnNode+fitVisibleGraph animations
-- [x] Discover mode node-type filter bug — focus roots are force-included in eligible set
-- [x] Embed mode hides Physics Lab + View Presets sections
-- [x] Embed all-nodes toggle ("Projects only" button in topbar, switches to 2405-node joint UMAP)
-- [x] Cluster click-to-zoom — clicking a hull in embed mode zooms to that cluster
-- [x] Cursor pointer on cluster hull hover
-- [x] Discover affordance in empty detail panel tip + help modal overview + shortcuts list
-- [x] Codex UX review completed
-- [x] Node pinning — right-click → "📌 Pin node" / "📌 Unpin node"; orange border indicator; physics runs around pinned nodes; cleared on reset
-- [x] Semantic similarity search — "🔍 Find similar" button in detail Actions section (nodes with embed coords); computes top-12 UMAP nearest neighbors; activates similarity focus mode with "Similar to: X . Exit" label
-- [x] Search results mini semantic map — SVG dot-map appended below search suggestions when ≥3 results have embed coords; edges drawn between result nodes; click dot to enter focus on that node
+- [ ] 1. Fix 37 records missing `url_primary` → copy from `url_paper` in raw JSONL files
+- [ ] 2. Fix 41 records missing `status` → infer from `type` field in raw JSONL files
+- [ ] 3. Rebuild `graph/graph-data.json` via `python scripts/build-graph.py`
+- [ ] 4. Add "X visible / Y total" neighbor count in discover mode panel (explorer.html)
+- [ ] 5. Take screenshots of app, do UX/UI research, implement improvements
+- [ ] 6. Run full Playwright test suites to verify
+
+## Data fixes needed (from last audit)
+
+### url_primary missing (37 records)
+All 37 have `url_paper` as fallback — copy url_paper → url_primary.
+Records: deepcad, skexgen, cad-mllm, brepnet, uv-net, polygen, meshgpt, point-e, shap-e, get3d, dreamfusion, magic3d, triposr, instantmesh, trellis, hunyuan3d-2, fno, deeponet, gino, pino, and ~17 more
+
+### status missing (41 records)
+Infer from type:
+- academic-paper (24) → "research-prototype"
+- open-source (15) → "open-source-tool"  
+- benchmark-dataset (2) → "released-benchmark"
 
 ## Key files
-- Explorer: `explorer.html` (~6250 lines)
-- Tests: `tests/explorer.spec.js` (13 tests), `tests/visual.spec.js` (5 tests)
-- Graph data: `graph/graph-data.json` (2405 nodes, 8795 edges, embed_all_x/y injected)
+- Explorer: `explorer.html` (~6300+ lines)
+- Raw data: `raw/*.jsonl` (25 files)
+- Build script: `scripts/build-graph.py`
+- Graph data: `graph/graph-data.json`
+- Tests: `tests/explorer.spec.js`, `tests/visual.spec.js`, `tests/audit.spec.js`
