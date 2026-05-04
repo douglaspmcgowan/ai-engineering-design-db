@@ -5821,10 +5821,8 @@ function renderClusterHulls() {
     const labelText = escapeHtml(group.label);
     const labelWidth = labelText.length * 6.5 + 12;
     const safeKey = escapeHtml(clusterKey);
-    // Adaptive label: only show if hull is large enough to be readable
-    const hullSpan = Math.max(
-      ...group.points.map(p => p.x), -Infinity) - Math.min(...group.points.map(p => p.x), Infinity);
-    const showLabel = group.points.length >= 4; // always show if enough points
+    // Show label if the cluster has enough points to be readable
+    const showLabel = group.points.length >= 4;
     const labelHtml = showLabel ? (
       "<g>" +
         "<rect x='" + (centroid.x - labelWidth / 2).toFixed(1) + "' y='" + (centroid.y - 13).toFixed(1) + "' width='" + labelWidth.toFixed(1) + "' height='18' rx='4' fill='rgba(10,10,11,0.8)'></rect>" +
@@ -6146,6 +6144,8 @@ function handleGlobalKeydown(event) {
 
   if (event.key === "?") {
     event.preventDefault();
+    // Don't open help while a tour is running
+    if (!document.getElementById("tour-overlay").classList.contains("is-hidden")) return;
     openHelp("shortcuts");
     return;
   }
@@ -6220,11 +6220,6 @@ function handleGlobalKeydown(event) {
     buildPalettePicker();
     dom.palettePicker.classList.toggle("is-hidden");
   }
-  // Esc closes tour
-  if (event.key === "Escape" && document.getElementById("tour-overlay") && !document.getElementById("tour-overlay").classList.contains("is-hidden")) {
-    closeTour();
-    return;
-  }
 }
 
 // ── Mode button label sync ──────────────────────────────────────────────────
@@ -6257,6 +6252,7 @@ let _tourHighlightEl = null;
 
 function startTour(steps) {
   if (!steps || !steps.length) return;
+  if (_tourSteps.length) closeTour(); // clean up any in-progress tour first
   _tourSteps = steps;
   _tourIdx = 0;
   closeHelp();
@@ -6420,6 +6416,8 @@ function bindEvents() {
       } else if (mode === "discover") {
         if (!state.selection.primaryId) {
           showToast("Click a node first, then choose Discover to explore its connections.", "warn");
+        } else if (state.focus?.rootId === state.selection.primaryId && !state.embedActive) {
+          // Already exploring this node — don't reset depth
         } else {
           if (state.embedActive) toggleEmbed(false);
           activateFocus(state.selection.primaryId, 1);
