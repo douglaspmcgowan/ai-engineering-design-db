@@ -123,7 +123,7 @@ class GraphBuilder:
                             "id", "category", "type", "organization", "year",
                             "url_primary", "url_paper", "url_github",
                             "status", "input_modality", "output_modality",
-                            "physics_domain",
+                            "physics_domain", "country",
                         )
                     }),
                 }

@@ -2680,12 +2680,15 @@ function normalizeCountryCode(value) {
   if (!raw) {
     return "";
   }
-  if (/^[A-Za-z]{2}$/.test(raw)) {
-    return raw.toUpperCase();
-  }
   const lower = raw.toLowerCase();
   if (lower === "multi" || lower === "global") {
     return "MULTI";
+  }
+  // Normalize common non-ISO aliases
+  const ALIAS = { uk: "GB", england: "GB", britain: "GB", "united kingdom": "GB" };
+  if (ALIAS[lower]) return ALIAS[lower];
+  if (/^[A-Za-z]{2}$/.test(raw)) {
+    return raw.toUpperCase();
   }
   return REGION_NAME_TO_CODE.get(lower) || "";
 }
@@ -2704,13 +2707,15 @@ function countryCodeToFlag(code) {
   );
 }
 
-function deriveCountryCodeForOrganization(orgNode, projectIds) {
+function deriveCountryCodeForOrganization(orgNode, projectIds, nodeByIdOverride) {
   const direct = normalizeCountryCode(orgNode?.props?.country);
   if (direct) {
     return direct;
   }
+  // Use override map (during normalizeGraphData) or fall back to live cache
+  const lookup = nodeByIdOverride || state.caches.nodeById;
   for (const projectId of projectIds) {
-    const projectNode = state.caches.nodeById.get(projectId);
+    const projectNode = lookup.get(projectId);
     const projectCountry = normalizeCountryCode(projectNode?.props?.country);
     if (projectCountry) {
       return projectCountry;
@@ -3131,7 +3136,7 @@ function normalizeGraphData(rawData) {
     }
     const projectIds = projectIdsByOrganization.get(node.id) || [];
     const aggregate = summarizeProjects(projectIds);
-    const countryCode = deriveCountryCodeForOrganization(node, projectIds);
+    const countryCode = deriveCountryCodeForOrganization(node, projectIds, nodeById);
     orgAggregateSeed.set(node.id, {
       ...aggregate,
       countryCode,
@@ -4259,8 +4264,8 @@ function renderDetailPanel() {
   dom.detailKicker.textContent = node.type;
   dom.detailTitle.textContent = node.label;
 
-  // Show URL button in header if node has a primary URL
-  const primaryUrl = node.props?.url_primary || node.props?.url || null;
+  // Show URL button in header — prefer url_primary, fall back to url_paper
+  const primaryUrl = node.props?.url_primary || node.props?.url_paper || node.props?.url || null;
   if (dom.detailUrlBtn && primaryUrl) {
     dom.detailUrlBtn.href = primaryUrl;
     dom.detailUrlBtn.classList.remove("is-hidden");
