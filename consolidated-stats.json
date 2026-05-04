@@ -1,5 +1,5 @@
 {
-  "total_unique": 831,
+  "total_unique": 842,
   "duplicates_merged": 0,
   "per_file_counts": {
     "00-seed-from-training.jsonl": 68,
@@ -27,7 +27,8 @@
     "22-dfm-machining-molding.jsonl": 25,
     "23-medical-engineering-ai.jsonl": 25,
     "24-engineering-rag-chat.jsonl": 25,
-    "25-scan-to-cad-reverse-eng.jsonl": 25
+    "25-scan-to-cad-reverse-eng.jsonl": 25,
+    "26-idetc-design-cognition-ai.jsonl": 11
   },
   "per_file_dropped": {},
   "by_category": {
@@ -63,6 +64,7 @@
     "image-to-cad": 11,
     "sketch-to-cad": 9,
     "architected-materials": 9,
+    "design-cognition-ai": 9,
     "foundation-model-physics": 7,
     "ml-quoting": 6,
     "cad-agent": 6,
@@ -70,10 +72,11 @@
     "eda-chip-design": 4,
     "ai-plm": 3,
     "implicit-modeling": 2,
-    "ai-simulation-prep": 2
+    "ai-simulation-prep": 2,
+    "human-ai-design-collab": 2
   },
   "by_type": {
-    "academic-paper": 454,
+    "academic-paper": 465,
     "commercial-product": 249,
     "open-source": 83,
     "benchmark-dataset": 37,

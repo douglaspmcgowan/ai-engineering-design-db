@@ -36,6 +36,8 @@ VALID_CATEGORY = {
     "eda-chip-design", "pcb-design-ai", "aec-construction-ai",
     "robotics-mfg-ai", "vision-inspection-ml", "engineering-rag-chat",
     "medical-engineering-ai",
+    # Wave 4 additions (AI-in-design research / IDETC design cognition)
+    "design-cognition-ai", "human-ai-design-collab",
 }
 
 # Wave 3: Codex defaulted to "other" for several files instead of picking
