@@ -451,6 +451,65 @@ body {
   .chip { padding: 5px 10px; font-size: 12px; }
   .view-btn { padding: 6px 12px; font-size: 13px; }
 }
+
+/* ── Context menu ─────────────────────────────────────────────────── */
+.ctx-menu {
+  position: fixed; z-index: 9999;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg); padding: 6px 0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  min-width: 240px; max-width: 340px;
+  font-size: 13px; display: none;
+}
+.ctx-menu.open { display: block; }
+.ctx-title {
+  padding: 7px 14px 5px;
+  font-weight: 600; color: var(--fg); font-size: 12px;
+  border-bottom: 1px solid var(--border); margin-bottom: 4px;
+}
+.ctx-desc {
+  padding: 6px 14px 10px;
+  color: var(--fg-muted); font-size: 12px; line-height: 1.55;
+}
+.ctx-sep { border-top: 1px solid var(--border); margin: 4px 0; }
+.ctx-item {
+  padding: 7px 14px; cursor: pointer; color: var(--fg-muted);
+  display: flex; align-items: center; gap: 8px;
+  transition: background 100ms;
+}
+.ctx-item:hover { background: var(--surface-2); color: var(--fg); }
+.ctx-item-icon { opacity: 0.7; }
+
+/* ── Collections sidebar section ─────────────────────────────────── */
+.collection-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 4px; gap: 6px; cursor: pointer; border-radius: 4px;
+  transition: background 100ms;
+}
+.collection-item:hover { background: var(--surface-2); }
+.collection-item-name { flex: 1; font-size: 12px; color: var(--fg-muted); truncate; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collection-item-name.active { color: var(--accent); }
+.collection-count { font-size: 10px; color: var(--fg-faint); }
+.collection-del { font-size: 11px; color: var(--fg-faint); cursor: pointer; padding: 1px 3px; border-radius: 2px; }
+.collection-del:hover { color: #e55; }
+
+/* ── Save-to-collection btn in detail panel ──────────────────────── */
+.save-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: var(--radius);
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--fg-muted); font-size: 12px; cursor: pointer;
+  transition: all 120ms;
+}
+.save-btn:hover { border-color: var(--accent); color: var(--fg); }
+.save-btn.saved { border-color: var(--accent); color: var(--accent); }
+
+/* ── Entry type badge in table rows ─────────────────────────────── */
+.et-badge {
+  display: inline-block; font-size: 10px; padding: 1px 5px;
+  border: 1px solid var(--border); border-radius: 3px; color: var(--fg-faint);
+  white-space: nowrap; margin-left: 4px; vertical-align: middle;
+}
 </style>
 </head>
 <body>
@@ -577,6 +636,16 @@ body {
       <input class="org-input" id="org-input" type="text" placeholder="Filter by org…" oninput="applyFilters()">
     </div>
 
+    <!-- Collections / Playlists -->
+    <div class="filter-section" id="collections-section">
+      <div class="filter-header">
+        <span class="filter-label">Collections</span>
+        <button class="filter-clear" onclick="clearCollectionFilter()">Clear</button>
+      </div>
+      <div id="collections-list"></div>
+      <button style="margin-top:6px;width:100%;padding:5px 8px;border-radius:4px;border:1px dashed var(--border);background:none;color:var(--fg-faint);font-size:11px;cursor:pointer" onclick="promptNewCollection()">+ New collection</button>
+    </div>
+
     <div class="sidebar-footer">
       <button class="clear-all-btn" onclick="clearAll()">Clear all filters</button>
     </div>
@@ -632,6 +701,15 @@ body {
 
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
 
+<!-- Context menu for category right-click -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-title" id="ctx-cat-title"></div>
+  <div class="ctx-desc" id="ctx-cat-desc"></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxFilterCat()"><span class="ctx-item-icon">⬡</span> Filter to this category</div>
+  <div class="ctx-item" onclick="ctxOpenExplorer()"><span class="ctx-item-icon">↗</span> Open in Graph Explorer</div>
+</div>
+
 <script>
 // ── SVG icon helpers ──────────────────────────────────────────────
 const SVG = {
@@ -683,6 +761,51 @@ const ENTRY_TYPES = [
   {id:"framework",          label:"Framework"},
   {id:"service-api",        label:"Service / API"},
 ];
+const CATEGORY_DESCRIPTIONS = {
+  "optimization":              "General ML-driven optimization for engineering objectives — topology, shape, process, or multi-physics.",
+  "neural-operator":           "Neural networks that learn mappings between function spaces, used as fast PDE surrogates (FNO, DeepONet).",
+  "topology-optimization":     "AI-assisted structural layout optimization — finding optimal material distributions (SIMP, BESO, diffusion models).",
+  "cad-reconstruction":        "Recovering editable parametric CAD models from scans, meshes, point clouds, or images.",
+  "process-monitoring-ml":     "ML for real-time monitoring and control of manufacturing processes (welding, printing, CNC).",
+  "generative-platform":       "Multi-modal generative AI platforms for broad product and industrial design tasks.",
+  "vision-inspection-ml":      "Computer vision for defect detection, quality inspection, and automated visual QC.",
+  "generative-materials":      "AI for discovering or designing novel materials with target properties.",
+  "image-to-3d":               "Generate 3D mesh or shape from one or more images — photogrammetry, NeRF, 3D Gaussian Splatting.",
+  "dfm-ai":                    "AI for Design for Manufacturing — manufacturability analysis, cost prediction, tolerancing, machining feasibility.",
+  "text-to-cad":               "Generate editable parametric CAD files (STEP, B-rep, sketch-extrude sequences) from natural language.",
+  "pcb-design-ai":             "AI for PCB layout, routing, signal integrity, and design rule checking.",
+  "benchmark-dataset":         "Datasets and benchmarks for evaluating engineering AI systems — geometry, simulation, manufacturing.",
+  "engineering-rag-chat":      "RAG and chat systems for querying engineering documentation, standards, and technical knowledge.",
+  "physics-informed-nn":       "Neural networks with built-in physics constraints — PINNs, conservation laws, boundary conditions.",
+  "inverse-design-materials":  "Inverse design: given target properties, generate a material composition or microstructure.",
+  "text-to-3d":                "Generate 3D mesh or shape from text prompts — output is a mesh for visualization, not editable CAD.",
+  "generative-3d-shape":       "Unconditional or class-conditional 3D shape generation — VAEs, GANs, diffusion on point clouds or SDFs.",
+  "cad-copilot":               "AI assistant embedded inside CAD tools (Fusion 360, SolidWorks) — suggests operations, autocompletes designs.",
+  "differentiable-physics":    "Differentiable simulators enabling gradient-based optimization through physics — robotics, fluid, structural.",
+  "dfam-ai":                   "AI for Design for Additive Manufacturing — AM-specific constraints: overhangs, support structures, lattice infill.",
+  "aec-construction-ai":       "AI for architecture, engineering, and construction — BIM, structural analysis, site planning.",
+  "multi-disciplinary-optimization": "MDO: simultaneous optimization across multiple disciplines (aero + structural + thermal).",
+  "robotics-mfg-ai":           "AI for manufacturing robotics — grasping, bin picking, assembly, motion planning in factories.",
+  "b-rep-learning":            "ML models that operate directly on B-rep CAD topology — faces, edges, vertices as graph inputs.",
+  "medical-engineering-ai":    "AI for medical device design, implants, biomedical scaffolds, and surgical planning.",
+  "program-cad":               "CAD via code generation — CadQuery, OpenSCAD, or FreeCAD Python scripts from text or image input.",
+  "image-to-cad":              "Convert images or scans to editable parametric CAD — output is a B-rep or CAD command sequence, not a mesh.",
+  "ml-interatomic-potential":  "Machine-learned force fields (NNPs, GAPs, CHGNet) for atomistic simulation replacing DFT.",
+  "design-cognition-ai":       "AI models of human design processes — design space exploration, fixation analysis, protocol studies.",
+  "sketch-to-cad":             "Convert hand-drawn or 2D engineering sketches to 3D parametric CAD models.",
+  "architected-materials":     "AI design of metamaterials, auxetics, and lattice structures with custom mechanical properties.",
+  "foundation-model-physics":  "Large pre-trained models for physical simulation — generalize across PDEs, geometries, boundary conditions.",
+  "cad-agent":                 "LLM agents that autonomously operate CAD software — plan, click, script, and execute multi-step modeling.",
+  "ml-quoting":                "ML for manufacturing cost estimation, quoting, and supplier selection.",
+  "physics-surrogate":         "Fast ML surrogates replacing expensive physics simulations — CFD, FEA, electromagnetics.",
+  "eda-chip-design":           "AI for electronic design automation — placement, routing, timing, DRC, and chip floor planning.",
+  "scientific-ml":             "General scientific machine learning — operator learning, physics discovery, not domain-specific.",
+  "ai-plm":                    "AI for product lifecycle management — requirements, change management, traceability.",
+  "ai-simulation-prep":        "AI for automating simulation setup — meshing, boundary condition assignment, solver configuration.",
+  "human-ai-design-collab":    "Tools and frameworks for human-AI collaborative design — mixed-initiative, interactive generation.",
+  "implicit-modeling":         "Neural implicit representations — SDF networks, NeRF, INR for engineering shape modeling and reconstruction.",
+};
+
 const CAT_LIMIT = 13;
 const catColorCache = new Map();
 
@@ -849,6 +972,7 @@ async function init() {
     });
 
     renderSidebar();
+    renderCollections();
     applyFilters();
   } catch (e) {
     document.getElementById("results-count").textContent = "Failed to load — " + e.message;
@@ -1013,6 +1137,12 @@ function applyFilters() {
       if (S.filters.mods.size && !S.filters.mods.has(p.outMod)) return false;
       if (org && !p.org.toLowerCase().includes(org)) return false;
       if (S.filters.entryTypes.size && !S.filters.entryTypes.has(p.entryType)) return false;
+      // Collection filter
+      if (activeCollection) {
+        const cols = loadCollections();
+        const ids = cols[activeCollection] || [];
+        if (!ids.includes(p.id)) return false;
+      }
     } else {
       if (S.filters.nodeTypes.size && !S.filters.nodeTypes.has(p.nodeType)) return false;
       if (S.filters.entryTypes.size && p.entryType && !S.filters.entryTypes.has(p.entryType)) return false;
@@ -1234,7 +1364,7 @@ function renderProjectRow(p) {
     <td class="td-name"><div class="td-name-inner"><span class="td-name-text" title="${esc(p.name)}">${esc(p.name)}</span></div></td>
     <td class="td-org" title="${esc(p.org)}">${esc(truncate(p.org, 30))}</td>
     <td class="td-year">${p.year || "—"}</td>
-    <td>${badge(p.cat)}</td>
+    <td>${badge(p.cat)}${p.entryType ? `<span class="et-badge">${esc(p.entryType.replace(/-/g," "))}</span>` : ""}</td>
     <td class="td-modality">${esc(shortMod(p.inMod))} → ${esc(shortMod(p.outMod))}</td>
     <td class="td-tech" title="${esc(p.techniques.join(", "))}">${esc(techs)}</td>
     <td><div class="td-links-wrap">${links}</div></td>
@@ -1430,6 +1560,9 @@ function buildProjectDetail(p) {
       ${p.github ? `<a class="detail-link" href="${esc(p.github)}" target="_blank">${SVG.github} GitHub</a>` : ""}
       ${!p.paper && !p.url && !p.github ? `<a class="detail-link" href="https://scholar.google.com/scholar?q=${encodeURIComponent(p.name)}" target="_blank">${SVG.search} Search on Scholar</a>` : ""}
       <a class="detail-link-accent" href="/?q=${encodeURIComponent(p.name)}" target="_blank">⬡ Open in Graph Explorer</a>
+    </div>
+    <div style="margin-top:10px">
+      <button class="save-btn${isInAnyCollection(p.id) ? " saved" : ""}" data-id="${esc(p.id)}" onclick="saveToCollection('${esc(p.id)}')">♥ Save to collection</button>
     </div>`;
 }
 
@@ -1521,6 +1654,140 @@ function closeDetail() {
   S.selectedId = null;
   document.getElementById("detail-panel").classList.remove("open");
   document.querySelectorAll("[data-id].selected").forEach(el => el.classList.remove("selected"));
+}
+
+// ── Context menu for category badges ─────────────────────────────
+let ctxActiveCat = null;
+const ctxMenu = document.getElementById("ctx-menu");
+function openCtxMenu(e, cat) {
+  e.preventDefault(); e.stopPropagation();
+  ctxActiveCat = cat;
+  document.getElementById("ctx-cat-title").textContent = cat.replace(/-/g, " ");
+  document.getElementById("ctx-cat-desc").textContent = CATEGORY_DESCRIPTIONS[cat] || "No description available.";
+  const x = Math.min(e.clientX, window.innerWidth - 360);
+  const y = Math.min(e.clientY, window.innerHeight - 200);
+  ctxMenu.style.left = x + "px";
+  ctxMenu.style.top  = y + "px";
+  ctxMenu.classList.add("open");
+}
+function closeCtxMenu() { ctxMenu.classList.remove("open"); }
+function ctxFilterCat() {
+  closeCtxMenu();
+  if (!ctxActiveCat) return;
+  S.filters.cats.clear();
+  S.filters.cats.add(ctxActiveCat);
+  setScope("projects");
+  applyFilters();
+}
+function ctxOpenExplorer() {
+  closeCtxMenu();
+  if (!ctxActiveCat) return;
+  window.open(`/?cat=${encodeURIComponent(ctxActiveCat)}`, "_blank");
+}
+document.addEventListener("click", e => {
+  if (!ctxMenu.contains(e.target)) closeCtxMenu();
+});
+// Wire right-click on all .cat-badge elements via delegation
+document.addEventListener("contextmenu", e => {
+  const badge = e.target.closest(".cat-badge");
+  if (badge) {
+    const cat = badge.textContent.trim().replace(/ /g, "-");
+    openCtxMenu(e, cat);
+  }
+});
+
+// ── Collections / Playlists ───────────────────────────────────────
+const COLL_KEY = "aied-collections";
+let activeCollection = null;
+
+function loadCollections() {
+  try { return JSON.parse(localStorage.getItem(COLL_KEY) || "{}"); }
+  catch { return {}; }
+}
+function saveCollections(cols) {
+  localStorage.setItem(COLL_KEY, JSON.stringify(cols));
+}
+function renderCollections() {
+  const cols = loadCollections();
+  const list = document.getElementById("collections-list");
+  const names = Object.keys(cols);
+  if (!names.length) {
+    list.innerHTML = `<div style="font-size:11px;color:var(--fg-faint);padding:4px 0">No collections yet. Save a project to start one.</div>`;
+    return;
+  }
+  list.innerHTML = names.map(name => {
+    const ids = cols[name] || [];
+    const active = activeCollection === name ? "active" : "";
+    return `<div class="collection-item" onclick="toggleCollectionFilter('${esc(name)}')">
+      <span class="collection-item-name ${active}" title="${esc(name)}">${esc(name)}</span>
+      <span class="collection-count">${ids.length}</span>
+      <span class="collection-del" onclick="event.stopPropagation();deleteCollection('${esc(name)}')" title="Delete">✕</span>
+    </div>`;
+  }).join("");
+}
+function toggleCollectionFilter(name) {
+  if (activeCollection === name) {
+    activeCollection = null;
+  } else {
+    activeCollection = name;
+    setScope("projects");
+  }
+  applyFilters();
+  renderCollections();
+}
+function clearCollectionFilter() {
+  activeCollection = null;
+  applyFilters();
+  renderCollections();
+}
+function deleteCollection(name) {
+  const cols = loadCollections();
+  delete cols[name];
+  saveCollections(cols);
+  if (activeCollection === name) activeCollection = null;
+  applyFilters();
+  renderCollections();
+}
+function promptNewCollection() {
+  const name = prompt("Collection name:");
+  if (!name || !name.trim()) return;
+  const cols = loadCollections();
+  if (!cols[name.trim()]) { cols[name.trim()] = []; saveCollections(cols); }
+  renderCollections();
+}
+function saveToCollection(id) {
+  const cols = loadCollections();
+  const names = Object.keys(cols);
+  let target;
+  if (!names.length) {
+    const name = prompt("New collection name:", "Favorites");
+    if (!name || !name.trim()) return;
+    target = name.trim();
+    cols[target] = [];
+  } else if (names.length === 1) {
+    target = names[0];
+  } else {
+    const choice = prompt(`Save to collection:\n${names.map((n,i)=>`${i+1}. ${n}`).join("\n")}\n\nEnter name or number, or type a new name:`);
+    if (!choice || !choice.trim()) return;
+    const idx = parseInt(choice) - 1;
+    target = (idx >= 0 && idx < names.length) ? names[idx] : choice.trim();
+    if (!cols[target]) cols[target] = [];
+  }
+  if (!cols[target].includes(id)) cols[target].push(id);
+  saveCollections(cols);
+  renderCollections();
+  // Flash the button
+  const btn = document.querySelector(`.save-btn[data-id="${id}"]`);
+  if (btn) { btn.classList.add("saved"); btn.textContent = "✓ Saved"; }
+}
+function isInAnyCollection(id) {
+  const cols = loadCollections();
+  return Object.values(cols).some(ids => ids.includes(id));
+}
+function viewCollectionInExplorer(name) {
+  const cols = loadCollections();
+  const ids = (cols[name] || []).join(",");
+  window.open(`/?collection=${encodeURIComponent(ids)}`, "_blank");
 }
 
 // ── Keyboard ──────────────────────────────────────────────────────

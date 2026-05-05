@@ -276,6 +276,7 @@ class GraphBuilder:
                 props["industry_application"] = rec.get("industry_application", [])
                 props["tags"] = rec.get("tags", [])
                 props["name"] = rec.get("name", n["label"])
+                props["entry_type"] = rec.get("entry_type", "")
                 # Inject UMAP 2D coords for embed view (project-only embedding)
                 ec = embed_coords.get(rec_id)
                 if ec:
