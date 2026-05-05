@@ -62,7 +62,7 @@ body {
 .topbar-sep { color: var(--fg-faint); }
 .topbar-section { color: var(--fg-muted); font-size: 13px; flex-shrink: 0; }
 .search-wrap {
-  flex: 1; max-width: 500px; margin: 0 8px; position: relative;
+  flex: 1; max-width: 460px; margin: 0 4px; position: relative;
 }
 .search-icon {
   position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
@@ -84,19 +84,22 @@ body {
 }
 .search-clear.visible { display: block; }
 .search-clear:hover { color: var(--fg); }
-.view-toggle {
+
+/* scope + view toggles share the same component style */
+.scope-toggle, .view-toggle {
   display: flex; gap: 2px;
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 3px; flex-shrink: 0;
 }
-.view-btn {
+.scope-btn, .view-btn {
   padding: 4px 10px; border-radius: var(--radius-sm);
   border: none; background: transparent; color: var(--fg-muted);
   cursor: pointer; font-size: 12px; font-family: var(--font);
   transition: all 100ms; display: flex; align-items: center; gap: 5px;
+  white-space: nowrap;
 }
-.view-btn.active { background: var(--surface-3); color: var(--fg); }
-.view-btn:hover:not(.active) { color: var(--fg); }
+.scope-btn.active, .view-btn.active { background: var(--surface-3); color: var(--fg); }
+.scope-btn:hover:not(.active), .view-btn:hover:not(.active) { color: var(--fg); }
 .topbar-link {
   color: var(--fg-muted); text-decoration: none; font-size: 12px;
   flex-shrink: 0; display: flex; align-items: center; gap: 4px;
@@ -192,7 +195,7 @@ body {
 .clear-all-btn:hover { border-color: var(--border-strong); color: var(--fg); }
 
 /* ── Main area ──────────────────────────────────────────────────── */
-.main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-width: 0; }
 .results-bar {
   position: sticky; top: 0; z-index: 10;
   background: rgba(10,10,11,0.9); backdrop-filter: blur(8px);
@@ -239,10 +242,16 @@ body {
 }
 .project-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+.card-badges { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
 .cat-badge {
   padding: 2px 7px; border-radius: var(--radius-sm);
   font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
   text-transform: uppercase; flex-shrink: 0; line-height: 1.6;
+}
+.node-type-badge {
+  display: inline-block; padding: 2px 7px; border-radius: var(--radius-sm);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; border: 1px solid; line-height: 1.5;
 }
 .year-tag { font-size: 11px; color: var(--fg-faint); flex-shrink: 0; margin-top: 2px; }
 .card-name { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--fg); }
@@ -262,38 +271,63 @@ body {
   padding: 1px 5px; background: var(--surface-2);
   border-radius: 3px; font-size: 10px; color: var(--fg-faint);
 }
-.card-links { display: flex; gap: 5px; }
+.card-links { display: flex; gap: 5px; align-items: center; }
 .icon-link {
   color: var(--fg-faint); text-decoration: none;
-  font-size: 13px; transition: color 100ms; line-height: 1;
-  display: flex; align-items: center;
+  transition: color 100ms; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
 }
 .icon-link:hover { color: var(--accent); }
+.icon-link svg { display: block; }
+
+/* connection count badge for non-project cards */
+.conn-count {
+  font-size: 11px; color: var(--fg-faint);
+  display: flex; align-items: center; gap: 4px;
+}
 
 /* ── Table view ─────────────────────────────────────────────────── */
 #table-wrap { padding: 0 16px 20px; overflow-x: auto; display: none; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  table-layout: fixed; min-width: 860px;
+}
 .data-table th {
   text-align: left; padding: 9px 10px;
   font-size: 10px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--fg-faint);
   border-bottom: 1px solid var(--border);
   white-space: nowrap; cursor: pointer; user-select: none;
-  transition: color 120ms;
+  transition: color 120ms; position: relative; overflow: hidden;
 }
 .data-table th:hover { color: var(--fg-muted); }
 .data-table th.sort-asc::after { content: " ↑"; color: var(--accent); }
 .data-table th.sort-desc::after { content: " ↓"; color: var(--accent); }
-.data-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.data-table td {
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .data-table tr { cursor: pointer; transition: background 60ms; }
 .data-table tr:hover td { background: var(--surface); }
 .data-table tr.selected td { background: var(--accent-soft); }
-.td-name { font-weight: 500; color: var(--fg); max-width: 200px; }
-.td-org { color: var(--fg-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-name { font-weight: 500; color: var(--fg); }
+.td-name-inner { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.td-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.td-org { color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-year { color: var(--fg-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.td-modality { font-size: 11px; color: var(--fg-faint); white-space: nowrap; }
-.td-tech { font-size: 11px; color: var(--fg-faint); max-width: 160px; }
-.td-links { display: flex; gap: 8px; }
+.td-modality { font-size: 11px; color: var(--fg-faint); }
+.td-tech { font-size: 11px; color: var(--fg-faint); }
+.td-links-wrap { display: flex; gap: 6px; align-items: center; }
+
+/* column resize handle */
+.col-resize-handle {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 5px; cursor: col-resize; z-index: 1;
+  background: transparent;
+}
+.col-resize-handle:hover { background: var(--border-strong); }
+
 .no-results {
   grid-column: 1 / -1; padding: 60px 20px;
   text-align: center; color: var(--fg-faint);
@@ -302,7 +336,7 @@ body {
 
 /* ── Detail panel ────────────────────────────────────────────────── */
 .detail-panel {
-  width: 320px; flex-shrink: 0;
+  width: 380px; flex-shrink: 0;
   background: var(--surface); border-left: 1px solid var(--border);
   overflow-y: auto; position: relative;
   transform: translateX(100%); transition: transform 220ms ease;
@@ -317,7 +351,7 @@ body {
 }
 .detail-close:hover { color: var(--fg); border-color: var(--border-strong); }
 .detail-inner { padding: 14px 14px 24px; }
-.detail-badge { margin-bottom: 10px; }
+.detail-badge { margin-bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
 .detail-name { font-size: 16px; font-weight: 600; line-height: 1.3; margin-bottom: 3px; }
 .detail-meta { font-size: 12px; color: var(--fg-muted); margin-bottom: 14px; }
 .detail-section { margin-bottom: 14px; }
@@ -342,14 +376,22 @@ body {
   transition: all 100ms; word-break: break-all;
 }
 .detail-link:hover { border-color: var(--border-strong); color: var(--fg); }
-.detail-link-explorer {
+.detail-link-accent {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; background: var(--accent-soft);
   border: 1px solid rgba(255,107,61,0.3); border-radius: var(--radius);
   color: var(--accent); text-decoration: none; font-size: 12px;
   font-weight: 500; transition: all 100ms;
 }
-.detail-link-explorer:hover { background: rgba(255,107,61,0.2); }
+.detail-link-accent:hover { background: rgba(255,107,61,0.2); }
+.author-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; border-bottom: 1px solid var(--border);
+  font-size: 12px; color: var(--fg-muted);
+}
+.author-item:last-child { border-bottom: none; }
+.author-link { color: var(--accent); text-decoration: none; font-size: 11px; }
+.author-link:hover { text-decoration: underline; }
 
 /* ── Mobile filter drawer toggle (hidden on desktop) ─────────────── */
 .filter-toggle-btn {
@@ -370,22 +412,17 @@ body {
 /* ── Responsive / Mobile ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   body { overflow-y: auto; }
-
-  /* Topbar: wrap search to second row */
   .topbar {
     height: auto; flex-wrap: wrap;
     padding: 8px 12px; gap: 8px; min-height: 52px;
   }
   .topbar-section, .topbar-sep { display: none; }
+  .scope-toggle { order: 5; }
   .search-wrap {
     order: 10; flex: none; width: 100%; max-width: none; margin: 0;
   }
   .filter-toggle-btn { display: flex; }
-
-  /* Layout: block flow instead of fixed-height flex */
   .layout { display: block; height: auto; }
-
-  /* Sidebar becomes slide-in drawer */
   .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
     width: min(280px, 85vw);
@@ -394,14 +431,8 @@ body {
   }
   .sidebar.mobile-open { transform: none; }
   .sidebar-overlay.open { display: block; }
-
-  /* Main: normal flow scrolling */
   .main { overflow-y: visible; }
-
-  /* Cards: single column */
   #card-grid { grid-template-columns: 1fr; padding: 10px; gap: 8px; }
-
-  /* Detail panel: full-screen overlay */
   .detail-panel {
     position: fixed; inset: 0; width: 100%; z-index: 110;
     border-left: none; border-top: 1px solid var(--border);
@@ -410,16 +441,12 @@ body {
   }
   .detail-panel.open { transform: none; }
   .detail-close { padding: 7px 14px; font-size: 13px; top: 14px; right: 14px; }
-
-  /* Results bar: let it wrap */
   .results-bar { flex-wrap: wrap; gap: 6px; }
   .sort-select { margin-left: 0; }
-
-  /* Table: hide techniques column on narrow screens */
+  .data-table th:nth-child(5),
+  .data-table td:nth-child(5),
   .data-table th:nth-child(6),
   .data-table td:nth-child(6) { display: none; }
-
-  /* Bigger tap targets */
   .cat-item { padding: 6px 6px; }
   .chip { padding: 5px 10px; font-size: 12px; }
   .view-btn { padding: 6px 12px; font-size: 13px; }
@@ -456,11 +483,17 @@ body {
     Filters
   </button>
 
+  <!-- Scope toggle: Projects only vs all graph entities -->
+  <div class="scope-toggle">
+    <button class="scope-btn active" id="btn-proj" onclick="setScope('projects')">Projects</button>
+    <button class="scope-btn" id="btn-all" onclick="setScope('all')">All entities</button>
+  </div>
+
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
     </svg>
-    <input id="search-input" type="text" placeholder="Search name, org, description, techniques… (/)">
+    <input id="search-input" type="text" placeholder="Search… (/)">
     <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear">✕</button>
   </div>
 
@@ -494,13 +527,23 @@ body {
   <!-- Sidebar -->
   <aside class="sidebar">
 
-    <div class="filter-section">
+    <!-- Category (projects scope only) -->
+    <div class="filter-section" id="cat-section">
       <div class="filter-header">
         <span class="filter-label">Category</span>
         <button class="filter-clear" onclick="clearFilter('cats')">Clear</button>
       </div>
       <div class="cat-list" id="cat-list"></div>
       <button class="show-more-btn" id="cat-more-btn" onclick="toggleCatMore()" style="display:none"></button>
+    </div>
+
+    <!-- Node type (all scope only) -->
+    <div class="filter-section" id="nodetype-section" style="display:none">
+      <div class="filter-header">
+        <span class="filter-label">Node type</span>
+        <button class="filter-clear" onclick="clearFilter('nodeTypes')">Clear</button>
+      </div>
+      <div class="chip-row" id="nodetype-chips"></div>
     </div>
 
     <div class="filter-section">
@@ -518,6 +561,15 @@ body {
         <button class="filter-clear" onclick="clearFilter('mods')">Clear</button>
       </div>
       <div class="chip-row" id="mod-chips"></div>
+    </div>
+
+    <!-- Entry type (type 2) -->
+    <div class="filter-section" id="entrytype-section">
+      <div class="filter-header">
+        <span class="filter-label">Entry type</span>
+        <button class="filter-clear" onclick="clearFilter('entryTypes')">Clear</button>
+      </div>
+      <div class="chip-row" id="entrytype-chips"></div>
     </div>
 
     <div class="filter-section">
@@ -548,11 +600,20 @@ body {
 
     <div id="table-wrap">
       <table class="data-table" id="data-table">
-        <thead><tr>
-          <th data-field="name" onclick="sortByCol('name')">Name</th>
-          <th data-field="org" onclick="sortByCol('org')">Organization</th>
-          <th data-field="year" onclick="sortByCol('year')">Year</th>
-          <th data-field="cat" onclick="sortByCol('cat')">Category</th>
+        <colgroup id="data-colgroup">
+          <col style="width:260px">
+          <col style="width:160px">
+          <col style="width:60px">
+          <col style="width:130px">
+          <col style="width:140px">
+          <col style="width:180px">
+          <col style="width:70px">
+        </colgroup>
+        <thead><tr id="data-thead-row">
+          <th onclick="sortByCol('name')">Name</th>
+          <th onclick="sortByCol('org')">Organization</th>
+          <th onclick="sortByCol('year')">Year</th>
+          <th onclick="sortByCol('cat')">Category</th>
           <th>Modality</th>
           <th>Techniques</th>
           <th>Links</th>
@@ -569,54 +630,93 @@ body {
   </div>
 </div>
 
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
 <script>
+// ── SVG icon helpers ──────────────────────────────────────────────
+const SVG = {
+  paper:    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+  link:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
+  github:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>`,
+  search:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`,
+  scholar:  `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`,
+  building: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
+};
+
 // ── Constants ─────────────────────────────────────────────────────
 const GRAPH_URL = "./graph/graph-data.json";
 const CAT_COLORS = [
-  ["#ff6b3d", "rgba(255,107,61,0.12)"],
-  ["#7ad3a6", "rgba(122,211,166,0.1)"],
-  ["#60a5fa", "rgba(96,165,250,0.1)"],
-  ["#f0a85b", "rgba(240,168,91,0.1)"],
-  ["#c084fc", "rgba(192,132,252,0.1)"],
-  ["#fb7185", "rgba(251,113,133,0.1)"],
-  ["#34d399", "rgba(52,211,153,0.1)"],
-  ["#818cf8", "rgba(129,140,248,0.1)"],
-  ["#fbbf24", "rgba(251,191,36,0.1)"],
-  ["#22d3ee", "rgba(34,211,238,0.1)"],
-  ["#a78bfa", "rgba(167,139,250,0.1)"],
-  ["#f472b6", "rgba(244,114,182,0.1)"],
+  ["#ff6b3d","rgba(255,107,61,0.12)"],["#7ad3a6","rgba(122,211,166,0.1)"],
+  ["#60a5fa","rgba(96,165,250,0.1)"], ["#f0a85b","rgba(240,168,91,0.1)"],
+  ["#c084fc","rgba(192,132,252,0.1)"],["#fb7185","rgba(251,113,133,0.1)"],
+  ["#34d399","rgba(52,211,153,0.1)"], ["#818cf8","rgba(129,140,248,0.1)"],
+  ["#fbbf24","rgba(251,191,36,0.1)"], ["#22d3ee","rgba(34,211,238,0.1)"],
+  ["#a78bfa","rgba(167,139,250,0.1)"],["#f472b6","rgba(244,114,182,0.1)"],
 ];
-const catColorCache = new Map();
+const NODE_TYPE_COLORS = {
+  Project: "#ff6b3d", Organization: "#60a5fa", Category: "#7ad3a6",
+  Technique: "#c084fc", Venue: "#fbbf24", Person: "#f472b6",
+  Modality: "#22d3ee", Industry: "#34d399", PhysicsDomain: "#818cf8",
+  Year: "#8a8a93",
+};
+const VENUE_URLS = {
+  neurips:"https://neurips.cc", nips:"https://neurips.cc", iclr:"https://iclr.cc",
+  icml:"https://icml.cc", cvpr:"https://cvpr.thecvf.com", iccv:"https://iccv.thecvf.com",
+  eccv:"https://eccv.eu", siggraph:"https://www.siggraph.org", chi:"https://chi.acm.org",
+  aaai:"https://aaai.org", ijcai:"https://www.ijcai.org", kdd:"https://www.kdd.org",
+  "nature ":"https://www.nature.com", science:"https://www.science.org",
+  arxiv:"https://arxiv.org", acm:"https://dl.acm.org", ieee:"https://ieeexplore.ieee.org",
+  jmlr:"https://jmlr.org", pnas:"https://www.pnas.org", emnlp:"https://aclanthology.org",
+  acl:"https://aclanthology.org", icra:"https://www.ieee-ras.org/conferences-workshops/fully-sponsored/icra",
+  iros:"https://www.ieee-ras.org/conferences-workshops/financially-co-sponsored/iros",
+  corl:"https://www.robot-learning.org", rss:"https://roboticsconference.org",
+  cad:"https://www.sciencedirect.com/journal/computer-aided-design",
+  "computer-aided design":"https://www.sciencedirect.com/journal/computer-aided-design",
+  "advanced engineering":"https://onlinelibrary.wiley.com/journal/20513305",
+};
+const ENTRY_TYPES = [
+  {id:"commercial-product", label:"Product"},
+  {id:"research-paper",     label:"Paper"},
+  {id:"open-source",        label:"Open source"},
+  {id:"demo-prototype",     label:"Demo / Prototype"},
+  {id:"dataset-benchmark",  label:"Dataset / Benchmark"},
+  {id:"framework",          label:"Framework"},
+  {id:"service-api",        label:"Service / API"},
+];
 const CAT_LIMIT = 13;
+const catColorCache = new Map();
 
 // ── State ─────────────────────────────────────────────────────────
 const S = {
-  all: [],
+  allRaw: [],    // all graph nodes mapped to common schema
+  all: [],       // active scope (projects only or all)
   filtered: [],
+  nodeIndex: {}, // id → raw graph node
+  edgesFrom: {}, // from_id → [{type, to}]
+  edgesTo: {},   // to_id   → [{type, from}]
+  scope: "projects",
   view: "cards",
   sortField: "year",
   sortDir: "desc",
   selectedId: null,
   filters: {
-    q: "",
-    cats: new Set(),
-    yearMin: null,
-    yearMax: null,
-    mods: new Set(),
-    org: "",
+    q: "", cats: new Set(), yearMin: null, yearMax: null,
+    mods: new Set(), org: "", nodeTypes: new Set(), entryTypes: new Set(),
   },
   catCounts: {},
+  nodeTypeCounts: {},
+  entryTypeCounts: {},
   showAllCats: false,
+  colResizeInit: false,
 };
 
 // ── Utilities ─────────────────────────────────────────────────────
 function esc(s) {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 function catColor(cat) {
-  if (!catColorCache.has(cat)) {
+  if (!catColorCache.has(cat))
     catColorCache.set(cat, CAT_COLORS[catColorCache.size % CAT_COLORS.length]);
-  }
   return catColorCache.get(cat);
 }
 function badge(cat, size) {
@@ -626,11 +726,97 @@ function badge(cat, size) {
   const pd = size === "lg" ? "3px 9px" : "2px 7px";
   return `<span class="cat-badge" style="color:${fg};background:${bg};font-size:${fs};padding:${pd}">${esc(cat)}</span>`;
 }
-function shortMod(m) {
-  return (m || "").replace(/-/g, " ") || "—";
+function nodeTypeBadge(type) {
+  const color = NODE_TYPE_COLORS[type] || "#8a8a93";
+  return `<span class="node-type-badge" style="color:${color};border-color:${color}30;background:${color}15">${esc(type)}</span>`;
 }
-function truncate(s, n) {
-  return s.length > n ? s.slice(0, n) + "…" : s;
+function shortMod(m) { return (m || "").replace(/-/g, " ") || "—"; }
+function truncate(s, n) { return s && s.length > n ? s.slice(0, n) + "…" : (s || ""); }
+
+function getVenueUrl(name) {
+  const lower = (name || "").toLowerCase();
+  for (const [key, url] of Object.entries(VENUE_URLS)) {
+    if (lower.includes(key)) return url;
+  }
+  return null;
+}
+
+function getEntityLink(p) {
+  if (p.url) return p.url;
+  if (p.paper) return p.paper;
+  if (p.github) return p.github;
+  // Type-specific fallback links
+  if (p.nodeType === "Person")
+    return `https://scholar.google.com/scholar?q=${encodeURIComponent(p.name)}`;
+  if (p.nodeType === "Venue")
+    return getVenueUrl(p.name) || `https://dblp.org/search?q=${encodeURIComponent(p.name)}`;
+  if (p.nodeType === "Technique")
+    return `https://scholar.google.com/scholar?q=${encodeURIComponent(p.name + " machine learning")}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(p.name)}`;
+}
+
+function iconLink(href, icon, title) {
+  return `<a class="icon-link" href="${esc(href)}" target="_blank" title="${esc(title)}" onclick="event.stopPropagation()">${SVG[icon] || ""}</a>`;
+}
+
+// ── Node mapping ──────────────────────────────────────────────────
+function mapNode(n) {
+  const p = n.props || {};
+  const nodeType = n.type || "Project";
+  const base = {
+    id: n.id, nodeType,
+    name: p.name || n.label || n.id,
+    url: p.url_primary || p.url || "",
+    paper: p.url_paper || "",
+    github: p.url_github || "",
+    desc: p.description || "",
+    entryType: p.entry_type || "",
+    // filled in below per type
+    org: "", year: 0, cat: "", techniques: [],
+    inMod: "", outMod: "", physics: "",
+    industry: [], tags: [], projectCount: 0,
+  };
+
+  if (nodeType === "Project") {
+    return {
+      ...base,
+      org:        p.organization || "unknown",
+      year:       p.year || 0,
+      cat:        p.category || "",
+      techniques: Array.isArray(p.techniques) ? p.techniques : [],
+      inMod:      p.input_modality || "",
+      outMod:     p.output_modality || "",
+      physics:    p.physics_domain || "",
+      industry:   Array.isArray(p.industry_application) ? p.industry_application : [],
+      tags:       Array.isArray(p.tags) ? p.tags : [],
+    };
+  }
+  if (nodeType === "Organization") {
+    return { ...base, projectCount: (S.edgesTo[n.id] || []).filter(e => e.type === "BUILT_BY").length };
+  }
+  if (nodeType === "Category") {
+    return { ...base, projectCount: (S.edgesTo[n.id] || []).filter(e => e.type === "IN_CATEGORY").length };
+  }
+  if (nodeType === "Venue") {
+    const vu = getVenueUrl(n.label || "");
+    return { ...base, url: vu || "", projectCount: (S.edgesTo[n.id] || []).filter(e => e.type === "PUBLISHED_AT").length };
+  }
+  if (nodeType === "Technique") {
+    return { ...base, projectCount: (S.edgesTo[n.id] || []).filter(e => e.type === "USES_TECHNIQUE").length };
+  }
+  if (nodeType === "Person") {
+    // AUTHORED: could go either direction; check both
+    const authored = (S.edgesFrom[n.id] || []).filter(e => e.type === "AUTHORED").length +
+                     (S.edgesTo[n.id]   || []).filter(e => e.type === "AUTHORED").length;
+    return { ...base, projectCount: authored };
+  }
+  if (nodeType === "Industry") {
+    return { ...base, projectCount: (S.edgesTo[n.id] || []).filter(e => e.type === "APPLIED_TO").length };
+  }
+  if (nodeType === "Modality") {
+    return { ...base, projectCount: (S.edgesTo[n.id] || []).filter(e => e.type === "CONSUMES" || e.type === "PRODUCES").length };
+  }
+  return { ...base, projectCount: (S.edgesFrom[n.id] || []).length + (S.edgesTo[n.id] || []).length };
 }
 
 // ── Data loading ──────────────────────────────────────────────────
@@ -639,29 +825,29 @@ async function init() {
     const r = await fetch(GRAPH_URL);
     if (!r.ok) throw new Error("HTTP " + r.status);
     const g = await r.json();
-    S.all = g.nodes
-      .filter(n => n.type === "Project")
-      .map(n => {
-        const p = n.props || {};
-        return {
-          id: n.id,
-          name: p.name || n.label || n.id,
-          org: p.organization || "unknown",
-          year: p.year || 0,
-          cat: p.category || "",
-          desc: p.description || "",
-          url: p.url || "",
-          paper: p.url_paper || "",
-          techniques: Array.isArray(p.techniques) ? p.techniques : [],
-          inMod: p.input_modality || "",
-          outMod: p.output_modality || "",
-          physics: p.physics_domain || "",
-          industry: Array.isArray(p.industry_application) ? p.industry_application : [],
-          tags: Array.isArray(p.tags) ? p.tags : [],
-        };
-      });
-    // Build category counts
-    S.all.forEach(p => { S.catCounts[p.cat] = (S.catCounts[p.cat] || 0) + 1; });
+
+    // Build edge indexes
+    g.edges.forEach(e => {
+      (S.edgesFrom[e.from] = S.edgesFrom[e.from] || []).push({type: e.type, to: e.to});
+      (S.edgesTo[e.to]     = S.edgesTo[e.to]     || []).push({type: e.type, from: e.from});
+    });
+
+    // Build node index
+    g.nodes.forEach(n => { S.nodeIndex[n.id] = n; });
+
+    // Map all nodes
+    S.allRaw = g.nodes.map(mapNode);
+    S.all = S.allRaw.filter(n => n.nodeType === "Project");
+
+    // Compute counts
+    S.all.forEach(p => {
+      S.catCounts[p.cat] = (S.catCounts[p.cat] || 0) + 1;
+      if (p.entryType) S.entryTypeCounts[p.entryType] = (S.entryTypeCounts[p.entryType] || 0) + 1;
+    });
+    S.allRaw.forEach(n => {
+      S.nodeTypeCounts[n.nodeType] = (S.nodeTypeCounts[n.nodeType] || 0) + 1;
+    });
+
     renderSidebar();
     applyFilters();
   } catch (e) {
@@ -669,80 +855,145 @@ async function init() {
   }
 }
 
+// ── Scope toggle ──────────────────────────────────────────────────
+function setScope(scope) {
+  S.scope = scope;
+  S.filters.cats.clear();
+  S.filters.nodeTypes.clear();
+
+  if (scope === "projects") {
+    S.all = S.allRaw.filter(n => n.nodeType === "Project");
+    S.sortField = "year"; S.sortDir = "desc";
+    document.getElementById("btn-proj").classList.add("active");
+    document.getElementById("btn-all").classList.remove("active");
+    document.getElementById("cat-section").style.display = "";
+    document.getElementById("nodetype-section").style.display = "none";
+    document.getElementById("sort-select").innerHTML =
+      `<option value="year-desc">Newest first</option>
+       <option value="year-asc">Oldest first</option>
+       <option value="name-asc">Name A–Z</option>
+       <option value="name-desc">Name Z–A</option>
+       <option value="org-asc">Org A–Z</option>`;
+  } else {
+    S.all = S.allRaw;
+    S.sortField = "count"; S.sortDir = "desc";
+    document.getElementById("btn-proj").classList.remove("active");
+    document.getElementById("btn-all").classList.add("active");
+    document.getElementById("cat-section").style.display = "none";
+    document.getElementById("nodetype-section").style.display = "";
+    document.getElementById("sort-select").innerHTML =
+      `<option value="count-desc">Most connected</option>
+       <option value="name-asc">Name A–Z</option>
+       <option value="nodeType-asc">Type A–Z</option>`;
+    S.nodeTypeCounts = {};
+    S.allRaw.forEach(n => { S.nodeTypeCounts[n.nodeType] = (S.nodeTypeCounts[n.nodeType]||0)+1; });
+  }
+  document.getElementById("sort-select").value = `${S.sortField}-${S.sortDir}`;
+
+  if (S.view === "table") {
+    updateTableHeaders();
+    S.colResizeInit = false;
+  }
+  renderSidebar();
+  applyFilters();
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────
 function renderSidebar() {
-  // Categories
-  const sorted = Object.entries(S.catCounts).sort((a, b) => b[1] - a[1]);
-  const visible = S.showAllCats ? sorted : sorted.slice(0, CAT_LIMIT);
-  const catList = document.getElementById("cat-list");
-  catList.innerHTML = visible.map(([cat, cnt]) => {
-    const active = S.filters.cats.has(cat) ? "active" : "";
-    const [fg] = catColor(cat);
-    return `<label class="cat-item ${active}" onclick="toggleCat('${esc(cat)}')">
-      <span class="cat-dot" style="background:${fg}"></span>
-      <span class="cat-item-name">${esc(cat)}</span>
-      <span class="cat-count">${cnt}</span>
-    </label>`;
-  }).join("");
-
-  const moreBtn = document.getElementById("cat-more-btn");
-  const extra = sorted.length - CAT_LIMIT;
-  if (extra > 0) {
-    moreBtn.style.display = "block";
-    moreBtn.textContent = S.showAllCats ? "Show less ↑" : `Show ${extra} more ↓`;
+  if (S.scope === "projects") {
+    // Category list
+    const sorted = Object.entries(S.catCounts).sort((a, b) => b[1] - a[1]);
+    const visible = S.showAllCats ? sorted : sorted.slice(0, CAT_LIMIT);
+    document.getElementById("cat-list").innerHTML = visible.map(([cat, cnt]) => {
+      const active = S.filters.cats.has(cat) ? "active" : "";
+      const [fg] = catColor(cat);
+      return `<label class="cat-item ${active}" onclick="toggleCat('${esc(cat)}')">
+        <span class="cat-dot" style="background:${fg}"></span>
+        <span class="cat-item-name">${esc(cat)}</span>
+        <span class="cat-count">${cnt}</span>
+      </label>`;
+    }).join("");
+    const moreBtn = document.getElementById("cat-more-btn");
+    const extra = sorted.length - CAT_LIMIT;
+    if (extra > 0) {
+      moreBtn.style.display = "block";
+      moreBtn.textContent = S.showAllCats ? "Show less ↑" : `Show ${extra} more ↓`;
+    } else { moreBtn.style.display = "none"; }
   } else {
-    moreBtn.style.display = "none";
+    // Node type chips
+    const chips = document.getElementById("nodetype-chips");
+    chips.innerHTML = Object.entries(S.nodeTypeCounts)
+      .sort((a,b) => b[1]-a[1])
+      .map(([type, cnt]) => {
+        const active = S.filters.nodeTypes.has(type) ? "active" : "";
+        const color = NODE_TYPE_COLORS[type] || "#8a8a93";
+        return `<span class="chip ${active}" onclick="toggleNodeType('${esc(type)}')" style="${active ? '' : `color:${color}`}">${esc(type)} <span style="opacity:0.6">${cnt}</span></span>`;
+      }).join("");
   }
 
-  // Output modality chips
-  const mods = [...new Set(S.all.map(p => p.outMod).filter(Boolean))].sort();
-  const chipRow = document.getElementById("mod-chips");
-  chipRow.innerHTML = mods.map(m => {
+  // Output modality chips (projects scope only)
+  const mods = [...new Set(S.allRaw.filter(n => n.nodeType === "Project").map(p => p.outMod).filter(Boolean))].sort();
+  document.getElementById("mod-chips").innerHTML = mods.map(m => {
     const active = S.filters.mods.has(m) ? "active" : "";
     return `<span class="chip ${active}" onclick="toggleMod('${esc(m)}')">${esc(shortMod(m))}</span>`;
   }).join("");
+
+  // Entry type chips
+  const etSection = document.getElementById("entrytype-section");
+  const hasEntryTypes = S.allRaw.some(n => n.entryType);
+  if (hasEntryTypes) {
+    etSection.style.display = "";
+    document.getElementById("entrytype-chips").innerHTML = ENTRY_TYPES
+      .filter(et => S.entryTypeCounts[et.id] > 0)
+      .map(et => {
+        const active = S.filters.entryTypes.has(et.id) ? "active" : "";
+        return `<span class="chip ${active}" onclick="toggleEntryType('${esc(et.id)}')">${esc(et.label)} <span style="opacity:0.6">${S.entryTypeCounts[et.id] || 0}</span></span>`;
+      }).join("");
+  } else {
+    etSection.style.display = "none";
+  }
 }
 
-function toggleCatMore() {
-  S.showAllCats = !S.showAllCats;
-  renderSidebar();
-}
+function toggleCatMore() { S.showAllCats = !S.showAllCats; renderSidebar(); }
 function toggleCat(cat) {
   S.filters.cats.has(cat) ? S.filters.cats.delete(cat) : S.filters.cats.add(cat);
-  renderSidebar();
-  applyFilters();
+  renderSidebar(); applyFilters();
 }
 function toggleMod(m) {
   S.filters.mods.has(m) ? S.filters.mods.delete(m) : S.filters.mods.add(m);
-  renderSidebar();
-  applyFilters();
+  renderSidebar(); applyFilters();
+}
+function toggleNodeType(t) {
+  S.filters.nodeTypes.has(t) ? S.filters.nodeTypes.delete(t) : S.filters.nodeTypes.add(t);
+  renderSidebar(); applyFilters();
+}
+function toggleEntryType(et) {
+  S.filters.entryTypes.has(et) ? S.filters.entryTypes.delete(et) : S.filters.entryTypes.add(et);
+  renderSidebar(); applyFilters();
 }
 function clearFilter(k) {
-  if (k === "cats") S.filters.cats.clear();
-  if (k === "mods") S.filters.mods.clear();
-  renderSidebar();
-  applyFilters();
+  if (k === "cats")       S.filters.cats.clear();
+  if (k === "mods")       S.filters.mods.clear();
+  if (k === "nodeTypes")  S.filters.nodeTypes.clear();
+  if (k === "entryTypes") S.filters.entryTypes.clear();
+  renderSidebar(); applyFilters();
 }
 function clearAll() {
-  S.filters.cats.clear();
-  S.filters.mods.clear();
-  S.filters.yearMin = null;
-  S.filters.yearMax = null;
-  S.filters.org = "";
-  S.filters.q = "";
+  S.filters.cats.clear(); S.filters.mods.clear();
+  S.filters.nodeTypes.clear(); S.filters.entryTypes.clear();
+  S.filters.yearMin = null; S.filters.yearMax = null;
+  S.filters.org = ""; S.filters.q = "";
   document.getElementById("search-input").value = "";
   document.getElementById("search-clear").classList.remove("visible");
   document.getElementById("year-min").value = "";
   document.getElementById("year-max").value = "";
   document.getElementById("org-input").value = "";
-  renderSidebar();
-  applyFilters();
+  renderSidebar(); applyFilters();
 }
 function clearSearch() {
   document.getElementById("search-input").value = "";
   document.getElementById("search-clear").classList.remove("visible");
-  S.filters.q = "";
-  applyFilters();
+  S.filters.q = ""; applyFilters();
 }
 
 // ── Filtering ─────────────────────────────────────────────────────
@@ -751,18 +1002,24 @@ function applyFilters() {
   const yMin = parseInt(document.getElementById("year-min").value) || 0;
   const yMax = parseInt(document.getElementById("year-max").value) || 9999;
   const org = document.getElementById("org-input").value.trim().toLowerCase();
-  S.filters.q = q;
-  S.filters.org = org;
+  S.filters.q = q; S.filters.org = org;
   document.getElementById("search-clear").classList.toggle("visible", q.length > 0);
 
   S.filtered = S.all.filter(p => {
-    if (S.filters.cats.size && !S.filters.cats.has(p.cat)) return false;
-    if (yMin && p.year && p.year < yMin) return false;
-    if (yMax < 9999 && p.year && p.year > yMax) return false;
-    if (S.filters.mods.size && !S.filters.mods.has(p.outMod)) return false;
-    if (org && !p.org.toLowerCase().includes(org)) return false;
+    if (S.scope === "projects") {
+      if (S.filters.cats.size && !S.filters.cats.has(p.cat)) return false;
+      if (yMin && p.year && p.year < yMin) return false;
+      if (yMax < 9999 && p.year && p.year > yMax) return false;
+      if (S.filters.mods.size && !S.filters.mods.has(p.outMod)) return false;
+      if (org && !p.org.toLowerCase().includes(org)) return false;
+      if (S.filters.entryTypes.size && !S.filters.entryTypes.has(p.entryType)) return false;
+    } else {
+      if (S.filters.nodeTypes.size && !S.filters.nodeTypes.has(p.nodeType)) return false;
+      if (S.filters.entryTypes.size && p.entryType && !S.filters.entryTypes.has(p.entryType)) return false;
+    }
     if (q) {
-      const hay = [p.name, p.org, p.cat, p.desc, p.physics, ...p.techniques, ...p.industry].join(" ").toLowerCase();
+      const hay = [p.name, p.org, p.cat, p.desc, p.nodeType, p.physics,
+                   ...p.techniques, ...p.industry, ...p.tags].join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -775,8 +1032,16 @@ function applyFilters() {
 
 function renderActiveFilters() {
   const chips = [];
-  S.filters.cats.forEach(c => chips.push(`<span class="filter-chip">${esc(c)}<button class="filter-chip-remove" onclick="toggleCat('${esc(c)}')">✕</button></span>`));
-  S.filters.mods.forEach(m => chips.push(`<span class="filter-chip">${esc(shortMod(m))}<button class="filter-chip-remove" onclick="toggleMod('${esc(m)}')">✕</button></span>`));
+  S.filters.cats.forEach(c =>
+    chips.push(`<span class="filter-chip">${esc(c)}<button class="filter-chip-remove" onclick="toggleCat('${esc(c)}')">✕</button></span>`));
+  S.filters.mods.forEach(m =>
+    chips.push(`<span class="filter-chip">${esc(shortMod(m))}<button class="filter-chip-remove" onclick="toggleMod('${esc(m)}')">✕</button></span>`));
+  S.filters.nodeTypes.forEach(t =>
+    chips.push(`<span class="filter-chip">${esc(t)}<button class="filter-chip-remove" onclick="toggleNodeType('${esc(t)}')">✕</button></span>`));
+  S.filters.entryTypes.forEach(et => {
+    const label = (ENTRY_TYPES.find(x => x.id === et) || {}).label || et;
+    chips.push(`<span class="filter-chip">${esc(label)}<button class="filter-chip-remove" onclick="toggleEntryType('${esc(et)}')">✕</button></span>`);
+  });
   document.getElementById("active-filters").innerHTML = chips.join("");
 }
 
@@ -786,11 +1051,13 @@ function doSort(arr) {
   return [...arr].sort((a, b) => {
     let va, vb;
     switch (S.sortField) {
-      case "year": va = a.year || 0; vb = b.year || 0; break;
-      case "name": va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break;
-      case "org":  va = a.org.toLowerCase();  vb = b.org.toLowerCase();  break;
-      case "cat":  va = a.cat.toLowerCase();  vb = b.cat.toLowerCase();  break;
-      default:     va = a.name.toLowerCase(); vb = b.name.toLowerCase();
+      case "year":     va = a.year || 0;              vb = b.year || 0; break;
+      case "name":     va = a.name.toLowerCase();     vb = b.name.toLowerCase(); break;
+      case "org":      va = a.org.toLowerCase();      vb = b.org.toLowerCase(); break;
+      case "cat":      va = a.cat.toLowerCase();      vb = b.cat.toLowerCase(); break;
+      case "nodeType": va = a.nodeType.toLowerCase(); vb = b.nodeType.toLowerCase(); break;
+      case "count":    va = a.projectCount || 0;      vb = b.projectCount || 0; break;
+      default:         va = a.name.toLowerCase();     vb = b.name.toLowerCase();
     }
     return va < vb ? -mul : va > vb ? mul : 0;
   });
@@ -802,20 +1069,21 @@ function onSortChange() {
   renderContent();
 }
 function sortByCol(field) {
-  if (S.sortField === field) {
-    S.sortDir = S.sortDir === "asc" ? "desc" : "asc";
-  } else {
-    S.sortField = field;
-    S.sortDir = field === "year" ? "desc" : "asc";
-  }
-  document.getElementById("sort-select").value = `${S.sortField}-${S.sortDir}`;
+  if (S.sortField === field) S.sortDir = S.sortDir === "asc" ? "desc" : "asc";
+  else { S.sortField = field; S.sortDir = field === "year" || field === "count" ? "desc" : "asc"; }
+  const selEl = document.getElementById("sort-select");
+  const optVal = `${S.sortField}-${S.sortDir}`;
+  const opt = selEl.querySelector(`option[value="${optVal}"]`);
+  if (opt) selEl.value = optVal;
   S.filtered = doSort(S.filtered);
   renderTable();
   updateThHeaders();
 }
 function updateThHeaders() {
-  const fieldMap = { 0: "name", 1: "org", 2: "year", 3: "cat" };
-  document.querySelectorAll(".data-table th").forEach((th, i) => {
+  const fieldMap = S.scope === "projects"
+    ? {0:"name", 1:"org", 2:"year", 3:"cat"}
+    : {0:"name", 1:"nodeType", 2:"count"};
+  document.querySelectorAll("#data-thead-row th").forEach((th, i) => {
     th.className = "";
     if (fieldMap[i] === S.sortField) th.className = "sort-" + S.sortDir;
   });
@@ -825,8 +1093,9 @@ function updateThHeaders() {
 function renderResults() {
   const n = S.filtered.length;
   const t = S.all.length;
+  const label = S.scope === "projects" ? "projects" : "entries";
   document.getElementById("results-count").innerHTML =
-    `<strong>${n.toLocaleString()}</strong>${n < t ? " / " + t.toLocaleString() : ""} projects`;
+    `<strong>${n.toLocaleString()}</strong>${n < t ? " / " + t.toLocaleString() : ""} ${label}`;
   renderContent();
 }
 function renderContent() {
@@ -834,59 +1103,209 @@ function renderContent() {
   else renderTable();
 }
 
+// ── Card rendering ────────────────────────────────────────────────
 function renderCards() {
   const grid = document.getElementById("card-grid");
   if (!S.filtered.length) {
-    grid.innerHTML = `<div class="no-results"><h3>No projects found</h3><p>Try different filters or a broader search.</p></div>`;
+    grid.innerHTML = `<div class="no-results"><h3>No entries found</h3><p>Try different filters or a broader search.</p></div>`;
     return;
   }
-  grid.innerHTML = S.filtered.map(p => {
-    const techs = p.techniques.slice(0, 4).map(t => `<span class="tech-tag">${esc(t)}</span>`).join("");
-    const moreTech = p.techniques.length > 4 ? `<span class="tech-tag">+${p.techniques.length - 4}</span>` : "";
-    const modStr = (p.inMod || p.outMod)
-      ? `${esc(shortMod(p.inMod || "?"))} → ${esc(shortMod(p.outMod || "?"))}`
-      : "";
-    const paperLink = p.paper ? `<a class="icon-link" href="${esc(p.paper)}" target="_blank" title="Paper" onclick="event.stopPropagation()">📄</a>` : "";
-    const codeLink  = p.url   ? `<a class="icon-link" href="${esc(p.url)}"   target="_blank" title="Project" onclick="event.stopPropagation()">🔗</a>` : "";
-    const sel = S.selectedId === p.id ? "selected" : "";
-    return `<div class="project-card ${sel}" data-id="${esc(p.id)}" onclick="selectProject('${esc(p.id)}')">
-      <div class="card-top">${badge(p.cat)}<span class="year-tag">${p.year || ""}</span></div>
-      <div class="card-name">${esc(p.name)}</div>
-      <div class="card-org">${esc(p.org)}</div>
-      <div class="card-desc">${esc(p.desc)}</div>
-      <div class="card-footer">
-        <div class="card-modality">${modStr}</div>
-        <div class="card-right">
-          <div class="tech-tags">${techs}${moreTech}</div>
-          <div class="card-links">${paperLink}${codeLink}</div>
-        </div>
+  if (S.scope === "projects") {
+    grid.innerHTML = S.filtered.map(renderProjectCard).join("");
+  } else {
+    grid.innerHTML = S.filtered.map(renderEntityCard).join("");
+  }
+}
+
+function renderProjectCard(p) {
+  const techs = p.techniques.slice(0, 4).map(t => `<span class="tech-tag">${esc(t)}</span>`).join("");
+  const moreTech = p.techniques.length > 4 ? `<span class="tech-tag">+${p.techniques.length - 4}</span>` : "";
+  const modStr = (p.inMod || p.outMod) ? `${esc(shortMod(p.inMod || "?"))} → ${esc(shortMod(p.outMod || "?"))}` : "";
+  const links = buildProjectLinks(p, false);
+  const sel = S.selectedId === p.id ? "selected" : "";
+  const etBadge = p.entryType ? `<span style="font-size:10px;color:var(--fg-faint);border:1px solid var(--border);border-radius:3px;padding:1px 5px">${esc(p.entryType.replace(/-/g," "))}</span>` : "";
+  return `<div class="project-card ${sel}" data-id="${esc(p.id)}" onclick="selectEntity('${esc(p.id)}')">
+    <div class="card-top">
+      <div class="card-badges">${badge(p.cat)}${etBadge}</div>
+      <span class="year-tag">${p.year || ""}</span>
+    </div>
+    <div class="card-name">${esc(p.name)}</div>
+    <div class="card-org">${esc(p.org)}</div>
+    <div class="card-desc">${esc(p.desc)}</div>
+    <div class="card-footer">
+      <div class="card-modality">${modStr}</div>
+      <div class="card-right">
+        <div class="tech-tags">${techs}${moreTech}</div>
+        <div class="card-links">${links}</div>
       </div>
-    </div>`;
-  }).join("");
+    </div>
+  </div>`;
+}
+
+function renderEntityCard(p) {
+  const color = NODE_TYPE_COLORS[p.nodeType] || "#8a8a93";
+  const link = getEntityLink(p);
+  const connLabel = p.nodeType === "Person" ? "papers" : "connections";
+  const sel = S.selectedId === p.id ? "selected" : "";
+  const desc = truncate(p.desc || "", 120);
+  return `<div class="project-card ${sel}" data-id="${esc(p.id)}" onclick="selectEntity('${esc(p.id)}')">
+    <div class="card-top">
+      <span class="node-type-badge" style="color:${color};border-color:${color}30;background:${color}15">${esc(p.nodeType)}</span>
+      ${p.year ? `<span class="year-tag">${p.year}</span>` : ""}
+    </div>
+    <div class="card-name">${esc(p.name)}</div>
+    ${p.org ? `<div class="card-org">${esc(p.org)}</div>` : ""}
+    ${desc ? `<div class="card-desc">${esc(desc)}</div>` : ""}
+    <div class="card-footer">
+      ${p.projectCount > 0 ? `<div class="conn-count">${SVG.link} ${p.projectCount} ${connLabel}</div>` : "<div></div>"}
+      <div class="card-links">
+        ${link ? iconLink(link, "link", "Open") : ""}
+        ${p.nodeType === "Person" ? iconLink(`https://scholar.google.com/scholar?q=${encodeURIComponent(p.name)}`, "scholar", "Google Scholar") : ""}
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildProjectLinks(p, forDetail) {
+  const paperBtn  = p.paper  ? iconLink(p.paper,  "paper",  "Paper / arXiv")    : "";
+  const projBtn   = p.url    ? iconLink(p.url,    "link",   "Project / Website") : "";
+  const ghBtn     = p.github ? iconLink(p.github, "github", "GitHub")            : "";
+  // Fallback: Google Scholar search if no links at all
+  const fallback  = (!p.paper && !p.url && !p.github)
+    ? iconLink(`https://scholar.google.com/scholar?q=${encodeURIComponent(p.name)}`, "search", "Search") : "";
+  return paperBtn + projBtn + ghBtn + fallback;
+}
+
+// ── Table rendering ───────────────────────────────────────────────
+function updateTableHeaders() {
+  const thead = document.getElementById("data-thead-row");
+  const colgroup = document.getElementById("data-colgroup");
+  if (S.scope === "projects") {
+    thead.innerHTML = `
+      <th onclick="sortByCol('name')">Name</th>
+      <th onclick="sortByCol('org')">Organization</th>
+      <th onclick="sortByCol('year')">Year</th>
+      <th onclick="sortByCol('cat')">Category</th>
+      <th>Modality</th>
+      <th>Techniques</th>
+      <th>Links</th>`;
+    colgroup.innerHTML = `
+      <col style="width:260px"><col style="width:160px"><col style="width:60px">
+      <col style="width:130px"><col style="width:140px"><col style="width:180px">
+      <col style="width:70px">`;
+  } else {
+    thead.innerHTML = `
+      <th onclick="sortByCol('name')">Name</th>
+      <th onclick="sortByCol('nodeType')">Type</th>
+      <th onclick="sortByCol('count')">Connections</th>
+      <th>Description / Domain</th>
+      <th>Links</th>`;
+    colgroup.innerHTML = `
+      <col style="width:280px"><col style="width:130px"><col style="width:100px">
+      <col style="width:auto"><col style="width:80px">`;
+  }
 }
 
 function renderTable() {
+  updateTableHeaders();
   const tbody = document.getElementById("table-body");
+  const cols = S.scope === "projects" ? 7 : 5;
   if (!S.filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="no-results"><h3>No projects found</h3></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="no-results"><h3>No entries found</h3></td></tr>`;
+    updateThHeaders();
     return;
   }
-  tbody.innerHTML = S.filtered.map(p => {
-    const paperLink = p.paper ? `<a class="icon-link" href="${esc(p.paper)}" target="_blank" onclick="event.stopPropagation()" title="Paper">📄</a>` : "";
-    const codeLink  = p.url   ? `<a class="icon-link" href="${esc(p.url)}"   target="_blank" onclick="event.stopPropagation()" title="Project">🔗</a>` : "";
-    const techs = p.techniques.slice(0, 3).join(", ") + (p.techniques.length > 3 ? ` +${p.techniques.length - 3}` : "");
-    const sel = S.selectedId === p.id ? "selected" : "";
-    return `<tr class="${sel}" data-id="${esc(p.id)}" onclick="selectProject('${esc(p.id)}')">
-      <td class="td-name">${esc(p.name)}</td>
-      <td class="td-org" title="${esc(p.org)}">${esc(truncate(p.org, 30))}</td>
-      <td class="td-year">${p.year || "—"}</td>
-      <td>${badge(p.cat)}</td>
-      <td class="td-modality">${esc(shortMod(p.inMod))} → ${esc(shortMod(p.outMod))}</td>
-      <td class="td-tech">${esc(techs)}</td>
-      <td class="td-links">${paperLink}${codeLink}</td>
-    </tr>`;
-  }).join("");
+  if (S.scope === "projects") {
+    tbody.innerHTML = S.filtered.map(renderProjectRow).join("");
+  } else {
+    tbody.innerHTML = S.filtered.map(renderEntityRow).join("");
+  }
   updateThHeaders();
+
+  // Init resize once per scope/view activation
+  if (!S.colResizeInit) { initColResize(); S.colResizeInit = true; }
+}
+
+function renderProjectRow(p) {
+  const techs = p.techniques.slice(0, 3).join(", ") + (p.techniques.length > 3 ? ` +${p.techniques.length - 3}` : "");
+  const sel = S.selectedId === p.id ? "selected" : "";
+  const links = buildProjectLinks(p, false);
+  return `<tr class="${sel}" data-id="${esc(p.id)}" onclick="selectEntity('${esc(p.id)}')">
+    <td class="td-name"><div class="td-name-inner"><span class="td-name-text" title="${esc(p.name)}">${esc(p.name)}</span></div></td>
+    <td class="td-org" title="${esc(p.org)}">${esc(truncate(p.org, 30))}</td>
+    <td class="td-year">${p.year || "—"}</td>
+    <td>${badge(p.cat)}</td>
+    <td class="td-modality">${esc(shortMod(p.inMod))} → ${esc(shortMod(p.outMod))}</td>
+    <td class="td-tech" title="${esc(p.techniques.join(", "))}">${esc(techs)}</td>
+    <td><div class="td-links-wrap">${links}</div></td>
+  </tr>`;
+}
+
+function renderEntityRow(p) {
+  const color = NODE_TYPE_COLORS[p.nodeType] || "#8a8a93";
+  const link = getEntityLink(p);
+  const desc = truncate(p.desc || descForType(p), 70);
+  const sel = S.selectedId === p.id ? "selected" : "";
+  const linkBtn = link ? iconLink(link, "link", "Open") : "";
+  const scholarBtn = (p.nodeType === "Person")
+    ? iconLink(`https://scholar.google.com/scholar?q=${encodeURIComponent(p.name)}`, "scholar", "Scholar") : "";
+  return `<tr class="${sel}" data-id="${esc(p.id)}" onclick="selectEntity('${esc(p.id)}')">
+    <td class="td-name"><div class="td-name-inner">
+      <span class="node-type-badge" style="font-size:9px;color:${color};border-color:${color}30;background:${color}15;padding:1px 4px">${esc(p.nodeType)}</span>
+      <span class="td-name-text" title="${esc(p.name)}">${esc(p.name)}</span>
+    </div></td>
+    <td class="td-org">${esc(p.nodeType)}</td>
+    <td class="td-year" style="text-align:right">${p.projectCount > 0 ? p.projectCount : "—"}</td>
+    <td class="td-tech" title="${esc(desc)}">${esc(desc)}</td>
+    <td><div class="td-links-wrap">${linkBtn}${scholarBtn}</div></td>
+  </tr>`;
+}
+
+function descForType(p) {
+  if (p.nodeType === "Organization") return p.projectCount + " projects";
+  if (p.nodeType === "Category")     return p.name.replace(/-/g, " ");
+  if (p.nodeType === "Venue")        return "Conference / Journal";
+  if (p.nodeType === "Technique")    return "Used in " + p.projectCount + " projects";
+  if (p.nodeType === "Person")       return p.projectCount + " authored papers";
+  if (p.nodeType === "Modality")     return "I/O modality";
+  if (p.nodeType === "Industry")     return "Industry domain";
+  return "";
+}
+
+// ── Column resize ─────────────────────────────────────────────────
+function initColResize() {
+  const cols = document.querySelectorAll("#data-colgroup col");
+  const ths  = document.querySelectorAll("#data-thead-row th");
+  // Remove any old handles
+  document.querySelectorAll(".col-resize-handle").forEach(h => h.remove());
+
+  ths.forEach((th, i) => {
+    if (i >= ths.length - 1) return; // no handle on last column
+    const handle = document.createElement("div");
+    handle.className = "col-resize-handle";
+    th.appendChild(handle);
+
+    let startX, startW;
+    handle.addEventListener("mousedown", e => {
+      e.stopPropagation(); e.preventDefault();
+      startX = e.clientX;
+      startW = parseInt(cols[i] && cols[i].style.width) || th.offsetWidth;
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+    function onMove(e) {
+      if (!cols[i]) return;
+      cols[i].style.width = Math.max(60, startW + e.clientX - startX) + "px";
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+  });
 }
 
 // ── View toggle ───────────────────────────────────────────────────
@@ -896,25 +1315,83 @@ function setView(v) {
   document.getElementById("btn-table").classList.toggle("active", v === "table");
   document.getElementById("card-grid").style.display  = v === "cards" ? "grid" : "none";
   document.getElementById("table-wrap").style.display = v === "table" ? "block" : "none";
+  if (v === "table") {
+    S.colResizeInit = false; // re-init resize handles on view switch
+  }
   renderContent();
 }
 
 // ── Detail panel ──────────────────────────────────────────────────
-function selectProject(id) {
+function selectEntity(id) {
   if (S.selectedId === id) { closeDetail(); return; }
   S.selectedId = id;
-  document.querySelectorAll("[data-id]").forEach(el => {
-    el.classList.toggle("selected", el.dataset.id === id);
-  });
-  const p = S.all.find(x => x.id === id);
+  document.querySelectorAll("[data-id]").forEach(el =>
+    el.classList.toggle("selected", el.dataset.id === id));
+  const p = S.allRaw.find(x => x.id === id);
   if (!p) return;
+  document.getElementById("detail-inner").innerHTML = buildDetailHTML(p);
+  document.getElementById("detail-panel").classList.add("open");
+}
+
+function buildDetailHTML(p) {
+  if (p.nodeType === "Project") return buildProjectDetail(p);
+  return buildEntityDetail(p);
+}
+
+function buildProjectDetail(p) {
+  // Venue via PUBLISHED_AT
+  const venueEdges = (S.edgesFrom[p.id] || []).filter(e => e.type === "PUBLISHED_AT");
+  const venues = venueEdges.map(e => S.nodeIndex[e.to]).filter(Boolean);
+
+  // Authors via AUTHORED (check both directions)
+  const authorIdsFrom = (S.edgesTo[p.id] || []).filter(e => e.type === "AUTHORED").map(e => e.from);
+  const authorIdsTo   = (S.edgesFrom[p.id] || []).filter(e => e.type === "AUTHORED").map(e => e.to);
+  const authorIds = [...new Set([...authorIdsFrom, ...authorIdsTo])];
+  const authors = authorIds.map(id => S.nodeIndex[id]).filter(n => n && n.type === "Person");
+
+  // Related projects via SEMANTICALLY_NEAR / BUILT_ON / BENCHMARKED_AGAINST
+  const relEdges = [
+    ...(S.edgesFrom[p.id] || []).filter(e => ["SEMANTICALLY_NEAR","BUILT_ON"].includes(e.type)).slice(0,3),
+    ...(S.edgesTo[p.id]   || []).filter(e => ["SEMANTICALLY_NEAR"].includes(e.type)).slice(0,3),
+  ].slice(0, 5);
+  const related = relEdges.map(e => {
+    const otherId = e.to || e.from;
+    const other = S.allRaw.find(x => x.id === otherId);
+    return other ? `<span class="detail-tag" style="cursor:pointer" onclick="selectEntity('${esc(otherId)}')">${esc(other.name)}</span>` : null;
+  }).filter(Boolean);
 
   const techTags     = p.techniques.map(t => `<span class="detail-tag">${esc(t)}</span>`).join("");
-  const industryTags = p.industry.map(i  => `<span class="detail-tag">${esc(i)}</span>`).join("");
-  const tagTags      = p.tags.map(t      => `<span class="detail-tag">${esc(t)}</span>`).join("");
+  const industryTags = p.industry.map(i => `<span class="detail-tag">${esc(i)}</span>`).join("");
 
-  document.getElementById("detail-inner").innerHTML = `
-    <div class="detail-badge" style="margin-top:8px">${badge(p.cat, "lg")}</div>
+  const venueSection = venues.length ? `<div class="detail-section">
+    <div class="detail-section-label">Published at</div>
+    <div class="detail-tags">${venues.map(v => {
+      const vUrl = getVenueUrl(v.label || "") || `https://dblp.org/search?q=${encodeURIComponent(v.label)}`;
+      return `<a class="detail-tag" href="${esc(vUrl)}" target="_blank" style="text-decoration:none;color:var(--accent)">${esc(v.label || v.id)}</a>`;
+    }).join("")}</div>
+  </div>` : "";
+
+  const authorsSection = authors.length ? `<div class="detail-section">
+    <div class="detail-section-label">Authors</div>
+    ${authors.map(a => {
+      const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(a.label || a.id)}`;
+      return `<div class="author-item">
+        <span>${esc(a.label || a.id)}</span>
+        <a class="author-link" href="${esc(scholarUrl)}" target="_blank" onclick="event.stopPropagation()">Scholar ↗</a>
+      </div>`;
+    }).join("")}
+  </div>` : "";
+
+  const relSection = related.length ? `<div class="detail-section">
+    <div class="detail-section-label">Related</div>
+    <div class="detail-tags">${related.join("")}</div>
+  </div>` : "";
+
+  const entryBadge = p.entryType
+    ? `<span style="padding:2px 7px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;font-size:10px;color:var(--fg-faint)">${esc(p.entryType.replace(/-/g," "))}</span>` : "";
+
+  return `
+    <div class="detail-badge" style="margin-top:8px">${badge(p.cat, "lg")}${entryBadge}</div>
     <div class="detail-name">${esc(p.name)}</div>
     <div class="detail-meta">${esc(p.org)} · ${p.year || "—"}</div>
 
@@ -922,6 +1399,9 @@ function selectProject(id) {
       <div class="detail-section-label">Description</div>
       <div class="detail-desc">${esc(p.desc)}</div>
     </div>` : ""}
+
+    ${venueSection}
+    ${authorsSection}
 
     ${techTags ? `<div class="detail-section">
       <div class="detail-section-label">Techniques</div>
@@ -942,18 +1422,99 @@ function selectProject(id) {
       <div class="detail-tags">${industryTags}</div>
     </div>` : ""}
 
-    ${tagTags ? `<div class="detail-section">
-      <div class="detail-section-label">Tags</div>
-      <div class="detail-tags">${tagTags}</div>
-    </div>` : ""}
+    ${relSection}
 
     <div class="detail-links">
-      ${p.paper ? `<a class="detail-link" href="${esc(p.paper)}" target="_blank">📄 Paper / arXiv</a>` : ""}
-      ${p.url   ? `<a class="detail-link" href="${esc(p.url)}"   target="_blank">🔗 Project / Code</a>` : ""}
-      <a class="detail-link-explorer" href="/?q=${encodeURIComponent(p.name)}" target="_blank">⬡ Open in Graph Explorer</a>
+      ${p.paper  ? `<a class="detail-link" href="${esc(p.paper)}"  target="_blank">${SVG.paper}  Paper / arXiv</a>` : ""}
+      ${p.url    ? `<a class="detail-link" href="${esc(p.url)}"    target="_blank">${SVG.link}   Project / Website</a>` : ""}
+      ${p.github ? `<a class="detail-link" href="${esc(p.github)}" target="_blank">${SVG.github} GitHub</a>` : ""}
+      ${!p.paper && !p.url && !p.github ? `<a class="detail-link" href="https://scholar.google.com/scholar?q=${encodeURIComponent(p.name)}" target="_blank">${SVG.search} Search on Scholar</a>` : ""}
+      <a class="detail-link-accent" href="/?q=${encodeURIComponent(p.name)}" target="_blank">⬡ Open in Graph Explorer</a>
     </div>`;
+}
 
-  document.getElementById("detail-panel").classList.add("open");
+function buildEntityDetail(p) {
+  const color = NODE_TYPE_COLORS[p.nodeType] || "#8a8a93";
+  const link = getEntityLink(p);
+
+  // For orgs: find their projects
+  let connectedSection = "";
+  if (p.nodeType === "Organization") {
+    const projEdges = (S.edgesTo[p.id] || []).filter(e => e.type === "BUILT_BY").slice(0, 10);
+    const projs = projEdges.map(e => S.allRaw.find(x => x.id === e.from)).filter(Boolean);
+    if (projs.length) {
+      connectedSection = `<div class="detail-section">
+        <div class="detail-section-label">Projects (${p.projectCount}${p.projectCount > 10 ? ", showing 10" : ""})</div>
+        ${projs.map(pr => `<div class="author-item">
+          <span style="cursor:pointer;color:var(--fg)" onclick="setScope('projects');selectEntity('${esc(pr.id)}')">${esc(pr.name)}</span>
+          <span style="font-size:11px;color:var(--fg-faint)">${pr.year || ""}</span>
+        </div>`).join("")}
+      </div>`;
+    }
+  }
+  if (p.nodeType === "Venue") {
+    const projEdges = (S.edgesTo[p.id] || []).filter(e => e.type === "PUBLISHED_AT").slice(0, 10);
+    const projs = projEdges.map(e => S.allRaw.find(x => x.id === e.from)).filter(Boolean);
+    if (projs.length) {
+      connectedSection = `<div class="detail-section">
+        <div class="detail-section-label">Papers (${p.projectCount}${p.projectCount > 10 ? ", showing 10" : ""})</div>
+        ${projs.map(pr => `<div class="author-item">
+          <span style="cursor:pointer;color:var(--fg)" onclick="setScope('projects');selectEntity('${esc(pr.id)}')">${esc(pr.name)}</span>
+          <span style="font-size:11px;color:var(--fg-faint)">${pr.year || ""}</span>
+        </div>`).join("")}
+      </div>`;
+    }
+  }
+  if (p.nodeType === "Technique") {
+    const projEdges = (S.edgesTo[p.id] || []).filter(e => e.type === "USES_TECHNIQUE").slice(0, 8);
+    const projs = projEdges.map(e => S.allRaw.find(x => x.id === e.from)).filter(Boolean);
+    if (projs.length) {
+      connectedSection = `<div class="detail-section">
+        <div class="detail-section-label">Used in (${p.projectCount}${p.projectCount > 8 ? ", showing 8" : ""})</div>
+        ${projs.map(pr => `<div class="author-item">
+          <span style="cursor:pointer;color:var(--fg)" onclick="setScope('projects');selectEntity('${esc(pr.id)}')">${esc(pr.name)}</span>
+        </div>`).join("")}
+      </div>`;
+    }
+  }
+  if (p.nodeType === "Category") {
+    const projEdges = (S.edgesTo[p.id] || []).filter(e => e.type === "IN_CATEGORY").slice(0, 10);
+    const projs = projEdges.map(e => S.allRaw.find(x => x.id === e.from)).filter(Boolean);
+    if (projs.length) {
+      connectedSection = `<div class="detail-section">
+        <div class="detail-section-label">Projects (${p.projectCount}${p.projectCount > 10 ? ", showing 10" : ""})</div>
+        ${projs.map(pr => `<div class="author-item">
+          <span style="cursor:pointer;color:var(--fg)" onclick="setScope('projects');selectEntity('${esc(pr.id)}')">${esc(pr.name)}</span>
+          <span style="font-size:11px;color:var(--fg-faint)">${pr.year || ""}</span>
+        </div>`).join("")}
+      </div>`;
+    }
+  }
+
+  const searchUrl = p.nodeType === "Person"
+    ? `https://scholar.google.com/scholar?q=${encodeURIComponent(p.name)}`
+    : `https://www.google.com/search?q=${encodeURIComponent(p.name)}`;
+  const searchLabel = p.nodeType === "Person" ? "Search on Scholar" : "Search on Google";
+
+  return `
+    <div class="detail-badge" style="margin-top:8px">
+      <span class="node-type-badge" style="color:${color};border-color:${color}30;background:${color}15;font-size:11px">${esc(p.nodeType)}</span>
+    </div>
+    <div class="detail-name">${esc(p.name)}</div>
+    ${p.projectCount > 0 ? `<div class="detail-meta">${p.projectCount} connected ${p.nodeType === "Person" ? "papers" : "entries"}</div>` : ""}
+
+    ${p.desc ? `<div class="detail-section">
+      <div class="detail-section-label">Description</div>
+      <div class="detail-desc">${esc(p.desc)}</div>
+    </div>` : ""}
+
+    ${connectedSection}
+
+    <div class="detail-links">
+      ${link ? `<a class="detail-link" href="${esc(link)}" target="_blank">${SVG.link} ${esc(p.nodeType === "Venue" ? "Conference / Journal" : p.nodeType === "Person" ? "Profile" : "Website")}</a>` : ""}
+      <a class="detail-link" href="${esc(searchUrl)}" target="_blank">${SVG.search} ${esc(searchLabel)}</a>
+      ${p.nodeType !== "Person" ? `<a class="detail-link-accent" href="/browse?q=${encodeURIComponent(p.name)}" target="_blank">⬡ Browse related projects</a>` : ""}
+    </div>`;
 }
 
 function closeDetail() {
@@ -966,9 +1527,7 @@ function closeDetail() {
 document.addEventListener("keydown", e => {
   const inp = document.getElementById("search-input");
   if (e.key === "/" && document.activeElement !== inp) {
-    e.preventDefault();
-    inp.focus();
-    inp.select();
+    e.preventDefault(); inp.focus(); inp.select();
   }
   if (e.key === "Escape") {
     if (document.activeElement === inp) inp.blur();
@@ -986,16 +1545,12 @@ function toggleMobileSidebar() {
   overlay.classList.toggle("open", !isOpen);
 }
 
-// ── Service worker registration ───────────────────────────────────
+// ── Service worker ────────────────────────────────────────────────
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }
 
 init();
 </script>
-
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
 </body>
 </html>
