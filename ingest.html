@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="manifest" href="/manifest.json">
+<title>AI Engineering Design DB — Add Project</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='5' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='4' cy='25' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='28' cy='25' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='16' cy='19' r='2.5' fill='%23ff9d7a'/%3E%3Cline x1='16' y1='5' x2='4' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='16' y1='5' x2='28' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='4' y1='25' x2='28' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='16' y1='5' x2='16' y2='19' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3Cline x1='16' y1='19' x2='4' y2='25' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3Cline x1='16' y1='19' x2='28' y2='25' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0b; --surface: #131316; --surface-2: #1c1c20; --surface-3: #26262b;
+  --border: rgba(255,255,255,0.07); --border-strong: rgba(255,255,255,0.12);
+  --fg: #ececee; --fg-muted: #b6b6bf; --fg-faint: #8a8a93;
+  --accent: #ff6b3d; --accent-soft: rgba(255,107,61,0.12);
+  --success: #7ad3a6; --success-soft: rgba(122,211,166,0.1);
+  --warn: #f0a85b; --warn-soft: rgba(240,168,91,0.1);
+  --error: #fb7185; --error-soft: rgba(251,113,133,0.1);
+  --radius-sm: 4px; --radius: 6px; --radius-lg: 10px;
+  --font: "Geist", sans-serif; --font-mono: "JetBrains Mono", monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font); background: var(--bg); color: var(--fg); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+/* ── Topbar ────────────────────────────────────────────────── */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(10,10,11,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px; height: 52px;
+  display: flex; align-items: center; gap: 10px;
+}
+.topbar-logo {
+  display: flex; align-items: center; gap: 7px;
+  text-decoration: none; color: var(--fg);
+  font-weight: 600; font-size: 14px; flex-shrink: 0;
+}
+.topbar-sep { color: var(--fg-faint); flex-shrink: 0; }
+.topbar-section { color: var(--fg-muted); font-size: 13px; flex-shrink: 0; }
+.topbar-spacer { flex: 1; }
+.topbar-link {
+  color: var(--fg-muted); text-decoration: none; font-size: 12px;
+  flex-shrink: 0; transition: color 120ms; white-space: nowrap;
+}
+.topbar-link:hover { color: var(--accent); }
+
+/* ── Page layout ───────────────────────────────────────────── */
+.page-wrap {
+  max-width: 720px; margin: 0 auto; padding: 32px 16px 64px;
+}
+.page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.page-sub { font-size: 13px; color: var(--fg-muted); margin-bottom: 28px; line-height: 1.6; }
+
+/* ── Form card ─────────────────────────────────────────────── */
+.form-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+}
+.form-label {
+  display: block; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--fg-faint); margin-bottom: 6px;
+}
+.form-sublabel { font-size: 11px; color: var(--fg-faint); margin-bottom: 8px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+#content-input {
+  width: 100%; min-height: 160px; max-height: 400px;
+  padding: 10px 12px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--fg); font-size: 13px; font-family: var(--font);
+  line-height: 1.6; resize: vertical; outline: none;
+  transition: border-color 120ms;
+}
+#content-input::placeholder { color: var(--fg-faint); }
+#content-input:focus { border-color: var(--accent); }
+
+.form-row { margin-top: 16px; }
+.image-upload-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--fg-muted); font-size: 12px; cursor: pointer;
+  transition: all 100ms; user-select: none;
+}
+.image-upload-label:hover { border-color: var(--border-strong); color: var(--fg); }
+#image-input { display: none; }
+#image-name { margin-left: 8px; font-size: 11px; color: var(--accent); font-family: var(--font-mono); }
+
+.source-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.source-label { font-size: 12px; color: var(--fg-muted); flex-shrink: 0; }
+#source-select {
+  padding: 6px 10px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--fg-muted); font-size: 12px; font-family: var(--font);
+  outline: none; cursor: pointer;
+}
+#source-select:focus { border-color: var(--accent); }
+
+#submit-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 20px; padding: 14px;
+  background: var(--accent); border: none; border-radius: var(--radius);
+  color: #fff; font-size: 14px; font-weight: 600; font-family: var(--font);
+  cursor: pointer; transition: opacity 120ms;
+}
+#submit-btn:hover:not(:disabled) { opacity: 0.9; }
+#submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Spinner ────────────────────────────────────────────────── */
+.spinner {
+  width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.7s linear infinite; display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading .spinner { display: block; }
+.loading .btn-text { display: none; }
+
+/* ── Result area ────────────────────────────────────────────── */
+#result-area { margin-top: 24px; display: none; }
+.result-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.result-header {
+  padding: 16px 20px; display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.result-header.added   { background: var(--success-soft); border-bottom-color: rgba(122,211,166,0.2); }
+.result-header.dup     { background: var(--warn-soft);    border-bottom-color: rgba(240,168,91,0.2);  }
+.result-header.errored { background: var(--error-soft);   border-bottom-color: rgba(251,113,133,0.2); }
+.result-icon { font-size: 20px; line-height: 1; }
+.result-title { font-size: 16px; font-weight: 600; }
+.result-title.added   { color: var(--success); }
+.result-title.dup     { color: var(--warn);    }
+.result-title.errored { color: var(--error);   }
+.result-body { padding: 20px; }
+
+/* Extracted record fields */
+.field-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: baseline; }
+.field-key {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--fg-faint); flex-shrink: 0; width: 80px;
+}
+.field-val { font-size: 13px; color: var(--fg-muted); }
+.field-val.mono { font-family: var(--font-mono); font-size: 11px; }
+.desc-text {
+  font-size: 13px; color: var(--fg-muted); line-height: 1.65;
+  margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.tag {
+  padding: 2px 7px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 11px; color: var(--fg-muted);
+}
+
+/* Novelty bar */
+.novelty-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.novelty-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--fg-faint); margin-bottom: 8px; }
+.novelty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.novelty-score { font-size: 20px; font-weight: 700; color: var(--fg); }
+.novelty-desc { font-size: 12px; color: var(--fg-muted); }
+.novelty-bar-wrap { height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+.novelty-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--success), var(--accent)); transition: width 400ms ease; }
+
+/* Similar projects */
+.similar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--fg-faint); margin-bottom: 8px; }
+.similar-list { display: flex; flex-direction: column; gap: 6px; }
+.similar-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.similar-name { font-size: 12px; font-weight: 500; }
+.similar-meta { font-size: 11px; color: var(--fg-faint); }
+.similar-pct {
+  font-size: 11px; font-weight: 600; color: var(--fg-muted);
+  font-variant-numeric: tabular-nums; flex-shrink: 0; margin-left: 8px;
+}
+
+/* Queue note */
+.queue-note {
+  margin-top: 16px; padding: 10px 12px;
+  background: var(--accent-soft); border-radius: var(--radius);
+  font-size: 12px; color: var(--fg-muted);
+}
+
+/* ── Mobile ─────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .topbar-sep, .topbar-section { display: none; }
+  .page-wrap { padding: 20px 12px 48px; }
+  .form-card { padding: 16px; }
+  .field-key { width: 64px; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="/" class="topbar-logo">
+    <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="5" r="3.5" fill="#ff6b3d"/>
+      <circle cx="4" cy="25" r="3.5" fill="#ff6b3d"/>
+      <circle cx="28" cy="25" r="3.5" fill="#ff6b3d"/>
+      <circle cx="16" cy="19" r="2.5" fill="#ff9d7a"/>
+      <line x1="16" y1="5" x2="4"  y2="25" stroke="#ff6b3d" stroke-width="1.5" stroke-opacity="0.6"/>
+      <line x1="16" y1="5" x2="28" y2="25" stroke="#ff6b3d" stroke-width="1.5" stroke-opacity="0.6"/>
+      <line x1="4"  y1="25" x2="28" y2="25" stroke="#ff6b3d" stroke-width="1.5" stroke-opacity="0.6"/>
+      <line x1="16" y1="5"  x2="16" y2="19" stroke="#ff9d7a" stroke-width="1" stroke-opacity="0.5"/>
+      <line x1="16" y1="19" x2="4"  y2="25" stroke="#ff9d7a" stroke-width="1" stroke-opacity="0.5"/>
+      <line x1="16" y1="19" x2="28" y2="25" stroke="#ff9d7a" stroke-width="1" stroke-opacity="0.5"/>
+    </svg>
+    AI Eng. Design DB
+  </a>
+  <span class="topbar-sep">/</span>
+  <span class="topbar-section">Add Project</span>
+  <div class="topbar-spacer"></div>
+  <a href="/browse" class="topbar-link">Browse ↗</a>
+  &nbsp;
+  <a href="/" class="topbar-link">Graph ↗</a>
+</header>
+
+<main class="page-wrap">
+  <h1 class="page-title">Add a new project</h1>
+  <p class="page-sub">
+    Paste a LinkedIn post, arXiv abstract, GitHub README, tweet, or any text
+    describing an AI/ML tool for engineering design. GPT-5.4 will extract the
+    structured record and check it against the existing database.
+  </p>
+
+  <div class="form-card">
+    <label class="form-label" for="content-input">Content</label>
+    <span class="form-sublabel">LinkedIn post, arXiv abstract, README, or any description</span>
+    <textarea
+      id="content-input"
+      placeholder="Paste text here… (Ctrl+Enter to submit)"
+      autocomplete="off" spellcheck="false"
+    ></textarea>
+
+    <div class="form-row">
+      <label class="image-upload-label" for="image-input">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        Attach image (optional)
+      </label>
+      <input type="file" id="image-input" accept="image/*">
+      <span id="image-name"></span>
+    </div>
+
+    <div class="source-row">
+      <span class="source-label">Source:</span>
+      <select id="source-select">
+        <option value="auto">Auto-detect</option>
+        <option value="linkedin">LinkedIn</option>
+        <option value="arxiv">arXiv</option>
+        <option value="github">GitHub</option>
+        <option value="twitter">Twitter / X</option>
+        <option value="blog">Blog post</option>
+        <option value="conference">Conference paper</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <button id="submit-btn" type="button" onclick="handleSubmit()">
+      <span class="spinner" id="spinner"></span>
+      <span class="btn-text">Analyze &amp; Add</span>
+    </button>
+  </div>
+
+  <div id="result-area"></div>
+</main>
+
+<script>
+// ── Image handling ────────────────────────────────────────────────
+let imageBase64 = null;
+document.getElementById("image-input").addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) { imageBase64 = null; document.getElementById("image-name").textContent = ""; return; }
+  document.getElementById("image-name").textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    // Strip "data:image/...;base64," prefix — API expects raw base64
+    imageBase64 = e.target.result.split(",")[1] || null;
+  };
+  reader.readAsDataURL(file);
+});
+
+// Ctrl+Enter submits
+document.getElementById("content-input").addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleSubmit(); }
+});
+
+// ── Submit ────────────────────────────────────────────────────────
+async function handleSubmit() {
+  const content = document.getElementById("content-input").value.trim();
+  const source  = document.getElementById("source-select").value;
+  if (!content && !imageBase64) {
+    showError("Please paste some content or attach an image.");
+    return;
+  }
+
+  const btn = document.getElementById("submit-btn");
+  const spinner = document.getElementById("spinner");
+  btn.disabled = true;
+  btn.classList.add("loading");
+  document.getElementById("result-area").style.display = "none";
+
+  try {
+    const body = { content, source };
+    if (imageBase64) body.image_base64 = imageBase64;
+
+    const resp = await fetch("/api/ingest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      showError(data.error || "Server error (" + resp.status + ")");
+    } else if (data.status === "added") {
+      showAdded(data);
+    } else if (data.status === "duplicate") {
+      showDuplicate(data);
+    } else {
+      showError(data.error || data.message || "Unknown response");
+    }
+  } catch (err) {
+    showError("Network error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+  }
+}
+
+// ── Render helpers ────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function showAdded(d) {
+  const noveltyPct = Math.round((d.novelty_score / 10) * 100);
+  const noveltyDesc = d.novelty_score >= 8
+    ? "Highly novel — fills a clear gap"
+    : d.novelty_score >= 5
+    ? "Moderately novel"
+    : "Similar to existing entries";
+
+  const techniques = (d.techniques || [])
+    .map((t) => `<span class="tag">${esc(t)}</span>`)
+    .join("");
+
+  const similar = (d.similar || []).map((s) => `
+    <div class="similar-item">
+      <div>
+        <div class="similar-name">${esc(s.name)}</div>
+        <div class="similar-meta">${esc(s.org)} · ${esc(s.category)}</div>
+      </div>
+      <span class="similar-pct">${s.similarity_pct}% match</span>
+    </div>`).join("");
+
+  render(`
+    <div class="result-card">
+      <div class="result-header added">
+        <span class="result-icon">✓</span>
+        <span class="result-title added">Added: ${esc(d.name)}</span>
+      </div>
+      <div class="result-body">
+        <div class="field-row"><span class="field-key">Org</span><span class="field-val">${esc(d.org)}</span></div>
+        <div class="field-row"><span class="field-key">Year</span><span class="field-val">${esc(d.year)}</span></div>
+        <div class="field-row"><span class="field-key">Category</span><span class="field-val mono">${esc(d.category)}</span></div>
+
+        ${d.description ? `<p class="desc-text" style="margin-top:14px">${esc(d.description)}</p>` : ""}
+
+        ${techniques ? `<div class="field-row" style="align-items:flex-start">
+          <span class="field-key" style="margin-top:2px">Techniques</span>
+          <div class="tag-row">${techniques}</div>
+        </div>` : ""}
+
+        <div class="novelty-section">
+          <div class="novelty-label">Novelty</div>
+          <div class="novelty-row">
+            <span class="novelty-score">${d.novelty_score}<span style="font-size:13px;color:var(--fg-faint)">/10</span></span>
+            <span class="novelty-desc">${noveltyDesc}</span>
+          </div>
+          <div class="novelty-bar-wrap">
+            <div class="novelty-bar-fill" style="width:${noveltyPct}%"></div>
+          </div>
+
+          ${similar ? `<div class="similar-label">Most similar existing entries</div>
+          <div class="similar-list">${similar}</div>` : ""}
+        </div>
+
+        <div class="queue-note">🕐 ${esc(d.message)}</div>
+      </div>
+    </div>`);
+}
+
+function showDuplicate(d) {
+  render(`
+    <div class="result-card">
+      <div class="result-header dup">
+        <span class="result-icon">⚠</span>
+        <span class="result-title dup">Already in database</span>
+      </div>
+      <div class="result-body">
+        <p style="color:var(--fg-muted);font-size:13px;margin-bottom:14px">${esc(d.message)}</p>
+        <div class="field-row"><span class="field-key">Matched</span><span class="field-val">${esc(d.matchedRecord?.name || d.matchedName)}</span></div>
+        <div class="field-row"><span class="field-key">Org</span><span class="field-val">${esc(d.matchedRecord?.organization || "")}</span></div>
+        <div class="field-row"><span class="field-key">Year</span><span class="field-val">${esc(d.matchedRecord?.year || "")}</span></div>
+        <div class="field-row"><span class="field-key">Category</span><span class="field-val mono">${esc(d.matchedRecord?.category || "")}</span></div>
+        ${d.matchedRecord?.url ? `<div class="field-row"><span class="field-key">URL</span>
+          <span class="field-val"><a href="${esc(d.matchedRecord.url)}" target="_blank" style="color:var(--accent)">${esc(d.matchedRecord.url)}</a></span></div>` : ""}
+      </div>
+    </div>`);
+}
+
+function showError(msg) {
+  render(`
+    <div class="result-card">
+      <div class="result-header errored">
+        <span class="result-icon">✕</span>
+        <span class="result-title errored">Error</span>
+      </div>
+      <div class="result-body">
+        <p style="color:var(--fg-muted);font-size:13px">${esc(msg)}</p>
+      </div>
+    </div>`);
+}
+
+function render(html) {
+  const el = document.getElementById("result-area");
+  el.innerHTML = html;
+  el.style.display = "block";
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// ── Service worker ────────────────────────────────────────────────
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
