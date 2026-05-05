@@ -3697,7 +3697,7 @@ function clampOutlierNodes() {
   if (!median) {
     return;
   }
-  const maxDistance = median * 3;
+  const maxDistance = median * 8;
   for (const nodeId of visibleIds) {
     const position = positions[nodeId];
     if (!position) {
