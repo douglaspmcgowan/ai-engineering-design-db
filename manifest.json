@@ -1,0 +1,39 @@
+{
+  "name": "AI Engineering Design DB",
+  "short_name": "AI Eng DB",
+  "description": "Browse 796 AI/ML tools and papers for engineering design. Explore the knowledge graph.",
+  "start_url": "/browse",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%230a0a0b' rx='40'/%3E%3Ccircle cx='96' cy='30' r='21' fill='%23ff6b3d'/%3E%3Ccircle cx='24' cy='155' r='21' fill='%23ff6b3d'/%3E%3Ccircle cx='168' cy='155' r='21' fill='%23ff6b3d'/%3E%3Ccircle cx='96' cy='114' r='15' fill='%23ff9d7a'/%3E%3Cline x1='96' y1='30' x2='24' y2='155' stroke='%23ff6b3d' stroke-width='9' stroke-opacity='0.6'/%3E%3Cline x1='96' y1='30' x2='168' y2='155' stroke='%23ff6b3d' stroke-width='9' stroke-opacity='0.6'/%3E%3Cline x1='24' y1='155' x2='168' y2='155' stroke='%23ff6b3d' stroke-width='9' stroke-opacity='0.6'/%3E%3Cline x1='96' y1='30' x2='96' y2='114' stroke='%23ff9d7a' stroke-width='6' stroke-opacity='0.5'/%3E%3Cline x1='96' y1='114' x2='24' y2='155' stroke='%23ff9d7a' stroke-width='6' stroke-opacity='0.5'/%3E%3Cline x1='96' y1='114' x2='168' y2='155' stroke='%23ff9d7a' stroke-width='6' stroke-opacity='0.5'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Browse Projects",
+      "short_name": "Browse",
+      "url": "/browse",
+      "description": "Browse all 796 AI/ML engineering design tools"
+    },
+    {
+      "name": "Graph Explorer",
+      "short_name": "Graph",
+      "url": "/",
+      "description": "Explore the knowledge graph"
+    },
+    {
+      "name": "Add New Project",
+      "short_name": "Ingest",
+      "url": "/ingest",
+      "description": "Submit a new tool or paper"
+    }
+  ]
+}

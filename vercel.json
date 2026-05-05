@@ -2,7 +2,7 @@
   "cleanUrls": true,
   "redirects": [
     { "source": "/", "destination": "/explorer.html", "permanent": false },
-    { "source": "/browse", "destination": "/browse.html", "permanent": false }
+    { "source": "/ingest", "destination": "/ingest.html", "permanent": false }
   ],
   "headers": [
     {

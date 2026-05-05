@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="manifest" href="/manifest.json">
 <title>AI Engineering Design DB — Browse</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='5' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='4' cy='25' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='28' cy='25' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='16' cy='19' r='2.5' fill='%23ff9d7a'/%3E%3Cline x1='16' y1='5' x2='4' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='16' y1='5' x2='28' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='4' y1='25' x2='28' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='16' y1='5' x2='16' y2='19' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3Cline x1='16' y1='19' x2='4' y2='25' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3Cline x1='16' y1='19' x2='28' y2='25' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -346,6 +350,80 @@ body {
   font-weight: 500; transition: all 100ms;
 }
 .detail-link-explorer:hover { background: rgba(255,107,61,0.2); }
+
+/* ── Mobile filter drawer toggle (hidden on desktop) ─────────────── */
+.filter-toggle-btn {
+  display: none; align-items: center; gap: 5px;
+  padding: 5px 10px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--fg-muted); font-size: 12px; font-family: var(--font);
+  cursor: pointer; flex-shrink: 0; white-space: nowrap;
+  transition: all 100ms;
+}
+.filter-toggle-btn:hover { color: var(--fg); border-color: var(--border-strong); }
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0; z-index: 98;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(2px);
+}
+.sidebar-overlay.open { display: block; }
+
+/* ── Responsive / Mobile ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  body { overflow-y: auto; }
+
+  /* Topbar: wrap search to second row */
+  .topbar {
+    height: auto; flex-wrap: wrap;
+    padding: 8px 12px; gap: 8px; min-height: 52px;
+  }
+  .topbar-section, .topbar-sep { display: none; }
+  .search-wrap {
+    order: 10; flex: none; width: 100%; max-width: none; margin: 0;
+  }
+  .filter-toggle-btn { display: flex; }
+
+  /* Layout: block flow instead of fixed-height flex */
+  .layout { display: block; height: auto; }
+
+  /* Sidebar becomes slide-in drawer */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+    width: min(280px, 85vw);
+    transform: translateX(-100%); transition: transform 250ms ease;
+    box-shadow: 6px 0 30px rgba(0,0,0,0.6);
+  }
+  .sidebar.mobile-open { transform: none; }
+  .sidebar-overlay.open { display: block; }
+
+  /* Main: normal flow scrolling */
+  .main { overflow-y: visible; }
+
+  /* Cards: single column */
+  #card-grid { grid-template-columns: 1fr; padding: 10px; gap: 8px; }
+
+  /* Detail panel: full-screen overlay */
+  .detail-panel {
+    position: fixed; inset: 0; width: 100%; z-index: 110;
+    border-left: none; border-top: 1px solid var(--border);
+    transform: translateY(100%);
+    transition: transform 220ms ease;
+  }
+  .detail-panel.open { transform: none; }
+  .detail-close { padding: 7px 14px; font-size: 13px; top: 14px; right: 14px; }
+
+  /* Results bar: let it wrap */
+  .results-bar { flex-wrap: wrap; gap: 6px; }
+  .sort-select { margin-left: 0; }
+
+  /* Table: hide techniques column on narrow screens */
+  .data-table th:nth-child(6),
+  .data-table td:nth-child(6) { display: none; }
+
+  /* Bigger tap targets */
+  .cat-item { padding: 6px 6px; }
+  .chip { padding: 5px 10px; font-size: 12px; }
+  .view-btn { padding: 6px 12px; font-size: 13px; }
+}
 </style>
 </head>
 <body>
@@ -368,6 +446,15 @@ body {
   </a>
   <span class="topbar-sep">/</span>
   <span class="topbar-section">Browse</span>
+
+  <button class="filter-toggle-btn" id="filter-toggle" onclick="toggleMobileSidebar()" title="Toggle filters">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <line x1="4" y1="6" x2="20" y2="6"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+      <line x1="11" y1="18" x2="13" y2="18"/>
+    </svg>
+    Filters
+  </button>
 
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -807,8 +894,8 @@ function setView(v) {
   S.view = v;
   document.getElementById("btn-cards").classList.toggle("active", v === "cards");
   document.getElementById("btn-table").classList.toggle("active", v === "table");
-  document.getElementById("card-grid").style.display  = v === "cards" ? "" : "none";
-  document.getElementById("table-wrap").style.display = v === "table" ? "" : "none";
+  document.getElementById("card-grid").style.display  = v === "cards" ? "grid" : "none";
+  document.getElementById("table-wrap").style.display = v === "table" ? "block" : "none";
   renderContent();
 }
 
@@ -890,7 +977,25 @@ document.addEventListener("keydown", e => {
 });
 document.getElementById("search-input").addEventListener("input", applyFilters);
 
+// ── Mobile sidebar drawer ─────────────────────────────────────────
+function toggleMobileSidebar() {
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  const isOpen = sidebar.classList.contains("mobile-open");
+  sidebar.classList.toggle("mobile-open", !isOpen);
+  overlay.classList.toggle("open", !isOpen);
+}
+
+// ── Service worker registration ───────────────────────────────────
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 init();
 </script>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
 </body>
 </html>
