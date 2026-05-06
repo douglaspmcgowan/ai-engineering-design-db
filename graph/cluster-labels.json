@@ -2,330 +2,10 @@
   "k": 20,
   "set_A_category": {
     "0": {
-      "label": "Medical Engineering Ai",
-      "top_category": "medical-engineering-ai",
-      "purity": 0.47,
-      "size": 15,
-      "breakdown": [
-        [
-          "medical-engineering-ai",
-          7
-        ],
-        [
-          "generative-3d-shape",
-          6
-        ],
-        [
-          "topology-optimization",
-          2
-        ]
-      ]
-    },
-    "1": {
-      "label": "Generative Platform",
-      "top_category": "generative-platform",
-      "purity": 0.41,
-      "size": 39,
-      "breakdown": [
-        [
-          "generative-platform",
-          16
-        ],
-        [
-          "design-cognition-ai",
-          8
-        ],
-        [
-          "pcb-design-ai",
-          4
-        ],
-        [
-          "topology-optimization",
-          4
-        ],
-        [
-          "eda-chip-design",
-          2
-        ]
-      ]
-    },
-    "2": {
-      "label": "Differentiable Physics",
-      "top_category": "differentiable-physics",
-      "purity": 0.53,
-      "size": 30,
-      "breakdown": [
-        [
-          "differentiable-physics",
-          16
-        ],
-        [
-          "foundation-model-physics",
-          4
-        ],
-        [
-          "physics-informed-nn",
-          3
-        ],
-        [
-          "scientific-ml",
-          2
-        ],
-        [
-          "benchmark-dataset",
-          2
-        ]
-      ]
-    },
-    "3": {
-      "label": "Neural Operator",
-      "top_category": "neural-operator",
-      "purity": 0.66,
-      "size": 67,
-      "breakdown": [
-        [
-          "neural-operator",
-          44
-        ],
-        [
-          "physics-informed-nn",
-          17
-        ],
-        [
-          "differentiable-physics",
-          2
-        ],
-        [
-          "medical-engineering-ai",
-          1
-        ],
-        [
-          "benchmark-dataset",
-          1
-        ]
-      ]
-    },
-    "4": {
-      "label": "Cad Reconstruction",
-      "top_category": "cad-reconstruction",
-      "purity": 0.28,
-      "size": 53,
-      "breakdown": [
-        [
-          "cad-reconstruction",
-          15
-        ],
-        [
-          "b-rep-learning",
-          14
-        ],
-        [
-          "benchmark-dataset",
-          9
-        ],
-        [
-          "sketch-to-cad",
-          4
-        ],
-        [
-          "text-to-cad",
-          3
-        ]
-      ]
-    },
-    "5": {
-      "label": "Cad Reconstruction",
-      "top_category": "cad-reconstruction",
-      "purity": 0.35,
-      "size": 54,
-      "breakdown": [
-        [
-          "cad-reconstruction",
-          19
-        ],
-        [
-          "text-to-3d",
-          9
-        ],
-        [
-          "image-to-3d",
-          8
-        ],
-        [
-          "generative-3d-shape",
-          6
-        ],
-        [
-          "image-to-cad",
-          5
-        ]
-      ]
-    },
-    "6": {
-      "label": "Dfm Ai",
-      "top_category": "dfm-ai",
-      "purity": 0.4,
-      "size": 40,
-      "breakdown": [
-        [
-          "dfm-ai",
-          16
-        ],
-        [
-          "dfam-ai",
-          11
-        ],
-        [
-          "process-monitoring-ml",
-          5
-        ],
-        [
-          "aec-construction-ai",
-          4
-        ],
-        [
-          "vision-inspection-ml",
-          2
-        ]
-      ]
-    },
-    "7": {
-      "label": "Vision Inspection Ml",
-      "top_category": "vision-inspection-ml",
-      "purity": 0.51,
-      "size": 39,
-      "breakdown": [
-        [
-          "vision-inspection-ml",
-          20
-        ],
-        [
-          "pcb-design-ai",
-          11
-        ],
-        [
-          "aec-construction-ai",
-          6
-        ],
-        [
-          "generative-platform",
-          2
-        ]
-      ]
-    },
-    "8": {
-      "label": "Robotics Mfg Ai",
-      "top_category": "robotics-mfg-ai",
-      "purity": 0.68,
-      "size": 25,
-      "breakdown": [
-        [
-          "robotics-mfg-ai",
-          17
-        ],
-        [
-          "medical-engineering-ai",
-          5
-        ],
-        [
-          "differentiable-physics",
-          2
-        ],
-        [
-          "vision-inspection-ml",
-          1
-        ]
-      ]
-    },
-    "9": {
-      "label": "Dfm Ai",
-      "top_category": "dfm-ai",
-      "purity": 0.3,
-      "size": 27,
-      "breakdown": [
-        [
-          "dfm-ai",
-          8
-        ],
-        [
-          "dfam-ai",
-          6
-        ],
-        [
-          "ml-quoting",
-          6
-        ],
-        [
-          "process-monitoring-ml",
-          3
-        ],
-        [
-          "vision-inspection-ml",
-          3
-        ]
-      ]
-    },
-    "10": {
-      "label": "Inverse Design Materials",
-      "top_category": "inverse-design-materials",
-      "purity": 0.66,
-      "size": 35,
-      "breakdown": [
-        [
-          "inverse-design-materials",
-          23
-        ],
-        [
-          "architected-materials",
-          6
-        ],
-        [
-          "physics-informed-nn",
-          2
-        ],
-        [
-          "topology-optimization",
-          2
-        ],
-        [
-          "implicit-modeling",
-          1
-        ]
-      ]
-    },
-    "11": {
-      "label": "Optimization",
-      "top_category": "optimization",
-      "purity": 0.33,
-      "size": 57,
-      "breakdown": [
-        [
-          "optimization",
-          19
-        ],
-        [
-          "multi-disciplinary-optimization",
-          10
-        ],
-        [
-          "generative-platform",
-          7
-        ],
-        [
-          "pcb-design-ai",
-          7
-        ],
-        [
-          "physics-surrogate",
-          4
-        ]
-      ]
-    },
-    "12": {
       "label": "Engineering Rag Chat",
       "top_category": "engineering-rag-chat",
-      "purity": 0.45,
-      "size": 56,
+      "purity": 0.78,
+      "size": 32,
       "breakdown": [
         [
           "engineering-rag-chat",
@@ -333,23 +13,175 @@
         ],
         [
           "cad-copilot",
+          5
+        ],
+        [
+          "pcb-design-ai",
+          1
+        ],
+        [
+          "cad-agent",
+          1
+        ]
+      ]
+    },
+    "1": {
+      "label": "Cad Reconstruction",
+      "top_category": "cad-reconstruction",
+      "purity": 0.33,
+      "size": 42,
+      "breakdown": [
+        [
+          "cad-reconstruction",
+          14
+        ],
+        [
+          "b-rep-learning",
+          7
+        ],
+        [
+          "benchmark-dataset",
+          5
+        ],
+        [
+          "robotics-mfg-ai",
+          4
+        ],
+        [
+          "implicit-modeling",
+          4
+        ]
+      ]
+    },
+    "2": {
+      "label": "Text To Cad",
+      "top_category": "text-to-cad",
+      "purity": 0.33,
+      "size": 89,
+      "breakdown": [
+        [
+          "text-to-cad",
+          29
+        ],
+        [
+          "program-cad",
+          13
+        ],
+        [
+          "sketch-to-cad",
+          12
+        ],
+        [
+          "image-to-cad",
+          9
+        ],
+        [
+          "benchmark-dataset",
+          8
+        ]
+      ]
+    },
+    "3": {
+      "label": "Optimization",
+      "top_category": "optimization",
+      "purity": 0.44,
+      "size": 18,
+      "breakdown": [
+        [
+          "optimization",
+          8
+        ],
+        [
+          "pcb-design-ai",
+          7
+        ],
+        [
+          "eda-chip-design",
+          2
+        ],
+        [
+          "physics-surrogate",
+          1
+        ]
+      ]
+    },
+    "4": {
+      "label": "Vision Inspection Ml",
+      "top_category": "vision-inspection-ml",
+      "purity": 0.53,
+      "size": 40,
+      "breakdown": [
+        [
+          "vision-inspection-ml",
+          21
+        ],
+        [
+          "pcb-design-ai",
           11
         ],
         [
           "aec-construction-ai",
-          8
+          6
         ],
         [
           "generative-platform",
-          3
+          2
+        ]
+      ]
+    },
+    "5": {
+      "label": "Process Monitoring Ml",
+      "top_category": "process-monitoring-ml",
+      "purity": 0.68,
+      "size": 40,
+      "breakdown": [
+        [
+          "process-monitoring-ml",
+          27
         ],
         [
-          "ai-plm",
+          "dfam-ai",
+          11
+        ],
+        [
+          "physics-informed-nn",
+          1
+        ],
+        [
+          "vision-inspection-ml",
+          1
+        ]
+      ]
+    },
+    "6": {
+      "label": "Differentiable Physics",
+      "top_category": "differentiable-physics",
+      "purity": 0.37,
+      "size": 41,
+      "breakdown": [
+        [
+          "differentiable-physics",
+          15
+        ],
+        [
+          "benchmark-dataset",
+          9
+        ],
+        [
+          "foundation-model-physics",
+          7
+        ],
+        [
+          "neural-operator",
+          5
+        ],
+        [
+          "physics-informed-nn",
           3
         ]
       ]
     },
-    "13": {
+    "7": {
       "label": "Image To 3D",
       "top_category": "image-to-3d",
       "purity": 0.45,
@@ -361,27 +193,27 @@
         ],
         [
           "text-to-3d",
-          13
+          11
         ],
         [
           "generative-3d-shape",
-          7
+          8
         ],
         [
           "cad-reconstruction",
           1
         ],
         [
-          "image-to-cad",
+          "benchmark-dataset",
           1
         ]
       ]
     },
-    "14": {
+    "8": {
       "label": "Generative Materials",
       "top_category": "generative-materials",
-      "purity": 0.55,
-      "size": 49,
+      "purity": 0.54,
+      "size": 50,
       "breakdown": [
         [
           "generative-materials",
@@ -393,7 +225,7 @@
         ],
         [
           "benchmark-dataset",
-          6
+          7
         ],
         [
           "dfm-ai",
@@ -405,371 +237,143 @@
         ]
       ]
     },
-    "15": {
-      "label": "Text To Cad",
-      "top_category": "text-to-cad",
-      "purity": 0.36,
-      "size": 64,
+    "9": {
+      "label": "Text To 3D",
+      "top_category": "text-to-3d",
+      "purity": 0.33,
+      "size": 36,
       "breakdown": [
         [
-          "text-to-cad",
-          23
+          "text-to-3d",
+          12
         ],
         [
-          "program-cad",
+          "image-to-3d",
           9
-        ],
-        [
-          "cad-copilot",
-          8
-        ],
-        [
-          "image-to-cad",
-          5
-        ],
-        [
-          "benchmark-dataset",
-          5
-        ]
-      ]
-    },
-    "16": {
-      "label": "Process Monitoring Ml",
-      "top_category": "process-monitoring-ml",
-      "purity": 0.64,
-      "size": 11,
-      "breakdown": [
-        [
-          "process-monitoring-ml",
-          7
-        ],
-        [
-          "vision-inspection-ml",
-          3
-        ],
-        [
-          "dfam-ai",
-          1
-        ]
-      ]
-    },
-    "17": {
-      "label": "Optimization",
-      "top_category": "optimization",
-      "purity": 0.72,
-      "size": 40,
-      "breakdown": [
-        [
-          "optimization",
-          29
-        ],
-        [
-          "multi-disciplinary-optimization",
-          7
-        ],
-        [
-          "scientific-ml",
-          2
-        ],
-        [
-          "benchmark-dataset",
-          1
-        ],
-        [
-          "generative-materials",
-          1
-        ]
-      ]
-    },
-    "18": {
-      "label": "Process Monitoring Ml",
-      "top_category": "process-monitoring-ml",
-      "purity": 0.9,
-      "size": 20,
-      "breakdown": [
-        [
-          "process-monitoring-ml",
-          18
-        ],
-        [
-          "dfam-ai",
-          2
-        ]
-      ]
-    },
-    "19": {
-      "label": "Topology Optimization",
-      "top_category": "topology-optimization",
-      "purity": 0.91,
-      "size": 33,
-      "breakdown": [
-        [
-          "topology-optimization",
-          30
-        ],
-        [
-          "architected-materials",
-          1
-        ],
-        [
-          "optimization",
-          1
-        ],
-        [
-          "generative-platform",
-          1
-        ]
-      ]
-    }
-  },
-  "set_B_kmeans": {
-    "0": {
-      "label": "AI-Driven Personalized Biomedical Implants",
-      "size": 15,
-      "breakdown": [
-        [
-          "medical-engineering-ai",
-          7
         ],
         [
           "generative-3d-shape",
-          6
-        ],
-        [
-          "topology-optimization",
-          2
-        ]
-      ]
-    },
-    "1": {
-      "label": "AI-Driven Generative Design Tools",
-      "size": 39,
-      "breakdown": [
-        [
-          "generative-platform",
-          16
-        ],
-        [
-          "design-cognition-ai",
-          8
-        ],
-        [
-          "pcb-design-ai",
-          4
-        ],
-        [
-          "topology-optimization",
-          4
-        ],
-        [
-          "eda-chip-design",
-          2
-        ]
-      ]
-    },
-    "2": {
-      "label": "Differentiable Physics and Optimization",
-      "size": 30,
-      "breakdown": [
-        [
-          "differentiable-physics",
-          16
-        ],
-        [
-          "foundation-model-physics",
-          4
-        ],
-        [
-          "physics-informed-nn",
-          3
-        ],
-        [
-          "scientific-ml",
-          2
-        ],
-        [
-          "benchmark-dataset",
-          2
-        ]
-      ]
-    },
-    "3": {
-      "label": "Neural Operators and Physics-Informed AI",
-      "size": 67,
-      "breakdown": [
-        [
-          "neural-operator",
-          44
-        ],
-        [
-          "physics-informed-nn",
-          17
-        ],
-        [
-          "differentiable-physics",
-          2
-        ],
-        [
-          "medical-engineering-ai",
-          1
-        ],
-        [
-          "benchmark-dataset",
-          1
-        ]
-      ]
-    },
-    "4": {
-      "label": "CAD Model Reconstruction and Segmentation",
-      "size": 53,
-      "breakdown": [
-        [
-          "cad-reconstruction",
-          15
-        ],
-        [
-          "b-rep-learning",
-          14
-        ],
-        [
-          "benchmark-dataset",
           9
         ],
         [
-          "sketch-to-cad",
-          4
+          "medical-engineering-ai",
+          3
         ],
         [
-          "text-to-cad",
-          3
+          "cad-copilot",
+          1
         ]
       ]
     },
-    "5": {
-      "label": "3D Reconstruction and Modeling AI",
-      "size": 54,
+    "10": {
+      "label": "Cad Reconstruction",
+      "top_category": "cad-reconstruction",
+      "purity": 0.53,
+      "size": 36,
       "breakdown": [
         [
           "cad-reconstruction",
           19
         ],
         [
-          "text-to-3d",
-          9
-        ],
-        [
-          "image-to-3d",
+          "benchmark-dataset",
           8
         ],
         [
-          "generative-3d-shape",
-          6
-        ],
-        [
           "image-to-cad",
-          5
+          7
+        ],
+        [
+          "generative-platform",
+          1
+        ],
+        [
+          "cad-copilot",
+          1
         ]
       ]
     },
-    "6": {
-      "label": "AI-Driven Manufacturing Process Optimization",
-      "size": 40,
+    "11": {
+      "label": "Robotics Mfg Ai",
+      "top_category": "robotics-mfg-ai",
+      "purity": 0.18,
+      "size": 66,
       "breakdown": [
         [
-          "dfm-ai",
-          16
+          "robotics-mfg-ai",
+          12
         ],
         [
-          "dfam-ai",
-          11
-        ],
-        [
-          "process-monitoring-ml",
-          5
-        ],
-        [
-          "aec-construction-ai",
-          4
-        ],
-        [
-          "vision-inspection-ml",
-          2
-        ]
-      ]
-    },
-    "7": {
-      "label": "Deep Learning for Industrial Defect Detection",
-      "size": 39,
-      "breakdown": [
-        [
-          "vision-inspection-ml",
-          20
-        ],
-        [
-          "pcb-design-ai",
+          "cad-copilot",
           11
         ],
         [
           "aec-construction-ai",
+          8
+        ],
+        [
+          "medical-engineering-ai",
           6
         ],
         [
           "generative-platform",
-          2
+          6
         ]
       ]
     },
-    "8": {
-      "label": "AI-Driven Robotics and Surgical Systems",
-      "size": 25,
+    "12": {
+      "label": "Neural Operator",
+      "top_category": "neural-operator",
+      "purity": 0.68,
+      "size": 63,
       "breakdown": [
         [
-          "robotics-mfg-ai",
-          17
+          "neural-operator",
+          43
         ],
         [
-          "medical-engineering-ai",
-          5
+          "physics-informed-nn",
+          17
         ],
         [
           "differentiable-physics",
           2
         ],
         [
-          "vision-inspection-ml",
+          "medical-engineering-ai",
           1
         ]
       ]
     },
-    "9": {
-      "label": "AI-Driven Additive Manufacturing Tools",
-      "size": 27,
+    "13": {
+      "label": "Topology Optimization",
+      "top_category": "topology-optimization",
+      "purity": 0.89,
+      "size": 46,
       "breakdown": [
         [
-          "dfm-ai",
-          8
+          "topology-optimization",
+          41
         ],
         [
           "dfam-ai",
-          6
-        ],
-        [
-          "ml-quoting",
-          6
-        ],
-        [
-          "process-monitoring-ml",
           3
         ],
         [
-          "vision-inspection-ml",
-          3
+          "architected-materials",
+          1
+        ],
+        [
+          "generative-platform",
+          1
         ]
       ]
     },
-    "10": {
-      "label": "AI-Driven Metamaterials Design",
-      "size": 35,
+    "14": {
+      "label": "Inverse Design Materials",
+      "top_category": "inverse-design-materials",
+      "purity": 0.64,
+      "size": 36,
       "breakdown": [
         [
           "inverse-design-materials",
@@ -793,13 +397,43 @@
         ]
       ]
     },
-    "11": {
-      "label": "AI-Driven Engineering Optimization",
-      "size": 57,
+    "15": {
+      "label": "Generative Platform",
+      "top_category": "generative-platform",
+      "purity": 0.44,
+      "size": 32,
+      "breakdown": [
+        [
+          "generative-platform",
+          14
+        ],
+        [
+          "design-cognition-ai",
+          10
+        ],
+        [
+          "topology-optimization",
+          3
+        ],
+        [
+          "cad-copilot",
+          2
+        ],
+        [
+          "generative-materials",
+          1
+        ]
+      ]
+    },
+    "16": {
+      "label": "Optimization",
+      "top_category": "optimization",
+      "purity": 0.32,
+      "size": 34,
       "breakdown": [
         [
           "optimization",
-          19
+          11
         ],
         [
           "multi-disciplinary-optimization",
@@ -807,21 +441,107 @@
         ],
         [
           "generative-platform",
-          7
+          5
         ],
         [
-          "pcb-design-ai",
+          "cad-copilot",
+          3
+        ],
+        [
+          "eda-chip-design",
+          2
+        ]
+      ]
+    },
+    "17": {
+      "label": "Optimization",
+      "top_category": "optimization",
+      "purity": 0.73,
+      "size": 41,
+      "breakdown": [
+        [
+          "optimization",
+          30
+        ],
+        [
+          "multi-disciplinary-optimization",
           7
         ],
         [
           "physics-surrogate",
-          4
+          1
+        ],
+        [
+          "differentiable-physics",
+          1
+        ],
+        [
+          "neural-operator",
+          1
         ]
       ]
     },
-    "12": {
-      "label": "AI Assistants for Engineering Design",
-      "size": 56,
+    "18": {
+      "label": "Dfm Ai",
+      "top_category": "dfm-ai",
+      "purity": 0.63,
+      "size": 30,
+      "breakdown": [
+        [
+          "dfm-ai",
+          19
+        ],
+        [
+          "b-rep-learning",
+          4
+        ],
+        [
+          "benchmark-dataset",
+          3
+        ],
+        [
+          "aec-construction-ai",
+          2
+        ],
+        [
+          "vision-inspection-ml",
+          1
+        ]
+      ]
+    },
+    "19": {
+      "label": "Dfam Ai",
+      "top_category": "dfam-ai",
+      "purity": 0.18,
+      "size": 49,
+      "breakdown": [
+        [
+          "dfam-ai",
+          9
+        ],
+        [
+          "dfm-ai",
+          7
+        ],
+        [
+          "process-monitoring-ml",
+          6
+        ],
+        [
+          "ml-quoting",
+          6
+        ],
+        [
+          "medical-engineering-ai",
+          6
+        ]
+      ]
+    }
+  },
+  "set_B_kmeans": {
+    "0": {
+      "label": "AI Assistants for Engineering",
+      "size": 32,
       "breakdown": [
         [
           "engineering-rag-chat",
@@ -829,23 +549,163 @@
         ],
         [
           "cad-copilot",
+          5
+        ],
+        [
+          "pcb-design-ai",
+          1
+        ],
+        [
+          "cad-agent",
+          1
+        ]
+      ]
+    },
+    "1": {
+      "label": "Neural CAD Reconstruction Methods",
+      "size": 42,
+      "breakdown": [
+        [
+          "cad-reconstruction",
+          14
+        ],
+        [
+          "b-rep-learning",
+          7
+        ],
+        [
+          "benchmark-dataset",
+          5
+        ],
+        [
+          "robotics-mfg-ai",
+          4
+        ],
+        [
+          "implicit-modeling",
+          4
+        ]
+      ]
+    },
+    "2": {
+      "label": "CAD Model Generation and Reconstruction",
+      "size": 89,
+      "breakdown": [
+        [
+          "text-to-cad",
+          29
+        ],
+        [
+          "program-cad",
+          13
+        ],
+        [
+          "sketch-to-cad",
+          12
+        ],
+        [
+          "image-to-cad",
+          9
+        ],
+        [
+          "benchmark-dataset",
+          8
+        ]
+      ]
+    },
+    "3": {
+      "label": "AI-Driven Analog and PCB Design Optimization",
+      "size": 18,
+      "breakdown": [
+        [
+          "optimization",
+          8
+        ],
+        [
+          "pcb-design-ai",
+          7
+        ],
+        [
+          "eda-chip-design",
+          2
+        ],
+        [
+          "physics-surrogate",
+          1
+        ]
+      ]
+    },
+    "4": {
+      "label": "Deep Learning Defect Detection",
+      "size": 40,
+      "breakdown": [
+        [
+          "vision-inspection-ml",
+          21
+        ],
+        [
+          "pcb-design-ai",
           11
         ],
         [
           "aec-construction-ai",
-          8
+          6
         ],
         [
           "generative-platform",
-          3
+          2
+        ]
+      ]
+    },
+    "5": {
+      "label": "Laser Powder Bed Fusion AI",
+      "size": 40,
+      "breakdown": [
+        [
+          "process-monitoring-ml",
+          27
         ],
         [
-          "ai-plm",
+          "dfam-ai",
+          11
+        ],
+        [
+          "physics-informed-nn",
+          1
+        ],
+        [
+          "vision-inspection-ml",
+          1
+        ]
+      ]
+    },
+    "6": {
+      "label": "Physics-Informed Differentiable Simulation",
+      "size": 41,
+      "breakdown": [
+        [
+          "differentiable-physics",
+          15
+        ],
+        [
+          "benchmark-dataset",
+          9
+        ],
+        [
+          "foundation-model-physics",
+          7
+        ],
+        [
+          "neural-operator",
+          5
+        ],
+        [
+          "physics-informed-nn",
           3
         ]
       ]
     },
-    "13": {
+    "7": {
       "label": "3D Generative Modeling and Reconstruction",
       "size": 42,
       "breakdown": [
@@ -855,25 +715,25 @@
         ],
         [
           "text-to-3d",
-          13
+          11
         ],
         [
           "generative-3d-shape",
-          7
+          8
         ],
         [
           "cad-reconstruction",
           1
         ],
         [
-          "image-to-cad",
+          "benchmark-dataset",
           1
         ]
       ]
     },
-    "14": {
-      "label": "AI-driven materials science",
-      "size": 49,
+    "8": {
+      "label": "AI for Atomistic Materials Science",
+      "size": 50,
       "breakdown": [
         [
           "generative-materials",
@@ -885,7 +745,7 @@
         ],
         [
           "benchmark-dataset",
-          6
+          7
         ],
         [
           "dfm-ai",
@@ -897,69 +757,173 @@
         ]
       ]
     },
-    "15": {
-      "label": "AI-Driven CAD and 3D Modeling",
-      "size": 64,
+    "9": {
+      "label": "3D Generation and Reconstruction",
+      "size": 36,
       "breakdown": [
         [
-          "text-to-cad",
-          23
+          "text-to-3d",
+          12
         ],
         [
-          "program-cad",
+          "image-to-3d",
           9
         ],
         [
+          "generative-3d-shape",
+          9
+        ],
+        [
+          "medical-engineering-ai",
+          3
+        ],
+        [
           "cad-copilot",
+          1
+        ]
+      ]
+    },
+    "10": {
+      "label": "3D Reconstruction and CAD Integration",
+      "size": 36,
+      "breakdown": [
+        [
+          "cad-reconstruction",
+          19
+        ],
+        [
+          "benchmark-dataset",
           8
         ],
         [
           "image-to-cad",
-          5
-        ],
-        [
-          "benchmark-dataset",
-          5
-        ]
-      ]
-    },
-    "16": {
-      "label": "Additive Manufacturing Process Monitoring",
-      "size": 11,
-      "breakdown": [
-        [
-          "process-monitoring-ml",
           7
         ],
         [
-          "vision-inspection-ml",
-          3
+          "generative-platform",
+          1
         ],
         [
-          "dfam-ai",
+          "cad-copilot",
           1
         ]
       ]
     },
-    "17": {
-      "label": "Bayesian Optimization Frameworks",
-      "size": 40,
+    "11": {
+      "label": "AI-Driven Engineering and Design Tools",
+      "size": 66,
       "breakdown": [
         [
-          "optimization",
-          29
+          "robotics-mfg-ai",
+          12
         ],
         [
-          "multi-disciplinary-optimization",
-          7
+          "cad-copilot",
+          11
         ],
         [
-          "scientific-ml",
+          "aec-construction-ai",
+          8
+        ],
+        [
+          "medical-engineering-ai",
+          6
+        ],
+        [
+          "generative-platform",
+          6
+        ]
+      ]
+    },
+    "12": {
+      "label": "Neural Operators and PINNs",
+      "size": 63,
+      "breakdown": [
+        [
+          "neural-operator",
+          43
+        ],
+        [
+          "physics-informed-nn",
+          17
+        ],
+        [
+          "differentiable-physics",
           2
         ],
         [
-          "benchmark-dataset",
+          "medical-engineering-ai",
           1
+        ]
+      ]
+    },
+    "13": {
+      "label": "Deep Learning for Topology Optimization",
+      "size": 46,
+      "breakdown": [
+        [
+          "topology-optimization",
+          41
+        ],
+        [
+          "dfam-ai",
+          3
+        ],
+        [
+          "architected-materials",
+          1
+        ],
+        [
+          "generative-platform",
+          1
+        ]
+      ]
+    },
+    "14": {
+      "label": "AI-Driven Metamaterials Inverse Design",
+      "size": 36,
+      "breakdown": [
+        [
+          "inverse-design-materials",
+          23
+        ],
+        [
+          "architected-materials",
+          6
+        ],
+        [
+          "physics-informed-nn",
+          2
+        ],
+        [
+          "topology-optimization",
+          2
+        ],
+        [
+          "implicit-modeling",
+          1
+        ]
+      ]
+    },
+    "15": {
+      "label": "AI-Driven Generative Design Platforms",
+      "size": 32,
+      "breakdown": [
+        [
+          "generative-platform",
+          14
+        ],
+        [
+          "design-cognition-ai",
+          10
+        ],
+        [
+          "topology-optimization",
+          3
+        ],
+        [
+          "cad-copilot",
+          2
         ],
         [
           "generative-materials",
@@ -967,39 +931,107 @@
         ]
       ]
     },
-    "18": {
-      "label": "Laser Powder Bed Fusion Monitoring",
-      "size": 20,
+    "16": {
+      "label": "AI-Driven EDA and Chip Optimization",
+      "size": 34,
       "breakdown": [
         [
-          "process-monitoring-ml",
-          18
+          "optimization",
+          11
         ],
         [
-          "dfam-ai",
+          "multi-disciplinary-optimization",
+          10
+        ],
+        [
+          "generative-platform",
+          5
+        ],
+        [
+          "cad-copilot",
+          3
+        ],
+        [
+          "eda-chip-design",
           2
         ]
       ]
     },
-    "19": {
-      "label": "Deep Learning for Topology Optimization",
-      "size": 33,
+    "17": {
+      "label": "Bayesian and Multi-Fidelity Optimization",
+      "size": 41,
       "breakdown": [
         [
-          "topology-optimization",
+          "optimization",
           30
         ],
         [
-          "architected-materials",
+          "multi-disciplinary-optimization",
+          7
+        ],
+        [
+          "physics-surrogate",
           1
         ],
         [
-          "optimization",
+          "differentiable-physics",
           1
         ],
         [
-          "generative-platform",
+          "neural-operator",
           1
+        ]
+      ]
+    },
+    "18": {
+      "label": "AI for Manufacturing Tool Prognostics",
+      "size": 30,
+      "breakdown": [
+        [
+          "dfm-ai",
+          19
+        ],
+        [
+          "b-rep-learning",
+          4
+        ],
+        [
+          "benchmark-dataset",
+          3
+        ],
+        [
+          "aec-construction-ai",
+          2
+        ],
+        [
+          "vision-inspection-ml",
+          1
+        ]
+      ]
+    },
+    "19": {
+      "label": "AI-Driven Additive Manufacturing",
+      "size": 49,
+      "breakdown": [
+        [
+          "dfam-ai",
+          9
+        ],
+        [
+          "dfm-ai",
+          7
+        ],
+        [
+          "process-monitoring-ml",
+          6
+        ],
+        [
+          "ml-quoting",
+          6
+        ],
+        [
+          "medical-engineering-ai",
+          6
         ]
       ]
     }
