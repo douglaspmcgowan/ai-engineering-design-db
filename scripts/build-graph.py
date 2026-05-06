@@ -129,8 +129,9 @@ class GraphBuilder:
                 }
 
             # BUILT_BY → Organization
+            # Skip "unknown" — a 99-edge hub with zero discriminative signal
             org = (rec.get("organization") or "").strip()
-            if org:
+            if org and org.lower() not in ("unknown",):
                 oid = self.add_node(T_ORG, org)
                 self.add_edge(pid, oid, "BUILT_BY")
 
@@ -160,8 +161,9 @@ class GraphBuilder:
                 self.add_edge(pid, mid, "PRODUCES")
 
             # OPERATES_ON → PhysicsDomain
+            # Skip "none" — creates a 461-edge megahub with zero discriminative signal
             phys = (rec.get("physics_domain") or "").strip()
-            if phys:
+            if phys and phys.lower() != "none":
                 phid = self.add_node(T_PHYSICS, phys)
                 self.add_edge(pid, phid, "OPERATES_ON")
 
