@@ -130,8 +130,14 @@ test.describe("visual – real graph", () => {
   });
 
   test("Home button exits embed mode", async () => {
-    await page.click("#embed-button");
-    await expect(page.locator("#embed-button")).toHaveClass(/is-active/);
+    // Enter embed via Mode ▾ menu (old #embed-button was removed when topbar was redesigned)
+    await page.click("#mode-button");
+    await page.waitForTimeout(200);
+    await page.click('[data-mode="embed"]');
+    await page.waitForTimeout(1000);
+    const beforeExit = await page.evaluate(() => state.embedActive); // eslint-disable-line no-undef
+    expect(beforeExit).toBe(true);
+    // Home button should exit embed mode and return to force layout
     await page.click("#home-button");
     await page.waitForTimeout(600);
     const embedActive = await page.evaluate(() => state.embedActive); // eslint-disable-line no-undef

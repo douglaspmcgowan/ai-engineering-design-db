@@ -54,6 +54,34 @@ async function dismissModal() {
   await page.waitForTimeout(100);
 }
 
+// Open Mode ▾ menu and click the embed item — replaces old #embed-button
+async function activateEmbedMode() {
+  const isAlready = await page.evaluate(() => state?.embedActive);
+  if (isAlready) return;
+  await page.click("#mode-button");
+  await page.waitForTimeout(150);
+  await page.click('[data-mode="embed"]');
+  await page.waitForTimeout(1000);
+}
+
+// Exit embed mode via Mode ▾ → Force graph
+async function deactivateEmbedMode() {
+  const isActive = await page.evaluate(() => state?.embedActive);
+  if (!isActive) return;
+  await page.click("#mode-button");
+  await page.waitForTimeout(150);
+  await page.click('[data-mode="force"]');
+  await page.waitForTimeout(600);
+}
+
+// Open Settings ⚙ menu then click a submenu item
+async function openSettingsItem(itemSelector) {
+  await page.click("#settings-button");
+  await page.waitForTimeout(150);
+  await page.click(itemSelector);
+  await page.waitForTimeout(200);
+}
+
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 test.describe.configure({ mode: "serial" });
@@ -131,18 +159,16 @@ test("2-03 help modal closes on Escape", async () => {
   await shot("help-modal-closed");
 });
 
-test("2-04 feedback modal opens on button click", async () => {
-  await page.click("#feedback-button");
-  await page.waitForTimeout(200);
+test("2-04 feedback modal opens via Settings menu", async () => {
+  await openSettingsItem("#settings-feedback-btn");
   await expect(page.locator("#feedback-modal")).not.toHaveClass(/is-hidden/);
   await shot("feedback-modal-open");
   await dismissModal();
   await page.waitForTimeout(200);
 });
 
-test("2-05 palette picker opens on button click", async () => {
-  await page.click("#palette-button");
-  await page.waitForTimeout(200);
+test("2-05 palette picker opens via Settings menu", async () => {
+  await openSettingsItem("#settings-palette-btn");
   await expect(page.locator("#palette-picker")).toBeVisible();
   const opts = await page.locator(".palette-option").count();
   expect(opts).toBeGreaterThanOrEqual(3);
@@ -318,19 +344,27 @@ test("4-04 arrow keys navigate suggestion list", async () => {
   await shot("search-keyboard-nav");
 });
 
-test("4-05 pressing Enter on suggestion activates focus mode", async () => {
+test("4-05 pressing Enter on suggestion selects and flies to node", async () => {
+  // Re-type so suggestions are showing (previous test may have cleared them)
+  await page.fill("#search-input", "neural");
   await page.focus("#search-input");
+  await page.waitForTimeout(200);
   // Navigate to first suggestion
   await page.keyboard.press("ArrowDown");
   await page.waitForTimeout(100);
   await page.keyboard.press("Enter");
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(700);
 
-  // After pressing Enter on a suggestion, focus mode should activate
+  // Enter jumps to the node (selectSingleNode + focusCameraOnNode) but does NOT
+  // enter focus/explore mode — double-click does that. Check node is selected.
+  // selected node lives at state.selection.primaryId
+  const selectedId = await page.evaluate(() => state?.selection?.primaryId ?? null);
+  console.log("Selected node after search Enter:", selectedId);
+  expect(selectedId).not.toBeNull();
+  // Focus mode should NOT be active (Enter = jump-to, not explore)
   const focusActive = await page.evaluate(() => Boolean(state?.focus));
-  console.log("Focus active after search Enter:", focusActive);
-  expect(focusActive).toBe(true);
-  await shot("search-enter-focus");
+  expect(focusActive).toBe(false);
+  await shot("search-enter-jump");
 });
 
 test("4-06 search clear restores full graph", async () => {
@@ -473,18 +507,22 @@ test("6-04 exit focus button returns to full graph", async () => {
   await shot("focus-exited");
 });
 
-test("6-05 Discover button in topbar activates discover mode", async () => {
-  await page.click("#discover-button");
-  await page.waitForTimeout(500);
+test("6-05 Discover mode activates via Mode menu", async () => {
+  // Discover is now in the Mode ▾ dropdown (data-mode="discover")
+  await page.click("#mode-button");
+  await page.waitForTimeout(150);
+  await page.click('[data-mode="discover"]');
+  await page.waitForTimeout(700);
   // Should enter focus/discover mode on first unvisited node
   const focusActive = await page.evaluate(() => Boolean(state?.focus));
-  console.log("Discover mode via topbar button:", focusActive);
-  await shot("topbar-discover-button");
-  // Exit if active
+  console.log("Discover mode via Mode menu:", focusActive);
+  await shot("mode-menu-discover");
+  // Exit back to force mode
   if (focusActive) {
-    await page.click("#focus-exit-button");
+    await page.click("#focus-exit-button").catch(() => {});
     await page.waitForTimeout(300);
   }
+  await deactivateEmbedMode();
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -638,17 +676,18 @@ test("8-04 Find Similar activates similarity focus mode", async () => {
 // 9. EMBED MODE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-test("9-01 Embed button activates embed mode", async () => {
+test("9-01 Mode menu activates embed mode", async () => {
   // Ensure no focus active
   await page.evaluate(() => { if (typeof exitFocus === "function") exitFocus(false); });
   await page.waitForTimeout(300);
 
-  await page.click("#embed-button");
-  await page.waitForTimeout(1000);
+  await activateEmbedMode();
 
   const embedActive = await page.evaluate(() => state?.embedActive);
   expect(embedActive).toBe(true);
-  await expect(page.locator("#embed-button")).toHaveClass(/is-active/);
+  // Mode button should now show embed as active (aria or class on menu item)
+  const modeBtn = page.locator("#mode-button");
+  await expect(modeBtn).toBeVisible();
   await shot("embed-mode-on");
 });
 
@@ -708,8 +747,7 @@ test("9-07 embed cluster overlay SVG is present with paths", async () => {
 });
 
 test("9-08 exiting embed mode restores physics controls", async () => {
-  await page.click("#embed-button");
-  await page.waitForTimeout(600);
+  await deactivateEmbedMode();
 
   const embedActive = await page.evaluate(() => state?.embedActive);
   expect(embedActive).toBe(false);
@@ -770,6 +808,12 @@ test("10-02 pinning a node via JS adds to pinned set", async () => {
 });
 
 test("10-03 reset clears pinned nodes", async () => {
+  // reset-button lives inside #tools-physics-section (<details>); ensure it's open
+  await page.evaluate(() => {
+    const sec = document.getElementById("tools-physics-section");
+    if (sec && !sec.open) sec.open = true;
+  });
+  await page.waitForTimeout(100);
   await page.click("#reset-button");
   await page.waitForTimeout(600);
   const pinned = await page.evaluate(() => Array.from(state?.pinnedNodeIds || []));
@@ -828,10 +872,7 @@ test("12-01 final state — full graph overview", async () => {
     if (typeof exitFocus === "function") exitFocus(false);
   });
   await page.waitForTimeout(300);
-  if (await page.evaluate(() => state?.embedActive)) {
-    await page.click("#embed-button");
-    await page.waitForTimeout(400);
-  }
+  await deactivateEmbedMode();
   await page.click("#fit-button");
   await page.waitForTimeout(600);
   await shot("final-full-graph");
@@ -839,13 +880,11 @@ test("12-01 final state — full graph overview", async () => {
 });
 
 test("12-02 embed mode final overview", async () => {
-  await page.click("#embed-button");
-  await page.waitForTimeout(1200);
+  await activateEmbedMode();
   await page.click("#fit-button");
   await page.waitForTimeout(600);
   await shot("final-embed-mode");
 
   // Exit cleanly
-  await page.click("#embed-button");
-  await page.waitForTimeout(500);
+  await deactivateEmbedMode();
 });
