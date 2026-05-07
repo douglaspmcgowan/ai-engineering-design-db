@@ -451,9 +451,20 @@
       <button id="submit-close" class="modal-close" type="button" aria-label="Close">X</button>
     </div>
     <div class="modal-body" style="display:grid;gap:12px">
+      <!-- File drop zone -->
+      <div id="submit-dropzone" class="submit-dropzone" tabindex="0" role="button" aria-label="Drop files or click to browse">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="color:var(--fg-faint)">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <div class="dropzone-label">Drop files here or <span class="dropzone-browse">browse</span></div>
+        <div class="dropzone-hint">PNG · JPG · PDF · TXT · MD · JSON</div>
+        <input id="submit-file-input" type="file" accept="image/*,application/pdf,text/*,.md,.txt,.csv,.json,.jsonl" multiple style="display:none">
+      </div>
+      <div id="submit-file-list" class="submit-file-list"></div>
       <div>
-        <div class="field-label">Project reference</div>
-        <textarea id="submit-text" class="textarea-input" rows="5" placeholder="https://arxiv.org/abs/2401.12345&#10;&#10;— or paste a title, abstract, notes, anything about an AI/ML engineering project."></textarea>
+        <div class="field-label">Or paste a URL / text</div>
+        <textarea id="submit-text" class="textarea-input" rows="4" placeholder="https://arxiv.org/abs/2401.12345&#10;&#10;— paste a title, abstract, notes, anything about an AI/ML engineering project."></textarea>
       </div>
       <details id="submit-token-details" class="submit-token-section">
         <summary class="submit-token-summary" id="submit-token-summary-label">⚙ GitHub token <span id="submit-token-indicator" style="color:var(--fg-muted)">not set</span></summary>
@@ -5358,6 +5369,89 @@ async function loadDefaultGraph() {
       closeSubmitModal();
     }
   });
+
+  // ── File drop zone ─────────────────────────────────────────────────────────
+  (function initDropZone() {
+    const dz     = document.getElementById("submit-dropzone");
+    const dzInput= document.getElementById("submit-file-input");
+    const dzList = document.getElementById("submit-file-list");
+    if (!dz) return;
+
+    dz.addEventListener("dragover",  e => { e.preventDefault(); dz.classList.add("drag-over"); });
+    dz.addEventListener("dragleave", e => { if (!dz.contains(e.relatedTarget)) dz.classList.remove("drag-over"); });
+    dz.addEventListener("drop", e => {
+      e.preventDefault(); dz.classList.remove("drag-over");
+      if (e.dataTransfer.files.length) processFileList(e.dataTransfer.files);
+    });
+    dz.addEventListener("click", () => dzInput?.click());
+    dz.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); dzInput?.click(); } });
+    dzInput?.addEventListener("change", () => { if (dzInput.files.length) processFileList(dzInput.files); dzInput.value = ""; });
+
+    function readText(file) {
+      return new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = e => res(e.target.result);
+        fr.onerror = () => rej(new Error("Read failed"));
+        fr.readAsText(file);
+      });
+    }
+
+    function addItem(fileName) {
+      const item = document.createElement("div");
+      item.className = "submit-file-item";
+      const nameEl = document.createElement("span");
+      nameEl.className = "submit-file-name";
+      nameEl.textContent = fileName;
+      const statusEl = document.createElement("span");
+      statusEl.className = "submit-file-status";
+      statusEl.textContent = "…";
+      item.append(nameEl, statusEl);
+      dzList?.appendChild(item);
+      return { item, nameEl, statusEl };
+    }
+
+    function appendToTextarea(text) {
+      if (!submitText) return;
+      const cur = submitText.value.trimEnd();
+      submitText.value = cur ? cur + "\n\n" + text.trim() : text.trim();
+    }
+
+    async function processFileList(files) {
+      for (const file of Array.from(files)) {
+        const { statusEl, item } = addItem(file.name);
+        try {
+          if (file.type.startsWith("image/")) {
+            // Show thumbnail + note filename (pipeline can't vision-process yet; user adds desc)
+            const url = URL.createObjectURL(file);
+            const thumb = document.createElement("img");
+            thumb.className = "submit-file-thumb"; thumb.src = url;
+            item.insertBefore(thumb, item.firstChild);
+            appendToTextarea(`[Image: ${file.name}]\n— describe this project below if needed`);
+            statusEl.textContent = "✓ noted"; statusEl.className = "submit-file-status ok";
+          } else if (file.name.endsWith(".pdf") || file.type === "application/pdf") {
+            const raw = await readText(file);
+            // Strip non-printable chars; if readable text remains, use it
+            const clean = raw.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "").trim();
+            if (clean.length > 80) {
+              appendToTextarea(clean.slice(0, 3500));
+              statusEl.textContent = "✓ text extracted"; statusEl.className = "submit-file-status ok";
+            } else {
+              appendToTextarea(`[PDF: ${file.name}]\n— paste title/abstract below`);
+              statusEl.textContent = "⚠ binary PDF — add notes"; statusEl.className = "submit-file-status warn";
+            }
+          } else {
+            const text = await readText(file);
+            appendToTextarea(text.slice(0, 5000));
+            statusEl.textContent = "✓ pasted"; statusEl.className = "submit-file-status ok";
+          }
+        } catch (err) {
+          statusEl.textContent = "✗ " + err.message; statusEl.className = "submit-file-status err";
+        }
+      }
+      // Scroll textarea into view so user sees the pasted content
+      submitText?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  })();
 
   // ── iOS/Android Web Share Target — detect ?share_url / ?share_text params ─
   (function handleShareTarget() {
