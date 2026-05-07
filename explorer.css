@@ -1759,29 +1759,36 @@ a:hover {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 60;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
+  z-index: 62; /* above toasts (61) */
+  height: 42px;
+  padding: 0 18px 0 14px;
+  border-radius: 21px;
   border: none;
-  background: var(--accent);
+  background: var(--accent, #ff6b3d);
   color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 20px rgba(91, 143, 255, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  gap: 8px;
+  font-family: var(--font, sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 3px 16px rgba(255, 107, 61, 0.5), 0 1px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 .submit-fab:hover {
-  transform: scale(1.07);
-  box-shadow: 0 6px 28px rgba(91, 143, 255, 0.55), 0 3px 12px rgba(0, 0, 0, 0.4);
-  background: color-mix(in srgb, var(--accent) 88%, #fff);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(255, 107, 61, 0.55), 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 .submit-fab:active {
-  transform: scale(0.95);
+  transform: translateY(0) scale(0.97);
+}
+.fab-label {
+  display: inline;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1862,12 +1869,18 @@ a:hover {
     max-height: 55vh;
   }
 
-  /* FAB: pull up above mobile browser chrome */
+  /* FAB: circle on small phones, clear browser chrome */
   .submit-fab {
     bottom: 20px;
     right: 16px;
-    width: 50px;
-    height: 50px;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+  }
+  .fab-label {
+    display: none;
   }
 
   /* Subbar: more compact */

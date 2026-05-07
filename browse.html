@@ -104,6 +104,7 @@ body {
   color: var(--fg-muted); text-decoration: none; font-size: 12px;
   flex-shrink: 0; display: flex; align-items: center; gap: 4px;
   transition: color 120ms; white-space: nowrap;
+  background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font);
 }
 .topbar-link:hover { color: var(--accent); }
 
@@ -362,24 +363,57 @@ body {
 
 /* ── Detail panel ────────────────────────────────────────────────── */
 .detail-panel {
-  width: 0; flex-shrink: 0;
-  background: var(--surface); border-left: 0px solid var(--border);
+  width: 36px; flex-shrink: 0;
+  background: var(--surface); border-left: 1px solid var(--border);
   overflow: hidden; position: relative;
-  transition: width 220ms ease, border-left-width 0ms 220ms;
+  transition: width 220ms ease;
 }
 .detail-panel.open {
-  width: 380px; overflow-y: auto; border-left: 1px solid var(--border);
-  transition: width 220ms ease, border-left-width 0ms 0ms;
+  width: 380px; overflow-y: auto;
+}
+/* Strip toggle — always visible, rotates on open */
+.detail-strip {
+  position: sticky; top: 0; z-index: 2;
+  width: 36px; height: 100%; min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  padding-top: 14px; gap: 8px;
+}
+.detail-panel.open .detail-strip { display: none; }
+.detail-strip-btn {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--fg-muted); cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  transition: all 100ms; flex-shrink: 0;
+  font-family: var(--font);
+}
+.detail-strip-btn:hover { color: var(--fg); border-color: var(--border-strong); background: var(--surface-3); }
+.detail-strip-label {
+  writing-mode: vertical-rl; text-orientation: mixed;
+  font-size: 10px; color: var(--fg-faint); letter-spacing: 0.08em;
+  text-transform: uppercase; user-select: none; transform: rotate(180deg);
+  margin-top: 4px;
+}
+/* Close button row inside open panel */
+.detail-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px 6px; position: sticky; top: 0; z-index: 1;
+  background: var(--surface); border-bottom: 1px solid var(--border);
 }
 .detail-close {
-  position: absolute; top: 12px; right: 12px;
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius); color: var(--fg-muted);
   padding: 3px 8px; font-size: 12px; cursor: pointer;
-  font-family: var(--font); transition: all 100ms; z-index: 1;
+  font-family: var(--font); transition: all 100ms;
 }
 .detail-close:hover { color: var(--fg); border-color: var(--border-strong); }
-.detail-inner { padding: 14px 14px 24px; min-width: 356px; }
+.detail-collapse-btn {
+  background: none; border: none; color: var(--fg-faint);
+  cursor: pointer; padding: 4px 6px; font-size: 14px;
+  border-radius: 4px; transition: all 100ms; font-family: var(--font);
+}
+.detail-collapse-btn:hover { color: var(--fg); background: var(--surface-2); }
+.detail-inner { padding: 12px 14px 24px; min-width: 340px; }
 .detail-badge { margin-bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
 .detail-name { font-size: 16px; font-weight: 600; line-height: 1.3; margin-bottom: 3px; }
 .detail-meta { font-size: 12px; color: var(--fg-muted); margin-bottom: 14px; }
@@ -463,12 +497,13 @@ body {
   .main { overflow-y: visible; }
   #card-grid { grid-template-columns: 1fr; padding: 10px; gap: 8px; }
   .detail-panel {
-    position: fixed; inset: 0; width: 100%; z-index: 110;
+    position: fixed; inset: 0; width: 100% !important; z-index: 110;
     border-left: none; border-top: 1px solid var(--border);
     transform: translateY(100%);
     transition: transform 220ms ease;
   }
-  .detail-panel.open { transform: none; width: 100%; border-left: none; overflow-y: auto; transition: transform 220ms ease; }
+  .detail-strip { display: none; }
+  .detail-panel.open { transform: none; width: 100% !important; border-left: none; overflow-y: auto; transition: transform 220ms ease; }
   .detail-close { padding: 7px 14px; font-size: 13px; top: 14px; right: 14px; }
   .results-bar { flex-wrap: wrap; gap: 6px; }
   .sort-select { margin-left: 0; }
@@ -539,6 +574,111 @@ body {
   border: 1px solid var(--border); border-radius: 3px; color: var(--fg-faint);
   white-space: nowrap; margin-left: 4px; vertical-align: middle;
 }
+
+/* ── Submit modal + FAB + Toast ──────────────────────────────────── */
+.is-hidden { display: none !important; }
+
+.modal-backdrop {
+  position: fixed; inset: 0;
+  display: grid; place-items: center; padding: 24px;
+  background: rgba(8,8,10,0.72); backdrop-filter: blur(12px);
+  z-index: 200; animation: fade-in 180ms ease;
+}
+.modal-card {
+  width: min(520px, 100%); max-height: min(680px, calc(100vh - 48px));
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 30%), var(--surface);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.45); overflow: hidden; animation: pop-in 220ms ease;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 16px 12px; border-bottom: 1px solid var(--border);
+}
+.modal-header h2 { margin: 0; font-size: 16px; }
+.modal-close {
+  width: 30px; height: 30px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius); background: transparent; color: var(--fg-muted);
+  cursor: pointer; font-size: 14px;
+}
+.modal-close:hover { background: var(--surface-2); color: var(--fg); }
+.modal-body { padding: 16px; overflow-y: auto; }
+.modal-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px 16px; border-top: 1px solid var(--border);
+}
+.modal-note { color: var(--fg-muted); font-size: 12px; line-height: 1.5; }
+.modal-actions { display: flex; align-items: center; gap: 8px; }
+.ghost-button {
+  height: 30px; padding: 0 10px; border: 1px solid var(--border-strong);
+  background: transparent; border-radius: var(--radius); color: var(--fg-muted);
+  font: 500 12px/1 var(--font-mono); cursor: pointer; transition: background 120ms, color 120ms;
+}
+.ghost-button:hover { background: var(--surface-2); color: var(--fg); }
+.ghost-button.is-strong { background: var(--surface-2); color: var(--fg); }
+.field-label {
+  color: var(--fg-faint); font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; display: block;
+}
+.text-input, .textarea-input {
+  width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--surface); color: var(--fg); outline: none;
+  font-family: var(--font); font-size: 13px;
+  transition: border-color 120ms, background 120ms;
+}
+.text-input { height: 34px; padding: 0 10px; }
+.textarea-input { min-height: 130px; padding: 10px; resize: vertical; }
+.text-input:focus, .textarea-input:focus {
+  border-color: rgba(255,107,61,0.4); background: var(--surface-2);
+}
+.submit-token-section {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: rgba(19,19,22,0.6); padding: 10px 12px;
+}
+.submit-token-summary {
+  font-size: 12px; color: var(--fg-muted); cursor: pointer;
+  user-select: none; list-style: none; display: flex; align-items: center; gap: 6px;
+}
+.submit-token-summary::-webkit-details-marker { display: none; }
+
+/* FAB */
+.submit-fab {
+  position: fixed; bottom: 24px; right: 24px; z-index: 62;
+  height: 42px; padding: 0 18px 0 14px; border-radius: 21px; border: none;
+  background: var(--accent, #ff6b3d); color: #fff; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font, sans-serif); font-size: 13px; font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 3px 16px rgba(255,107,61,0.5), 0 1px 6px rgba(0,0,0,0.4);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.submit-fab:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(255,107,61,0.55), 0 2px 10px rgba(0,0,0,0.45); }
+.submit-fab:active { transform: translateY(0) scale(0.97); }
+.fab-label { display: inline; }
+
+/* Toast */
+.toast-stack { position: fixed; right: 18px; bottom: 80px; display: grid; gap: 10px; z-index: 63; }
+.toast {
+  min-width: 220px; max-width: 320px; padding: 10px 12px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: rgba(19,19,22,0.96); color: var(--fg);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.35); font: 500 12px/1.45 var(--font-mono);
+  animation: toast-in 180ms ease;
+}
+.toast[data-tone="success"] { border-color: rgba(122,211,166,0.35); }
+.toast[data-tone="warn"] { border-color: rgba(240,168,91,0.35); }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 480px) {
+  .submit-fab { bottom: 20px; right: 16px; width: 52px; height: 52px; padding: 0; border-radius: 50%; justify-content: center; }
+  .fab-label { display: none; }
+  .modal-card { max-width: calc(100vw - 24px) !important; margin: 12px; max-height: 88vh; }
+  .modal-body { max-height: 55vh; }
+}
 </style>
 </head>
 <body>
@@ -601,9 +741,9 @@ body {
     </button>
   </div>
 
-  <a href="/ingest" class="topbar-link">
+  <button type="button" class="topbar-link" onclick="openSubmitModal('')">
     + Add project
-  </a>
+  </button>
   <a href="/" class="topbar-link">
     Graph Explorer
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -735,10 +875,23 @@ body {
     </div>
   </div>
 
-  <!-- Detail panel -->
+  <!-- Detail panel — always shows 36px strip; expands to 380px on card click -->
   <div class="detail-panel" id="detail-panel">
-    <button class="detail-close" onclick="closeDetail()">✕</button>
-    <div class="detail-inner" id="detail-inner"></div>
+    <!-- Collapsed strip: toggle + rotated label -->
+    <div class="detail-strip" id="detail-strip">
+      <button class="detail-strip-btn" onclick="toggleDetailStrip()" title="Open details panel">›</button>
+      <span class="detail-strip-label">Details</span>
+    </div>
+    <!-- Expanded content -->
+    <div class="detail-header-row">
+      <button class="detail-collapse-btn" onclick="toggleDetailStrip()" title="Collapse panel">‹ Collapse</button>
+      <button class="detail-close" onclick="closeDetail()">✕ Close</button>
+    </div>
+    <div class="detail-inner" id="detail-inner">
+      <div style="padding:24px 0 12px;text-align:center;color:var(--fg-faint);font-size:12px;line-height:1.6">
+        Click any card<br>to see details here
+      </div>
+    </div>
   </div>
 </div>
 
@@ -752,6 +905,61 @@ body {
   <div class="ctx-item" onclick="ctxFilterCat()"><span class="ctx-item-icon">⬡</span> Filter to this category</div>
   <div class="ctx-item" onclick="ctxOpenExplorer()"><span class="ctx-item-icon">↗</span> Open in Graph Explorer</div>
 </div>
+
+<!-- Submit modal -->
+<div id="submit-modal" class="modal-backdrop is-hidden">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="submit-title">
+    <div class="modal-header">
+      <div>
+        <h2 id="submit-title">Add to graph</h2>
+        <div class="modal-note">Paste a URL, abstract, or notes — GPT-4o will structure it for the weekly rebuild.</div>
+      </div>
+      <button id="submit-close" class="modal-close" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px">
+      <div>
+        <label class="field-label" for="submit-text">Project reference</label>
+        <textarea id="submit-text" class="textarea-input" rows="5" placeholder="https://arxiv.org/abs/2401.12345&#10;&#10;— or paste a title, abstract, notes, anything about an AI/ML engineering project."></textarea>
+      </div>
+      <details id="submit-token-details" class="submit-token-section">
+        <summary class="submit-token-summary">⚙ GitHub token <span id="submit-token-indicator" style="color:var(--fg-muted)">not set</span></summary>
+        <div style="padding:10px 0 2px;display:grid;gap:8px">
+          <div style="font-size:11px;color:var(--fg-muted);line-height:1.55">
+            Create a <strong style="color:var(--fg)">fine-grained token</strong> at
+            <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:var(--accent)">github.com/settings/tokens</a>
+            with <strong style="color:var(--fg)">Contents: Write</strong> access to the
+            <code style="font-size:10px">ai-engineering-design-db</code> repo only.
+            Stored in your browser, never sent anywhere except GitHub.
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="submit-token-input" class="text-input" type="password" placeholder="github_pat_…" style="flex:1;font-family:var(--font-mono);font-size:11px">
+            <button id="submit-token-save" class="ghost-button is-strong" type="button">Save</button>
+          </div>
+          <div id="submit-token-msg" style="font-size:11px;min-height:14px;color:var(--fg-muted)"></div>
+        </div>
+      </details>
+    </div>
+    <div class="modal-footer">
+      <div id="submit-result-msg" class="modal-note" style="color:var(--fg-muted)"></div>
+      <div class="modal-actions">
+        <button id="submit-cancel" class="ghost-button" type="button">Cancel</button>
+        <button id="submit-send" class="ghost-button is-strong" type="button">Submit →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FAB: add project -->
+<button id="submit-fab" class="submit-fab" type="button" title="Add a project to the graph" aria-label="Add project">
+  <svg width="18" height="18" viewBox="0 0 22 22" fill="none" style="flex-shrink:0" aria-hidden="true">
+    <line x1="11" y1="3" x2="11" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="3" y1="11" x2="19" y2="11" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>
+  <span class="fab-label">Add project</span>
+</button>
+
+<!-- Toast stack -->
+<div id="browse-toast-stack" class="toast-stack"></div>
 
 <script>
 // ── SVG icon helpers ──────────────────────────────────────────────
@@ -1767,6 +1975,18 @@ function closeDetail() {
   S.selectedId = null;
   document.getElementById("detail-panel").classList.remove("open");
   document.querySelectorAll("[data-id].selected").forEach(el => el.classList.remove("selected"));
+  // Restore "click to see details" hint
+  const inner = document.getElementById("detail-inner");
+  if (inner) inner.innerHTML = '<div style="padding:24px 0 12px;text-align:center;color:var(--fg-faint);font-size:12px;line-height:1.6">Click any card<br>to see details here</div>';
+}
+
+function toggleDetailStrip() {
+  const panel = document.getElementById("detail-panel");
+  if (panel.classList.contains("open")) {
+    panel.classList.remove("open");
+  } else {
+    panel.classList.add("open");
+  }
 }
 
 // ── Context menu for category badges ─────────────────────────────
@@ -1931,6 +2151,169 @@ if ("serviceWorker" in navigator) {
 }
 
 init();
+
+// ── Submit modal (GitHub inbox) ───────────────────────────────────
+(function () {
+  const OWNER = "dougmcgowan";
+  const REPO  = "ai-engineering-design-db";
+  const PATH  = "raw/inbox.jsonl";
+  const API   = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
+  const TOKEN_KEY = "inbox-gh-token";
+
+  const submitModal    = document.getElementById("submit-modal");
+  const submitFab      = document.getElementById("submit-fab");
+  const submitClose    = document.getElementById("submit-close");
+  const submitCancel   = document.getElementById("submit-cancel");
+  const submitSend     = document.getElementById("submit-send");
+  const submitText     = document.getElementById("submit-text");
+  const submitResultMsg= document.getElementById("submit-result-msg");
+  const tokenDetails   = document.getElementById("submit-token-details");
+  const tokenInput     = document.getElementById("submit-token-input");
+  const tokenSave      = document.getElementById("submit-token-save");
+  const tokenMsg       = document.getElementById("submit-token-msg");
+  const tokenIndicator = document.getElementById("submit-token-indicator");
+
+  function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
+  function saveToken(t) { localStorage.setItem(TOKEN_KEY, t.trim()); refreshTokenUi(); }
+  function refreshTokenUi() {
+    const t = getToken();
+    if (tokenIndicator) {
+      tokenIndicator.textContent = t ? "✓ set" : "not set";
+      tokenIndicator.style.color = t ? "var(--accent)" : "var(--fg-muted)";
+    }
+    if (!t && tokenDetails) tokenDetails.open = true;
+  }
+
+  function b64Encode(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function b64Decode(str) { return decodeURIComponent(escape(atob(str.replace(/\n/g, "")))); }
+
+  async function appendToInbox(rawText) {
+    const token = getToken();
+    if (!token) throw new Error("No GitHub token — open ⚙ to add one.");
+    const headers = {
+      Authorization: `token ${token}`,
+      Accept: "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+    };
+    let sha = null, existing = "";
+    const getRes = await fetch(API, { headers });
+    if (getRes.ok) {
+      const data = await getRes.json();
+      sha = data.sha;
+      existing = b64Decode(data.content);
+    } else if (getRes.status !== 404) {
+      const err = await getRes.json().catch(() => ({}));
+      throw new Error(err.message || `GitHub GET error ${getRes.status}`);
+    }
+    const newContent = existing.trimEnd()
+      ? existing.trimEnd() + "\n" + rawText.trim() + "\n"
+      : rawText.trim() + "\n";
+    const body = { message: "feat: add inbox entry via browse", content: b64Encode(newContent) };
+    if (sha) body.sha = sha;
+    const putRes = await fetch(API, { method: "PUT", headers, body: JSON.stringify(body) });
+    if (!putRes.ok) {
+      const err = await putRes.json().catch(() => ({}));
+      throw new Error(err.message || `GitHub PUT error ${putRes.status}`);
+    }
+  }
+
+  window.openSubmitModal = function (prefill) {
+    if (!submitModal) return;
+    submitModal.classList.remove("is-hidden");
+    if (submitResultMsg) submitResultMsg.textContent = "";
+    if (prefill && submitText) submitText.value = prefill;
+    refreshTokenUi();
+    requestAnimationFrame(() => submitText && submitText.focus());
+  };
+  function closeSubmitModal() {
+    if (!submitModal) return;
+    submitModal.classList.add("is-hidden");
+    if (submitText) submitText.value = "";
+    if (submitResultMsg) submitResultMsg.textContent = "";
+  }
+
+  async function handleSubmit() {
+    const text = (submitText?.value || "").trim();
+    if (!text) { showBrowseToast("Paste something first.", "warn"); return; }
+    if (!getToken()) {
+      if (tokenDetails) tokenDetails.open = true;
+      if (tokenInput) tokenInput.focus();
+      showBrowseToast("Add your GitHub token first (⚙ section below).", "warn");
+      return;
+    }
+    submitSend.disabled = true;
+    submitSend.textContent = "Submitting…";
+    if (submitResultMsg) submitResultMsg.textContent = "";
+    try {
+      await appendToInbox(text);
+      if (submitResultMsg) {
+        submitResultMsg.textContent = "✓ Added to inbox. Will appear after the next weekly rebuild.";
+        submitResultMsg.style.color = "var(--accent)";
+      }
+      showBrowseToast("Submitted! Graph updates weekly.", "success");
+      setTimeout(closeSubmitModal, 2200);
+    } catch (err) {
+      if (submitResultMsg) {
+        submitResultMsg.textContent = "✗ " + err.message;
+        submitResultMsg.style.color = "#f87171";
+      }
+      showBrowseToast(err.message, "warn");
+    } finally {
+      submitSend.disabled = false;
+      submitSend.textContent = "Submit →";
+    }
+  }
+
+  function handleTokenSave() {
+    const val = (tokenInput?.value || "").trim();
+    if (!val) { if (tokenMsg) { tokenMsg.textContent = "Token cannot be empty."; tokenMsg.style.color="#f87171"; } return; }
+    saveToken(val);
+    if (tokenInput) tokenInput.value = "";
+    if (tokenMsg) { tokenMsg.textContent = "Token saved."; tokenMsg.style.color="var(--accent)"; }
+    if (tokenDetails) tokenDetails.open = false;
+  }
+
+  submitFab?.addEventListener("click", () => openSubmitModal(""));
+  submitClose?.addEventListener("click", closeSubmitModal);
+  submitCancel?.addEventListener("click", closeSubmitModal);
+  submitSend?.addEventListener("click", handleSubmit);
+  tokenSave?.addEventListener("click", handleTokenSave);
+  tokenInput?.addEventListener("keydown", e => { if (e.key === "Enter") handleTokenSave(); });
+  submitText?.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit(); });
+  submitModal?.addEventListener("click", e => { if (e.target === submitModal) closeSubmitModal(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && submitModal && !submitModal.classList.contains("is-hidden")) {
+      e.stopPropagation(); closeSubmitModal();
+    }
+  }, true);
+
+  // Web Share Target
+  (function () {
+    const p = new URLSearchParams(window.location.search);
+    const shareUrl = p.get("share_url") || p.get("url") || "";
+    const shareText = p.get("share_text") || p.get("text") || "";
+    const shareTitle = p.get("share_title") || p.get("title") || "";
+    if (shareUrl || shareText) {
+      const prefill = [shareTitle, shareUrl, shareText].filter(Boolean).join("\n").trim();
+      setTimeout(() => openSubmitModal(prefill), 500);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  })();
+
+  refreshTokenUi();
+})();
+
+// ── Simple toast helper (browse-only) ────────────────────────────
+function showBrowseToast(msg, tone) {
+  const stack = document.getElementById("browse-toast-stack");
+  if (!stack) return;
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.dataset.tone = tone || "info";
+  el.textContent = msg;
+  stack.appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
 </script>
 </body>
 </html>
