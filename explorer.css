@@ -8,8 +8,8 @@
   --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.12);
   --fg: #ececee;
-  --fg-muted: #b6b6bf;
-  --fg-faint: #8a8a93;
+  --fg-muted: #c4c4cc;
+  --fg-faint: #9e9ea8;
   --accent: #ff6b3d;
   --accent-soft: rgba(255, 107, 61, 0.15);
   --success: #7ad3a6;
@@ -208,12 +208,12 @@ a:hover {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  z-index: 400;
-  background: var(--surface-1);
+  z-index: 600;
+  background: var(--surface-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  max-height: 380px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  max-height: min(520px, calc(100vh - 100px));
   overflow-y: auto;
 }
 .search-suggestions.is-hidden { display: none; }
@@ -1704,21 +1704,27 @@ a:hover {
 
 @media (max-width: 780px) {
   body {
-    --topbar-height: 138px;
+    --topbar-height: 104px;
   }
 
   .topbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
     grid-template-areas:
-      "brand"
-      "search"
-      "actions";
-    align-items: start;
+      "brand actions"
+      "search search";
+    align-items: center;
   }
 
   .topbar-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    max-width: 200px;
+  }
+
+  .topbar-actions::-webkit-scrollbar {
+    display: none;
   }
 
   .subbar {
@@ -1787,6 +1793,9 @@ a:hover {
 .submit-fab:active {
   transform: translateY(0) scale(0.97);
 }
+/* Hide FAB and toasts while any modal overlay is open */
+body.modal-open .submit-fab,
+body.modal-open .toast-stack { display: none; }
 .fab-label {
   display: inline;
 }

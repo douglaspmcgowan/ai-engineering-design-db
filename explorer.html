@@ -446,7 +446,7 @@
     <div class="modal-header">
       <div>
         <h2 id="submit-title">Add to graph</h2>
-        <div class="modal-note">Paste a URL, abstract, or notes — GPT-4o will structure it for the weekly rebuild.</div>
+        <div class="modal-note">Paste a URL, abstract, or notes — AI will parse and structure it for the next dataset rebuild.</div>
       </div>
       <button id="submit-close" class="modal-close" type="button" aria-label="Close">X</button>
     </div>
@@ -2143,6 +2143,7 @@ function setHelpTab(tabName) {
 function openHelp(tabName, options = {}) {
   setHelpTab(tabName);
   state.ui.openModal = "help";
+  document.body.classList.add("modal-open");
   dom.helpModal.classList.remove("is-hidden");
   dom.helpModal.setAttribute("aria-hidden", "false");
   if (options.focusButton !== false) {
@@ -2155,6 +2156,7 @@ function closeHelp(markVisited) {
   dom.helpModal.setAttribute("aria-hidden", "true");
   if (state.ui.openModal === "help") {
     state.ui.openModal = "";
+    document.body.classList.remove("modal-open");
   }
   if (markVisited) {
     localStorage.setItem(STORAGE_KEYS.visited, "true");
@@ -2163,6 +2165,7 @@ function closeHelp(markVisited) {
 
 function openFeedback() {
   state.ui.openModal = "feedback";
+  document.body.classList.add("modal-open");
   dom.feedbackModal.classList.remove("is-hidden");
   dom.feedbackModal.setAttribute("aria-hidden", "false");
   dom.feedbackMessage.focus();
@@ -2173,6 +2176,7 @@ function closeFeedback() {
   dom.feedbackModal.setAttribute("aria-hidden", "true");
   if (state.ui.openModal === "feedback") {
     state.ui.openModal = "";
+    document.body.classList.remove("modal-open");
   }
 }
 
@@ -2457,7 +2461,7 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
     label,
     font: {
       face: "Geist, sans-serif",
-      size: node.type === "Project" ? 11 : 11,
+      size: node.type === "Project" ? 12 : 11,
       color: palette.theme.fg,
       strokeWidth: 0,
     },
@@ -5315,6 +5319,7 @@ async function loadDefaultGraph() {
     if (!submitModal) return;
     submitModal.classList.remove("is-hidden");
     submitModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
     if (submitResultMsg) submitResultMsg.textContent = "";
     if (prefill && submitText) submitText.value = prefill;
     refreshTokenUi();
@@ -5324,6 +5329,7 @@ async function loadDefaultGraph() {
     if (!submitModal) return;
     submitModal.classList.add("is-hidden");
     submitModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
     if (submitText) submitText.value = "";
     if (submitResultMsg) submitResultMsg.textContent = "";
   }
