@@ -118,28 +118,32 @@ def embed_sentence_transformers(texts: list[str]) -> tuple[str, list[list[float]
     return model_name, vecs.tolist()
 
 
+OPENAI_EMBED_MODEL = "text-embedding-3-large"
+
+
 def embed_openai(texts: list[str]) -> tuple[str, list[list[float]]]:
     from openai import OpenAI  # type: ignore
+    import os
     client = OpenAI()
-    model_name = "text-embedding-3-small"
     out: list[list[float]] = []
     BATCH = 100
     for i in range(0, len(texts), BATCH):
         chunk = texts[i : i + BATCH]
-        resp = client.embeddings.create(model=model_name, input=chunk)
+        resp = client.embeddings.create(model=OPENAI_EMBED_MODEL, input=chunk)
         out.extend(d.embedding for d in resp.data)
         print(f"  embedded {min(i + BATCH, len(texts))}/{len(texts)}")
-    return model_name, out
+    return OPENAI_EMBED_MODEL, out
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main() -> int:
+    import os
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--backend",
-        default="sentence-transformers",
-        choices=["sentence-transformers", "openai"],
+        default="openai",
+        choices=["openai", "sentence-transformers"],
     )
     ap.add_argument("--neighbors", type=int, default=15,
                     help="UMAP n_neighbors (default 15)")
@@ -177,15 +181,20 @@ def main() -> int:
 
     # Embed
     print(f"\nEmbedding {len(texts)} texts with backend={args.backend}…")
-    if args.backend == "sentence-transformers":
+    if args.backend == "openai":
+        if not os.environ.get("OPENAI_API_KEY"):
+            print("OPENAI_API_KEY not set; falling back to sentence-transformers",
+                  file=sys.stderr)
+            model_name, vectors = embed_sentence_transformers(texts)
+        else:
+            model_name, vectors = embed_openai(texts)
+    else:
         try:
             model_name, vectors = embed_sentence_transformers(texts)
         except ImportError:
             print("sentence-transformers not installed, falling back to openai",
                   file=sys.stderr)
             model_name, vectors = embed_openai(texts)
-    else:
-        model_name, vectors = embed_openai(texts)
 
     print(f"  ✓ {len(vectors)} vectors ({len(vectors[0])}-dim) via {model_name}")
 

@@ -1,14 +1,15 @@
 """
-embed.py — generate sentence embeddings for each record in consolidated.jsonl.
+embed.py — generate embeddings for each record in consolidated.jsonl.
 
-Default backend: sentence-transformers (local, no API key). Falls back to OpenAI
-if SENTENCE_TRANSFORMERS unavailable but OPENAI_API_KEY is set.
+Default backend: OpenAI text-embedding-3-large (3072-dim, requires OPENAI_API_KEY).
+Falls back to sentence-transformers if --backend sentence-transformers is passed
+or if OPENAI_API_KEY is not set.
 
 Output: embeddings.jsonl with one line per record:
-    {"id": "...", "model": "...", "dim": 384, "vector": [...]}
+    {"id": "...", "model": "...", "dim": 3072, "vector": [...]}
 
 Usage:
-    python scripts/embed.py [--backend sentence-transformers|openai]
+    python scripts/embed.py [--backend openai|sentence-transformers]
 """
 from __future__ import annotations
 
@@ -21,6 +22,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 IN_FILE = ROOT / "consolidated.jsonl"
 OUT_FILE = ROOT / "embeddings.jsonl"
+
+OPENAI_EMBED_MODEL = "text-embedding-3-large"
 
 
 def build_text(rec: dict) -> str:
@@ -57,6 +60,22 @@ def load_records() -> list[dict]:
     return out
 
 
+def embed_openai(records: list[dict]) -> tuple[str, int, list[list[float]]]:
+    from openai import OpenAI  # type: ignore
+
+    client = OpenAI()
+    texts = [build_text(r) for r in records]
+    out: list[list[float]] = []
+    BATCH = 100
+    for i in range(0, len(texts), BATCH):
+        chunk = texts[i : i + BATCH]
+        resp = client.embeddings.create(model=OPENAI_EMBED_MODEL, input=chunk)
+        out.extend(d.embedding for d in resp.data)
+        print(f"  embedded {i + len(chunk)}/{len(texts)}")
+    dim = len(out[0]) if out else 0
+    return OPENAI_EMBED_MODEL, dim, out
+
+
 def embed_sentence_transformers(records: list[dict]) -> tuple[str, int, list[list[float]]]:
     from sentence_transformers import SentenceTransformer  # type: ignore
 
@@ -67,44 +86,30 @@ def embed_sentence_transformers(records: list[dict]) -> tuple[str, int, list[lis
     return model_name, vectors.shape[1], vectors.tolist()
 
 
-def embed_openai(records: list[dict]) -> tuple[str, int, list[list[float]]]:
-    from openai import OpenAI  # type: ignore
-
-    client = OpenAI()
-    model_name = "text-embedding-3-small"
-    texts = [build_text(r) for r in records]
-    # Batch in chunks of 100
-    out: list[list[float]] = []
-    BATCH = 100
-    for i in range(0, len(texts), BATCH):
-        chunk = texts[i : i + BATCH]
-        resp = client.embeddings.create(model=model_name, input=chunk)
-        out.extend(d.embedding for d in resp.data)
-        print(f"  embedded {i + len(chunk)}/{len(texts)}")
-    dim = len(out[0]) if out else 0
-    return model_name, dim, out
-
-
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument(
         "--backend",
-        default="sentence-transformers",
-        choices=["sentence-transformers", "openai"],
+        default="openai",
+        choices=["openai", "sentence-transformers"],
     )
     args = p.parse_args()
 
     records = load_records()
     print(f"Loaded {len(records)} records")
 
-    if args.backend == "sentence-transformers":
+    if args.backend == "openai":
+        if not os.environ.get("OPENAI_API_KEY"):
+            print("OPENAI_API_KEY not set; falling back to sentence-transformers", file=sys.stderr)
+            model_name, dim, vectors = embed_sentence_transformers(records)
+        else:
+            model_name, dim, vectors = embed_openai(records)
+    else:
         try:
             model_name, dim, vectors = embed_sentence_transformers(records)
         except ImportError:
             print("sentence-transformers not installed; falling back to openai", file=sys.stderr)
             model_name, dim, vectors = embed_openai(records)
-    else:
-        model_name, dim, vectors = embed_openai(records)
 
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         for rec, vec in zip(records, vectors):

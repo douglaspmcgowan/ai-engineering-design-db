@@ -2,8 +2,8 @@ name: Rebuild graph
 
 on:
   schedule:
-    - cron: "0 3 */2 * *"   # 3 AM UTC every other day
-  workflow_dispatch:          # allow manual trigger from GitHub UI
+    - cron: "0 3 * * 0"    # 3 AM UTC every Sunday
+  workflow_dispatch:         # allow manual trigger from GitHub UI
 
 jobs:
   rebuild:
@@ -16,45 +16,72 @@ jobs:
         with:
           fetch-depth: 0
 
+      # ── Early exit if inbox is empty ──────────────────────────────────────
+      - name: Check inbox
+        id: check
+        run: |
+          if [ ! -s raw/inbox.jsonl ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Inbox is empty — skipping pipeline run."
+          else
+            count=$(wc -l < raw/inbox.jsonl | tr -d ' ')
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Inbox has ${count} line(s) — running pipeline."
+          fi
+
+      # ── Everything below is skipped when inbox is empty ──────────────────
       - uses: actions/setup-python@v5
+        if: steps.check.outputs.skip == 'false'
         with:
           python-version: "3.11"
 
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.skip == 'false'
         with:
           node-version: "20"
 
       - name: Install npm dependencies
+        if: steps.check.outputs.skip == 'false'
         run: npm ci
 
       - name: Install Python dependencies
-        run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          else
-            pip install openai anthropic numpy umap-learn scikit-learn
-          fi
+        if: steps.check.outputs.skip == 'false'
+        run: pip install -r requirements.txt
 
+      # ── Step 1: LLM structuring — parse messy inbox into clean JSONL ─────
+      - name: Structure inbox with GPT-4o
+        if: steps.check.outputs.skip == 'false'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/structure-inbox.py
+
+      # ── Step 2: Full pipeline — consolidate → embed → UMAP → graph ───────
       - name: Run pipeline
+        if: steps.check.outputs.skip == 'false'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npm run pipeline
 
       - name: Generate embedding report
+        if: steps.check.outputs.skip == 'false'
         run: |
           if [ -f scripts/embedding-report.py ]; then
             python scripts/embedding-report.py
           fi
 
+      # ── Archive inbox and clear it for next run ───────────────────────────
       - name: Archive and clear inbox
+        if: steps.check.outputs.skip == 'false'
         run: |
           if [ -s raw/inbox.jsonl ]; then
             cp raw/inbox.jsonl "reports/inbox-$(date -u +%Y-%m-%d).jsonl"
           fi
           printf "" > raw/inbox.jsonl
 
+      # ── Commit results back to main ───────────────────────────────────────
       - name: Commit results
+        if: steps.check.outputs.skip == 'false'
         run: |
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
