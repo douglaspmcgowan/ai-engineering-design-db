@@ -440,6 +440,57 @@
   </div>
 </div>
 
+<!-- Submit to inbox modal -->
+<div id="submit-modal" class="modal-backdrop is-hidden" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="submit-title" style="max-width:520px">
+    <div class="modal-header">
+      <div>
+        <h2 id="submit-title">Add to graph</h2>
+        <div class="modal-note">Paste a URL, abstract, or notes — GPT-4o will structure it for the weekly rebuild.</div>
+      </div>
+      <button id="submit-close" class="modal-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px">
+      <div>
+        <div class="field-label">Project reference</div>
+        <textarea id="submit-text" class="textarea-input" rows="5" placeholder="https://arxiv.org/abs/2401.12345&#10;&#10;— or paste a title, abstract, notes, anything about an AI/ML engineering project."></textarea>
+      </div>
+      <details id="submit-token-details" class="submit-token-section">
+        <summary class="submit-token-summary" id="submit-token-summary-label">⚙ GitHub token <span id="submit-token-indicator" style="color:var(--fg-muted)">not set</span></summary>
+        <div style="padding:10px 0 2px;display:grid;gap:8px">
+          <div style="font-size:11px;color:var(--fg-muted);line-height:1.55">
+            Create a <strong style="color:var(--fg)">fine-grained token</strong> at
+            <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:var(--accent)">github.com/settings/tokens</a>
+            with <strong style="color:var(--fg)">Contents: Write</strong> access to the
+            <code style="font-size:10px">ai-engineering-design-db</code> repo only.
+            Stored in your browser, never transmitted anywhere except GitHub.
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="submit-token-input" class="text-input" type="password" placeholder="github_pat_…" style="flex:1;font-family:var(--mono);font-size:11px">
+            <button id="submit-token-save" class="ghost-button is-strong" type="button">Save</button>
+          </div>
+          <div id="submit-token-msg" style="font-size:11px;min-height:14px;color:var(--fg-muted)"></div>
+        </div>
+      </details>
+    </div>
+    <div class="modal-footer">
+      <div id="submit-result-msg" class="modal-note" style="color:var(--fg-muted)"></div>
+      <div class="modal-actions">
+        <button id="submit-cancel" class="ghost-button" type="button">Cancel</button>
+        <button id="submit-send" class="ghost-button is-strong" type="button">Submit →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FAB: add project to inbox -->
+<button id="submit-fab" class="submit-fab" type="button" title="Add a project to the graph" aria-label="Submit a project">
+  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <line x1="11" y1="3" x2="11" y2="19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="3" y1="11" x2="19" y2="11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  </svg>
+</button>
+
 <!-- Interactive tour overlay -->
 <div id="tour-overlay" class="tour-overlay is-hidden" aria-hidden="true">
   <div id="tour-tooltip" class="tour-tooltip">
@@ -5141,6 +5192,189 @@ async function loadDefaultGraph() {
     showToast(msg, "warn");
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Submit-to-inbox feature — GitHub API + FAB
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
+  const OWNER = "douglaspmcgowan";
+  const REPO  = "ai-engineering-design-db";
+  const PATH  = "raw/inbox.jsonl";
+  const API   = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
+  const TOKEN_KEY = "inbox-gh-token";
+
+  // ── DOM refs ───────────────────────────────────────────────────────────────
+  const submitModal    = document.getElementById("submit-modal");
+  const submitFab      = document.getElementById("submit-fab");
+  const submitClose    = document.getElementById("submit-close");
+  const submitCancel   = document.getElementById("submit-cancel");
+  const submitSend     = document.getElementById("submit-send");
+  const submitText     = document.getElementById("submit-text");
+  const submitResultMsg= document.getElementById("submit-result-msg");
+  const tokenDetails   = document.getElementById("submit-token-details");
+  const tokenInput     = document.getElementById("submit-token-input");
+  const tokenSave      = document.getElementById("submit-token-save");
+  const tokenMsg       = document.getElementById("submit-token-msg");
+  const tokenIndicator = document.getElementById("submit-token-indicator");
+
+  // ── Token helpers ──────────────────────────────────────────────────────────
+  function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
+  function saveToken(t) {
+    localStorage.setItem(TOKEN_KEY, t.trim());
+    refreshTokenUi();
+  }
+  function refreshTokenUi() {
+    const t = getToken();
+    if (tokenIndicator) {
+      tokenIndicator.textContent = t ? "✓ set" : "not set";
+      tokenIndicator.style.color = t ? "var(--accent)" : "var(--fg-muted)";
+    }
+    if (!t && tokenDetails) tokenDetails.open = true;
+  }
+
+  // ── UTF-8-safe base64 helpers ──────────────────────────────────────────────
+  function b64Encode(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+  function b64Decode(str) {
+    return decodeURIComponent(escape(atob(str.replace(/\n/g, ""))));
+  }
+
+  // ── GitHub API ─────────────────────────────────────────────────────────────
+  async function appendToInbox(rawText) {
+    const token = getToken();
+    if (!token) throw new Error("No GitHub token — open ⚙ to add one.");
+
+    const headers = {
+      Authorization: `token ${token}`,
+      Accept: "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+    };
+
+    // Get current file (may 404 if inbox is empty / never committed)
+    let sha = null;
+    let existing = "";
+    const getRes = await fetch(API, { headers });
+    if (getRes.ok) {
+      const data = await getRes.json();
+      sha = data.sha;
+      existing = b64Decode(data.content);
+    } else if (getRes.status !== 404) {
+      const err = await getRes.json().catch(() => ({}));
+      throw new Error(err.message || `GitHub GET error ${getRes.status}`);
+    }
+
+    // Append: one line per entry (raw text — structure-inbox.py handles it)
+    const newContent = existing.trimEnd()
+      ? existing.trimEnd() + "\n" + rawText.trim() + "\n"
+      : rawText.trim() + "\n";
+    const encoded = b64Encode(newContent);
+
+    const body = { message: "feat: add inbox entry via explorer", content: encoded };
+    if (sha) body.sha = sha;
+
+    const putRes = await fetch(API, { method: "PUT", headers, body: JSON.stringify(body) });
+    if (!putRes.ok) {
+      const err = await putRes.json().catch(() => ({}));
+      throw new Error(err.message || `GitHub PUT error ${putRes.status}`);
+    }
+  }
+
+  // ── Modal open/close ───────────────────────────────────────────────────────
+  function openSubmitModal(prefill) {
+    if (!submitModal) return;
+    submitModal.classList.remove("is-hidden");
+    submitModal.setAttribute("aria-hidden", "false");
+    if (submitResultMsg) submitResultMsg.textContent = "";
+    if (prefill && submitText) submitText.value = prefill;
+    refreshTokenUi();
+    requestAnimationFrame(() => submitText && submitText.focus());
+  }
+  function closeSubmitModal() {
+    if (!submitModal) return;
+    submitModal.classList.add("is-hidden");
+    submitModal.setAttribute("aria-hidden", "true");
+    if (submitText) submitText.value = "";
+    if (submitResultMsg) submitResultMsg.textContent = "";
+  }
+
+  // ── Submit handler ─────────────────────────────────────────────────────────
+  async function handleSubmit() {
+    const text = (submitText?.value || "").trim();
+    if (!text) { showToast("Paste something first.", "warn"); return; }
+    if (!getToken()) {
+      if (tokenDetails) tokenDetails.open = true;
+      if (tokenInput) tokenInput.focus();
+      showToast("Add your GitHub token first (⚙ section below).", "warn");
+      return;
+    }
+    submitSend.disabled = true;
+    submitSend.textContent = "Submitting…";
+    if (submitResultMsg) submitResultMsg.textContent = "";
+    try {
+      await appendToInbox(text);
+      if (submitResultMsg) {
+        submitResultMsg.textContent = "✓ Added to inbox. Will appear after the next weekly rebuild.";
+        submitResultMsg.style.color = "var(--accent)";
+      }
+      showToast("Submitted! Graph updates weekly.", "success");
+      setTimeout(closeSubmitModal, 2200);
+    } catch (err) {
+      if (submitResultMsg) {
+        submitResultMsg.textContent = "✗ " + err.message;
+        submitResultMsg.style.color = "#f87171";
+      }
+      showToast(err.message, "warn");
+    } finally {
+      submitSend.disabled = false;
+      submitSend.textContent = "Submit →";
+    }
+  }
+
+  // ── Token save handler ─────────────────────────────────────────────────────
+  function handleTokenSave() {
+    const val = (tokenInput?.value || "").trim();
+    if (!val) { if (tokenMsg) { tokenMsg.textContent = "Token cannot be empty."; tokenMsg.style.color="#f87171"; } return; }
+    saveToken(val);
+    if (tokenInput) tokenInput.value = "";
+    if (tokenMsg) { tokenMsg.textContent = "Token saved."; tokenMsg.style.color="var(--accent)"; }
+    if (tokenDetails) tokenDetails.open = false;
+  }
+
+  // ── Events ─────────────────────────────────────────────────────────────────
+  submitFab?.addEventListener("click", () => openSubmitModal(""));
+  submitClose?.addEventListener("click", closeSubmitModal);
+  submitCancel?.addEventListener("click", closeSubmitModal);
+  submitSend?.addEventListener("click", handleSubmit);
+  tokenSave?.addEventListener("click", handleTokenSave);
+  tokenInput?.addEventListener("keydown", e => { if (e.key === "Enter") handleTokenSave(); });
+  submitText?.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit(); });
+  submitModal?.addEventListener("click", e => { if (e.target === submitModal) closeSubmitModal(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && submitModal && !submitModal.classList.contains("is-hidden")) {
+      closeSubmitModal();
+    }
+  });
+
+  // ── iOS/Android Web Share Target — detect ?share_url / ?share_text params ─
+  (function handleShareTarget() {
+    const params = new URLSearchParams(window.location.search);
+    const shareUrl  = params.get("share_url")  || params.get("url")  || "";
+    const shareText = params.get("share_text") || params.get("text") || "";
+    const shareTitle= params.get("share_title")|| params.get("title")|| "";
+    if (shareUrl || shareText) {
+      const prefill = [shareTitle, shareUrl, shareText].filter(Boolean).join("\n").trim();
+      // Open after graph is ready so DOM is stable
+      setTimeout(() => openSubmitModal(prefill), 1000);
+      // Clean URL without reload
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+    }
+  })();
+
+  // Init token UI
+  refreshTokenUi();
+})();
 
 applyPalette(loadStoredPaletteIndex(), false);
 renderHelpContent();
