@@ -2211,15 +2211,30 @@ init();
   const tokenMsg       = document.getElementById("submit-token-msg");
   const tokenIndicator = document.getElementById("submit-token-indicator");
 
+  // ── Admin mode (token section gated) ──────────────────────────────────────
+  (function () {
+    if (new URLSearchParams(window.location.search).has("admin")) {
+      sessionStorage.setItem("inbox-admin-session", "1");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  })();
+  function isAdminMode() {
+    return !!(localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem("inbox-admin-session"));
+  }
+
   function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
   function saveToken(t) { localStorage.setItem(TOKEN_KEY, t.trim()); refreshTokenUi(); }
   function refreshTokenUi() {
     const t = getToken();
+    const admin = isAdminMode();
+    if (tokenDetails) {
+      tokenDetails.style.display = admin ? "" : "none";
+      if (admin && !t) tokenDetails.open = true;
+    }
     if (tokenIndicator) {
       tokenIndicator.textContent = t ? "✓ set" : "not set";
       tokenIndicator.style.color = t ? "var(--accent)" : "var(--fg-muted)";
     }
-    if (!t && tokenDetails) tokenDetails.open = true;
   }
 
   function b64Encode(str) { return btoa(unescape(encodeURIComponent(str))); }
@@ -2274,9 +2289,16 @@ init();
     const text = (submitText?.value || "").trim();
     if (!text) { showBrowseToast("Paste something first.", "warn"); return; }
     if (!getToken()) {
-      if (tokenDetails) tokenDetails.open = true;
-      if (tokenInput) tokenInput.focus();
-      showBrowseToast("Add your GitHub token first (⚙ section below).", "warn");
+      if (isAdminMode()) {
+        if (tokenDetails) { tokenDetails.style.display = ""; tokenDetails.open = true; }
+        if (tokenInput) tokenInput.focus();
+        showBrowseToast("Add your GitHub token first (⚙ section below).", "warn");
+      } else {
+        if (submitResultMsg) {
+          submitResultMsg.textContent = "Submissions are curated by the owner of this graph.";
+          submitResultMsg.style.color = "var(--fg-muted)";
+        }
+      }
       return;
     }
     submitSend.disabled = true;
