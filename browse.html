@@ -262,6 +262,7 @@ body {
   border-radius: var(--radius-lg); padding: 13px;
   cursor: pointer; transition: border-color 120ms, transform 120ms;
   display: flex; flex-direction: column; gap: 7px;
+  min-width: 0; /* allow grid item to shrink below content min-width */
 }
 .project-card:hover {
   border-color: var(--border-strong);
@@ -650,9 +651,12 @@ body {
   font-family: var(--font, sans-serif); font-size: 13px; font-weight: 600;
   white-space: nowrap;
   box-shadow: 0 3px 16px rgba(255,107,61,0.5), 0 1px 6px rgba(0,0,0,0.4);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, right 220ms ease;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
+/* Shift FAB left when detail panel is open so it doesn't cover content */
+.detail-panel.open ~ #submit-fab,
+body.detail-fab-shift #submit-fab { right: 404px; }
 .submit-fab:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(255,107,61,0.55), 0 2px 10px rgba(0,0,0,0.45); }
 .submit-fab:active { transform: translateY(0) scale(0.97); }
 .fab-label { display: inline; }
@@ -951,8 +955,8 @@ body {
           <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
         <div class="dropzone-label">Drop files here or <span class="dropzone-browse">browse</span></div>
-        <div class="dropzone-hint">PNG · JPG · PDF · TXT · MD · JSON</div>
-        <input id="submit-file-input" type="file" accept="image/*,application/pdf,text/*,.md,.txt,.csv,.json,.jsonl" multiple style="display:none">
+        <div class="dropzone-hint">PNG · JPG · PDF · TXT · MD · DOCX · PPTX · HTML</div>
+        <input id="submit-file-input" type="file" accept="image/*,application/pdf,text/*,.md,.txt,.csv,.json,.jsonl,.docx,.doc,.pptx,.ppt,.html,.htm" multiple style="display:none">
       </div>
       <div id="submit-file-list" class="submit-file-list"></div>
       <div>
@@ -1820,6 +1824,7 @@ function selectEntity(id) {
   if (!p) return;
   document.getElementById("detail-inner").innerHTML = buildDetailHTML(p);
   document.getElementById("detail-panel").classList.add("open");
+  document.body.classList.add("detail-fab-shift");
 }
 
 function buildDetailHTML(p) {
@@ -2012,6 +2017,7 @@ function buildEntityDetail(p) {
 function closeDetail() {
   S.selectedId = null;
   document.getElementById("detail-panel").classList.remove("open");
+  document.body.classList.remove("detail-fab-shift");
   document.querySelectorAll("[data-id].selected").forEach(el => el.classList.remove("selected"));
   // Restore "click to see details" hint
   const inner = document.getElementById("detail-inner");
@@ -2022,8 +2028,10 @@ function toggleDetailStrip() {
   const panel = document.getElementById("detail-panel");
   if (panel.classList.contains("open")) {
     panel.classList.remove("open");
+    document.body.classList.remove("detail-fab-shift");
   } else {
     panel.classList.add("open");
+    document.body.classList.add("detail-fab-shift");
   }
 }
 
@@ -2192,7 +2200,7 @@ init();
 
 // ── Submit modal (GitHub inbox) ───────────────────────────────────
 (function () {
-  const OWNER = "dougmcgowan";
+  const OWNER = "douglaspmcgowan";
   const REPO  = "ai-engineering-design-db";
   const PATH  = "raw/inbox.jsonl";
   const API   = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
@@ -2428,6 +2436,14 @@ init();
               appendToTextarea(`[PDF: ${file.name}]\n— paste title/abstract below`);
               statusEl.textContent = "⚠ binary PDF — add notes"; statusEl.className = "submit-file-status warn";
             }
+          } else if (/\.(docx?|pptx?|xlsx?)$/i.test(file.name)) {
+            appendToTextarea(`[${file.name}]\n— paste the title/abstract or description below`);
+            statusEl.textContent = "⚠ binary — add notes"; statusEl.className = "submit-file-status warn";
+          } else if (/\.html?$/i.test(file.name) || file.type === "text/html") {
+            const text = await readText(file);
+            const stripped = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+            appendToTextarea(stripped.slice(0, 5000));
+            statusEl.textContent = "✓ text extracted"; statusEl.className = "submit-file-status ok";
           } else {
             const text = await readText(file);
             appendToTextarea(text.slice(0, 5000));

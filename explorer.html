@@ -458,8 +458,8 @@
           <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
         <div class="dropzone-label">Drop files here or <span class="dropzone-browse">browse</span></div>
-        <div class="dropzone-hint">PNG · JPG · PDF · TXT · MD · JSON</div>
-        <input id="submit-file-input" type="file" accept="image/*,application/pdf,text/*,.md,.txt,.csv,.json,.jsonl" multiple style="display:none">
+        <div class="dropzone-hint">PNG · JPG · PDF · TXT · MD · DOCX · PPTX · HTML</div>
+        <input id="submit-file-input" type="file" accept="image/*,application/pdf,text/*,.md,.txt,.csv,.json,.jsonl,.docx,.doc,.pptx,.ppt,.html,.htm" multiple style="display:none">
       </div>
       <div id="submit-file-list" class="submit-file-list"></div>
       <div>
@@ -5462,6 +5462,14 @@ async function loadDefaultGraph() {
               appendToTextarea(`[PDF: ${file.name}]\n— paste title/abstract below`);
               statusEl.textContent = "⚠ binary PDF — add notes"; statusEl.className = "submit-file-status warn";
             }
+          } else if (/\.(docx?|pptx?|xlsx?)$/i.test(file.name)) {
+            appendToTextarea(`[${file.name}]\n— paste the title/abstract or description below`);
+            statusEl.textContent = "⚠ binary — add notes"; statusEl.className = "submit-file-status warn";
+          } else if (/\.html?$/i.test(file.name) || file.type === "text/html") {
+            const text = await readText(file);
+            const stripped = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+            appendToTextarea(stripped.slice(0, 5000));
+            statusEl.textContent = "✓ text extracted"; statusEl.className = "submit-file-status ok";
           } else {
             const text = await readText(file);
             appendToTextarea(text.slice(0, 5000));
