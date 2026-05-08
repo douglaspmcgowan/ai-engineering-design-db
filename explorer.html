@@ -154,6 +154,7 @@
     <div id="canvas-surface" class="canvas-surface">
       <div id="network"></div>
       <svg id="cluster-overlay" class="cluster-overlay" aria-hidden="true"></svg>
+      <svg id="chrono-axis" class="chrono-axis is-hidden" aria-hidden="true"></svg>
 
       <div class="canvas-actions">
         <button id="fit-button" class="ghost-button" type="button">Fit</button>
@@ -199,6 +200,7 @@
         <button id="context-select-button" type="button">Select &amp; show details</button>
         <button id="context-focus-button" type="button">Focus / discover</button>
         <button id="context-pin-button" type="button">📌 Pin node</button>
+        <button id="context-deck-button" type="button">🎞 Add to presentation deck</button>
         <button id="context-hide-button" type="button">Remove from view</button>
       </div>
     </div>
@@ -378,6 +380,31 @@
     </div>
   </aside>
 </main>
+
+<!-- Presentation mode overlay -->
+<div id="presentation-overlay" class="presentation-overlay is-hidden" aria-hidden="true">
+  <div class="pres-topbar">
+    <span class="pres-title" id="pres-title">Presentation</span>
+    <span class="pres-counter" id="pres-counter">0 / 0</span>
+    <button class="pres-exit-btn" id="pres-exit-btn" type="button" title="Exit presentation (Esc)">✕ Exit</button>
+  </div>
+  <div class="pres-filmstrip" id="pres-filmstrip">
+    <button class="pres-filmstrip-add-hint" id="pres-filmstrip-hint" type="button">
+      Right-click any node → "Add to deck" to build your presentation
+    </button>
+  </div>
+  <div class="pres-nav">
+    <button class="pres-nav-btn" id="pres-prev-btn" type="button" title="Previous slide (←)">← Prev</button>
+    <button class="pres-nav-btn" id="pres-next-btn" type="button" title="Next slide (→)">Next →</button>
+  </div>
+  <div class="pres-notes-panel is-hidden" id="pres-notes-panel">
+    <div class="pres-notes-header">
+      <span>Speaker notes</span>
+      <button class="pres-notes-close" id="pres-notes-close" type="button">✕</button>
+    </div>
+    <textarea class="pres-notes-area" id="pres-notes-area" placeholder="Type speaker notes here…"></textarea>
+  </div>
+</div>
 
 <div id="help-modal" class="modal-backdrop is-hidden" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
@@ -709,6 +736,7 @@ const SHORTCUT_ROWS = [
   { key: "F", copy: "Toggle physics simulation on/off." },
   { key: "?", copy: "Open this help panel." },
   { key: "P", copy: "Open palette picker." },
+  { key: "Shift+P", copy: "Toggle Presentation mode — filmstrip deck, arrow-key navigation, speaker notes (N)." },
   { key: "Ctrl+click", copy: "Add/remove nodes from multi-selection." },
 ];
 
@@ -1013,6 +1041,9 @@ const state = {
   embedActive: false,
   embedAllNodes: false,   // true = show all 2405 nodes in embed mode using embed_all_x/y
   chronoActive: false,    // F7: Litmaps-style chronological timeline mode
+  presentationActive: false, // Presentation mode: filmstrip tray, fullscreen canvas
+  presentationDeck: [],   // ordered array of {nodeId, notes} slide entries
+  presentationSlide: 0,   // current slide index (0-based)
   clusterLabelMode: "C",
   focus: null,
   selection: {
@@ -1037,6 +1068,7 @@ const state = {
     hoverPosition: { x: 0, y: 0 },
     hullRafId: 0,
     hullZoomDebounceId: 0,
+    chronoAxisDebounceId: 0,
     zoomScale: 1,
     embedDrawingListenerActive: false,
     hoveredHullKey: "",
@@ -2433,9 +2465,16 @@ function buildBaseEligibleNodeIds() {
   return eligible;
 }
 
+// Chrono edge types: only show research-link edges between project papers, not structural org/category links
+const CHRONO_EDGE_TYPES = new Set(["CITES", "BUILT_ON", "BENCHMARKED_AGAINST", "SEMANTICALLY_NEAR"]);
+// All-nodes embed: suppress SEMANTICALLY_NEAR edges (too many random-looking cross-cluster lines)
+const EMBED_ALL_EDGE_TYPES = new Set(["CITES", "BUILT_ON", "BENCHMARKED_AGAINST"]);
+
 function getActiveEdgeTypeSet() {
+  if (state.chronoActive) return CHRONO_EDGE_TYPES;
   if (!state.embedActive) return state.filters.edgeTypes;
-  return EMBED_EDGE_TYPES; // both embed modes: semantic edges only (no structural starburst)
+  if (state.embedAllNodes) return EMBED_ALL_EDGE_TYPES;
+  return EMBED_EDGE_TYPES; // projects-only embed: include SEMANTICALLY_NEAR for semantic connections
 }
 
 function buildVisibleEdgeIds(visibleNodeIds) {
@@ -2455,6 +2494,13 @@ function buildVisibleEdgeIds(visibleNodeIds) {
       if (sourceNode?.type !== "Project" || targetNode?.type !== "Project") {
         continue;
       }
+    }
+    if (state.chronoActive) {
+      // Chrono mode: only project-to-project edges (structural edges to orgs/categories
+      // would create confusing lines crossing the timeline axis).
+      const srcType = state.caches.nodeById.get(edge.source)?.type;
+      const tgtType = state.caches.nodeById.get(edge.target)?.type;
+      if (srcType !== "Project" || tgtType !== "Project") continue;
     }
     edgeIds.add(edge.id);
   }
@@ -2579,20 +2625,23 @@ function getFocusDisplayDepth(focusState = state.focus) {
 }
 
 function getPreferredPosition(nodeId) {
-  // F7: Chronological / Litmaps mode — year on x-axis, embed_y on y-axis.
-  // Projects with both year and embed_y get placed on the timeline; others fall back.
+  // F7: Chronological / Litmaps mode — Project nodes only, year on x-axis,
+  // weighted semantic y: 0.4×embed_x + 0.6×embed_y for richer vertical spread.
   if (state.chronoActive) {
     const node = state.caches.nodeById.get(nodeId);
-    const yr = Number(node?.props?.year);
-    const ey = Number(node?.props?.embed_all_y ?? node?.props?.embed_y);
-    if (Number.isFinite(yr) && Number.isFinite(ey)) {
-      // Map year linearly: yearRange[0] → -2400, yearRange[1] → 2400 (canvas units)
-      const [yMin, yMax] = state.data.yearRange || [2010, 2026];
-      const span = Math.max(1, yMax - yMin);
-      const x = ((yr - yMin) / span) * 4800 - 2400;
-      const y = ey * 200; // wider vertical spread than embed mode (×200 vs ×120)
-      return { x, y };
+    if (node?.type === "Project") {
+      const yr = Number(node?.props?.year);
+      const ex = Number(node?.props?.embed_x);
+      const ey = Number(node?.props?.embed_y);
+      if (Number.isFinite(yr) && Number.isFinite(ex) && Number.isFinite(ey)) {
+        const [yMin, yMax] = state.data.yearRange || [2010, 2026];
+        const span = Math.max(1, yMax - yMin);
+        const x = ((yr - yMin) / span) * 4800 - 2400;
+        const y = (ex * 0.4 + ey * 0.6) * 300; // weighted for organic vertical placement
+        return { x, y };
+      }
     }
+    // Non-project nodes fall through to cached/initial position
   }
   if (state.embedActive) {
     const node = state.caches.nodeById.get(nodeId);
@@ -2704,7 +2753,7 @@ function buildRenderedEdge(edgeId) {
     },
     width: edge.type === "SEMANTICALLY_NEAR" ? 1 : Math.min(3, 1 + edge.weight * 0.4),
     dashes: getEdgeDashes(edge.type),
-    smooth: state.embedActive
+    smooth: (state.embedActive || state.chronoActive)
       ? {
           enabled: true,
           type: "continuous",
@@ -2833,7 +2882,8 @@ function applyView(options = {}) {
   updateFocusExitButtonLabel();
   dom.focusExitButton.classList.toggle("is-hidden", !state.focus);
   syncModeButton();
-  dom.clusterLabelToggle.classList.toggle("is-hidden", !state.embedActive);
+  // Cluster label mode buttons only apply in projects-only embed (not all-nodes, where cluster_k_all is used)
+  dom.clusterLabelToggle.classList.toggle("is-hidden", !state.embedActive || state.embedAllNodes);
   document.getElementById("embed-hint")?.classList.toggle("is-hidden", !state.embedActive);
   // Hide physics/preset panels in embed mode — irrelevant there
   document.getElementById("tools-presets-section")?.classList.toggle("is-hidden", state.embedActive);
@@ -2853,6 +2903,7 @@ function applyView(options = {}) {
   }
 
   scheduleClusterHullRender();
+  if (state.chronoActive) scheduleChronoAxisRender();
   if (options.fit) {
     fitVisibleGraph(options.fitDuration || 280);
   }
@@ -3908,6 +3959,16 @@ function toggleEmbed(announce = true) {
     return;
   }
   if (!state.embedActive) {
+    // Tech debt fix: clear any running physics timers before entering embed mode.
+    // Without this, a settlePhysics() timer could fire during embed and re-enable
+    // the physics engine, causing nodes to drift away from their UMAP positions.
+    window.clearTimeout(state.timers.physics);
+    window.clearInterval(state.timers.physicsInterval);
+    state.timers.physics = 0;
+    state.timers.physicsInterval = 0;
+    for (const t of _gephiTimers) window.clearTimeout(t);
+    _gephiTimers.length = 0;
+
     // Bug 24 fix: snapshot the pre-embed view state so we can restore it cleanly
     // on exit instead of relying on fit() to reconstruct it.
     state.caches.preEmbedSnapshot = {
@@ -3943,6 +4004,9 @@ function toggleEmbed(announce = true) {
         padding: 120,
         animation: { duration: 600, easingFunction: "easeInOutQuad" },
       });
+      // Hull desync fix: re-render hulls after fit animation completes so they
+      // match the final DOM positions rather than the pre-animation snapshot.
+      window.setTimeout(scheduleClusterHullRender, 680);
     }, 80);
     if (announce) {
       showToast("Semantic map — 2380 nodes in joint embedding space.", "success");
@@ -3990,16 +4054,212 @@ function toggleChrono(announce = true) {
     if (state.embedActive) toggleEmbed(false);  // can't be in both
     state.chronoActive = true;
     applyView({ fit: false });
-    window.setTimeout(() => state.network?.fit({
-      padding: 80,
-      animation: { duration: 600, easingFunction: "easeInOutQuad" },
-    }), 80);
-    if (announce) showToast("Chronological mode — year on x-axis, semantic on y-axis.", "success");
+    window.setTimeout(() => {
+      state.network?.fit({
+        padding: 80,
+        animation: { duration: 600, easingFunction: "easeInOutQuad" },
+      });
+      // Delay axis render slightly so fit() can compute DOM positions first
+      window.setTimeout(renderChronoAxis, 700);
+    }, 80);
+    if (announce) showToast("Chronological — year axis · Project nodes only · Weighted semantic y.", "success");
     return;
   }
   state.chronoActive = false;
+  renderChronoAxis(); // clears the overlay
   applyView({ fit: true });
   if (announce) showToast("Chronological mode disabled.", "success");
+}
+
+// ── Presentation Mode ──────────────────────────────────────────────────────
+// Shift+P toggles presentation. The layout collapses sidebars, a filmstrip tray
+// appears at the bottom showing the deck. Arrow keys navigate slide-to-slide
+// with camera pan-zoom to each node. Right-click → "Add to deck" to build deck.
+// N key opens/closes speaker notes. Deck persists in localStorage.
+
+const PRES_STORAGE_KEY = "ai-engdb-pres-deck-v1";
+
+function loadPresDeck() {
+  try {
+    const raw = localStorage.getItem(PRES_STORAGE_KEY);
+    if (raw) state.presentationDeck = JSON.parse(raw);
+  } catch (_) { state.presentationDeck = []; }
+}
+
+function savePresDeck() {
+  try { localStorage.setItem(PRES_STORAGE_KEY, JSON.stringify(state.presentationDeck)); } catch (_) {}
+}
+
+function togglePresentation() {
+  if (state.presentationActive) {
+    exitPresentation();
+  } else {
+    enterPresentation();
+  }
+}
+
+function enterPresentation() {
+  state.presentationActive = true;
+  // Collapse both sidebars for full-canvas view
+  const layout = document.querySelector(".layout");
+  if (layout) {
+    layout.setAttribute("data-left-collapsed", "");
+    layout.setAttribute("data-right-collapsed", "");
+  }
+  const overlay = document.getElementById("presentation-overlay");
+  if (overlay) {
+    overlay.classList.remove("is-hidden");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+  renderFilmstrip();
+  if (state.presentationDeck.length > 0) {
+    goToSlide(state.presentationSlide, false);
+  }
+  showToast("Presentation mode — ← → to navigate · N for notes · Esc to exit", "success");
+}
+
+function exitPresentation() {
+  state.presentationActive = false;
+  const overlay = document.getElementById("presentation-overlay");
+  if (overlay) {
+    overlay.classList.add("is-hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+  // Save notes from textarea if open
+  saveCurrentSlideNotes();
+  showToast("Presentation mode exited.", "success");
+}
+
+function addNodeToDeck(nodeId) {
+  const node = state.caches.nodeById.get(nodeId);
+  if (!node) return;
+  // Avoid exact duplicate
+  if (state.presentationDeck.some((s) => s.nodeId === nodeId)) {
+    showToast("Node already in deck.", "warn");
+    return;
+  }
+  state.presentationDeck.push({ nodeId, notes: "" });
+  savePresDeck();
+  if (state.presentationActive) renderFilmstrip();
+  showToast("Added to presentation deck: " + truncateText(node.label, 32), "success");
+}
+
+function removeNodeFromDeck(index) {
+  state.presentationDeck.splice(index, 1);
+  if (state.presentationSlide >= state.presentationDeck.length) {
+    state.presentationSlide = Math.max(0, state.presentationDeck.length - 1);
+  }
+  savePresDeck();
+  if (state.presentationActive) renderFilmstrip();
+}
+
+function goToSlide(index, animate = true) {
+  if (!state.presentationDeck.length) return;
+  saveCurrentSlideNotes();
+  state.presentationSlide = Math.max(0, Math.min(state.presentationDeck.length - 1, index));
+  const slide = state.presentationDeck[state.presentationSlide];
+  renderFilmstrip();
+  // Pan-zoom to the node
+  const nodeId = slide.nodeId;
+  if (state.network && state.currentView.nodeIds.has(nodeId)) {
+    const positions = state.network.getPositions([nodeId]);
+    const pos = positions[nodeId];
+    if (pos) {
+      state.network.moveTo({
+        position: { x: pos.x, y: pos.y },
+        scale: 1.4,
+        animation: animate
+          ? { duration: 480, easingFunction: "easeInOutQuad" }
+          : false,
+      });
+    }
+  }
+  // Update notes textarea
+  const notesArea = document.getElementById("pres-notes-area");
+  if (notesArea) notesArea.value = slide.notes || "";
+}
+
+function saveCurrentSlideNotes() {
+  const notesArea = document.getElementById("pres-notes-area");
+  if (!notesArea || !state.presentationDeck[state.presentationSlide]) return;
+  state.presentationDeck[state.presentationSlide].notes = notesArea.value;
+  savePresDeck();
+}
+
+function renderFilmstrip() {
+  const strip = document.getElementById("pres-filmstrip");
+  const hint = document.getElementById("pres-filmstrip-hint");
+  const counter = document.getElementById("pres-counter");
+  const title = document.getElementById("pres-title");
+  if (!strip) return;
+
+  const deck = state.presentationDeck;
+  if (counter) counter.textContent = deck.length ? (state.presentationSlide + 1) + " / " + deck.length : "0 / 0";
+
+  if (!deck.length) {
+    if (hint) hint.classList.remove("is-hidden");
+    // Remove any existing slide thumbs
+    strip.querySelectorAll(".pres-thumb").forEach((el) => el.remove());
+    if (title) title.textContent = "Presentation";
+    return;
+  }
+  if (hint) hint.classList.add("is-hidden");
+
+  // Re-render slide thumbnails
+  strip.querySelectorAll(".pres-thumb").forEach((el) => el.remove());
+  deck.forEach((slide, i) => {
+    const node = state.caches.nodeById.get(slide.nodeId);
+    if (!node) return;
+    const thumb = document.createElement("button");
+    thumb.className = "pres-thumb" + (i === state.presentationSlide ? " is-active" : "");
+    thumb.type = "button";
+    thumb.title = node.label;
+    const color = getNodeColor(node.type);
+    thumb.innerHTML =
+      "<span class='pres-thumb-dot' style='background:" + color + "'></span>" +
+      "<span class='pres-thumb-label'>" + escapeHtml(truncateText(node.label, 22)) + "</span>" +
+      "<button class='pres-thumb-remove' type='button' title='Remove' data-idx='" + i + "'>×</button>";
+    thumb.addEventListener("click", (e) => {
+      if (e.target.classList.contains("pres-thumb-remove")) return;
+      goToSlide(i);
+    });
+    thumb.querySelector(".pres-thumb-remove").addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeNodeFromDeck(Number(e.currentTarget.dataset.idx));
+    });
+    strip.appendChild(thumb);
+  });
+
+  const currentNode = state.caches.nodeById.get(deck[state.presentationSlide]?.nodeId);
+  if (title && currentNode) title.textContent = currentNode.label;
+
+  // Scroll active thumb into view
+  const activeThumb = strip.querySelector(".pres-thumb.is-active");
+  if (activeThumb) activeThumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+}
+
+function togglePresentationNotes() {
+  const panel = document.getElementById("pres-notes-panel");
+  if (!panel) return;
+  panel.classList.toggle("is-hidden");
+}
+
+function initPresentation() {
+  loadPresDeck();
+  document.getElementById("pres-exit-btn")?.addEventListener("click", exitPresentation);
+  document.getElementById("pres-prev-btn")?.addEventListener("click", () => goToSlide(state.presentationSlide - 1));
+  document.getElementById("pres-next-btn")?.addEventListener("click", () => goToSlide(state.presentationSlide + 1));
+  document.getElementById("pres-notes-close")?.addEventListener("click", () => {
+    document.getElementById("pres-notes-panel")?.classList.add("is-hidden");
+  });
+  document.getElementById("pres-notes-area")?.addEventListener("input", () => {
+    saveCurrentSlideNotes();
+  });
+  // Wire up the context menu deck button
+  document.getElementById("context-deck-button")?.addEventListener("click", () => {
+    if (state.ui.contextNodeId) addNodeToDeck(state.ui.contextNodeId);
+    closeContextMenu();
+  });
 }
 
 // Snap every node back to its UMAP-seeded initial position, then re-run physics from there.
@@ -4174,9 +4434,9 @@ function runGephiPhases() {
   // to center. With many edges active, even springConstant:0.06 × 20 neighbors = huge
   // inward force that overwhelms repulsion. Zero springs = true blast outward.
   state.network.setOptions({ physics: { enabled: true, solver: "barnesHut", barnesHut: {
-    gravitationalConstant: -40000, centralGravity: 0,
+    gravitationalConstant: -70000, centralGravity: 0,
     springLength: 400, springConstant: 0, avoidOverlap: 0, damping: 0.06,
-  }, stabilization: { enabled: false }, maxVelocity: 300 }});
+  }, stabilization: { enabled: false }, maxVelocity: 600 }});
   state.network.startSimulation();
   state.ui.physicsActive = true;
   if (dom.physToggle) dom.physToggle.textContent = "■ Stop physics";
@@ -4471,6 +4731,9 @@ function handleDragEnd() {
   if (state.embedActive) {
     scheduleClusterHullRender();
   }
+  if (state.chronoActive) {
+    scheduleChronoAxisRender();
+  }
   closeContextMenu();
 }
 
@@ -4483,6 +4746,10 @@ function handleZoom() {
     // Rebuilding on every zoom tick causes choppiness with 2400+ nodes.
     window.clearTimeout(state.ui.hullZoomDebounceId);
     state.ui.hullZoomDebounceId = window.setTimeout(scheduleClusterHullRender, 80);
+  }
+  if (state.chronoActive) {
+    window.clearTimeout(state.ui.chronoAxisDebounceId);
+    state.ui.chronoAxisDebounceId = window.setTimeout(scheduleChronoAxisRender, 80);
   }
   closeContextMenu();
   if (scaleChanged) {
@@ -4729,6 +4996,59 @@ function scheduleClusterHullRender() {
   state.ui.hullRafId = window.requestAnimationFrame(renderClusterHulls);
 }
 
+// ── Chrono year-axis SVG overlay ───────────────────────────────────────────
+function renderChronoAxis() {
+  const svgEl = document.getElementById("chrono-axis");
+  if (!svgEl) return;
+  if (!state.chronoActive || !state.network || !state.data) {
+    svgEl.innerHTML = "";
+    svgEl.classList.add("is-hidden");
+    return;
+  }
+  svgEl.classList.remove("is-hidden");
+  const rect = dom.canvasSurface?.getBoundingClientRect();
+  if (!rect || rect.width < 10) return;
+  svgEl.setAttribute("viewBox", "0 0 " + rect.width + " " + rect.height);
+  svgEl.setAttribute("width", String(rect.width));
+  svgEl.setAttribute("height", String(rect.height));
+
+  const [yMin, yMax] = state.data.yearRange || [2010, 2026];
+  const palette = getCurrentPalette();
+  const textColor = palette.theme.fgMuted;
+  const lineColor = palette.theme.fg;
+  const fragments = [];
+  const span = Math.max(1, yMax - yMin);
+
+  // Determine tick step based on zoom (skip some years when zoomed out a lot)
+  const scale = state.ui.zoomScale || 1;
+  const step = scale < 0.15 ? 5 : scale < 0.35 ? 2 : 1;
+
+  for (let yr = Math.ceil(yMin / step) * step; yr <= yMax; yr += step) {
+    const canvasX = ((yr - yMin) / span) * 4800 - 2400;
+    const domPt = state.network.canvasToDOM({ x: canvasX, y: 0 });
+    const x = domPt.x;
+    if (x < -40 || x > rect.width + 40) continue;
+    const xStr = x.toFixed(1);
+    // Dashed vertical guide line
+    fragments.push(
+      "<line x1='" + xStr + "' y1='0' x2='" + xStr + "' y2='" + (rect.height - 24) +
+        "' stroke='" + lineColor + "' stroke-width='0.5' stroke-opacity='0.12' stroke-dasharray='4,7'></line>"
+    );
+    // Bottom label
+    fragments.push(
+      "<text x='" + xStr + "' y='" + (rect.height - 8) +
+        "' fill='" + textColor + "' text-anchor='middle' " +
+        "style='font-size:10px;font-family:JetBrains Mono,monospace;font-weight:500;opacity:0.7'>" +
+        yr + "</text>"
+    );
+  }
+  svgEl.innerHTML = fragments.join("");
+}
+
+function scheduleChronoAxisRender() {
+  window.requestAnimationFrame(renderChronoAxis);
+}
+
 function renderClusterHulls() {
   state.ui.hullRafId = 0;
   if (!state.embedActive || !state.network) {
@@ -4804,11 +5124,24 @@ function renderClusterHulls() {
     groups.get(clusterKey).points.push({ x: domPoint.x, y: domPoint.y });
   }
 
+  // Per-cluster distinct colors — stable ordering by key so colors don't shift on re-render
+  const HULL_COLORS = [
+    "#ff6b3d", "#60a5fa", "#a78bfa", "#34d399", "#fbbf24",
+    "#f472b6", "#4ade80", "#fb923c", "#38bdf8", "#e879f9",
+    "#a3e635", "#fb7185", "#67e8f9", "#c084fc", "#fde68a",
+  ];
+  const sortedClusterKeys = Array.from(groups.keys()).sort();
+  const clusterColorMap = new Map(
+    sortedClusterKeys.map((k, i) => [k, HULL_COLORS[i % HULL_COLORS.length]])
+  );
+
   const palette = getCurrentPalette();
-  const fillColor = palette.nodeColors.Project;
   const fillOpacityBase = palette.key === "print" ? 0.06 : 0.05;
-  const strokeOpacityBase = palette.key === "print" ? 0.18 : 0.24;
+  const strokeOpacityBase = palette.key === "print" ? 0.20 : 0.28;
+  const bgFill = palette.key === "print" ? "rgba(255,255,255,0.88)" : "rgba(10,10,11,0.82)";
   const textColor = palette.theme.fg;
+  const svgCenterX = rect.width / 2;
+  const svgCenterY = rect.height / 2;
   const fragments = [];
   const renderedHulls = [];
 
@@ -4823,22 +5156,44 @@ function renderClusterHulls() {
     const expandedHull = expandPolygon(hull, 14);
     renderedHulls.push({ key: clusterKey, expandedHull });
     const isHovered = clusterKey === state.ui.hoveredHullKey;
+    const fillColor = clusterColorMap.get(clusterKey) || "#ff6b3d";
     const fillOpacity = isHovered ? 0.14 : fillOpacityBase;
-    const strokeOpacity = isHovered ? 0.5 : strokeOpacityBase;
-    const strokeWidth = isHovered ? 1.5 : 1;
+    const strokeOpacity = isHovered ? 0.55 : strokeOpacityBase;
+    const strokeWidth = isHovered ? 1.8 : 1;
     const pointsAttribute = expandedHull.map((point) => point.x.toFixed(1) + "," + point.y.toFixed(1)).join(" ");
     const centroid = polygonCentroid(expandedHull);
     const labelText = escapeHtml(group.label);
-    const labelWidth = labelText.length * 6.5 + 12;
+    const labelWidth = labelText.length * 6.5 + 16;
     const safeKey = escapeHtml(clusterKey);
     // Show label if the cluster has enough points to be readable
     const showLabel = group.points.length >= 4;
-    const labelHtml = showLabel ? (
-      "<g>" +
-        "<rect x='" + (centroid.x - labelWidth / 2).toFixed(1) + "' y='" + (centroid.y - 13).toFixed(1) + "' width='" + labelWidth.toFixed(1) + "' height='18' rx='4' fill='rgba(10,10,11,0.8)'></rect>" +
-        "<text x='" + centroid.x.toFixed(1) + "' y='" + centroid.y.toFixed(1) + "' fill='" + textColor + "' text-anchor='middle' dominant-baseline='middle' style='font-family: JetBrains Mono, monospace; font-size: 11px; font-weight: 500; letter-spacing:0.02em;'>" + labelText + "</text>" +
-      "</g>"
-    ) : "";
+
+    // External label placement: push label outward from SVG center past hull boundary
+    let labelHtml = "";
+    if (showLabel) {
+      const dx = centroid.x - svgCenterX;
+      const dy = centroid.y - svgCenterY;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = dx / dist, ny = dy / dist;
+      // Find hull point furthest in that outward direction
+      let maxDot = -Infinity;
+      let edgeX = centroid.x, edgeY = centroid.y;
+      for (const pt of expandedHull) {
+        const dot = (pt.x - centroid.x) * nx + (pt.y - centroid.y) * ny;
+        if (dot > maxDot) { maxDot = dot; edgeX = pt.x; edgeY = pt.y; }
+      }
+      // Place label 26px beyond that edge point, clamped to canvas
+      let lx = Math.max(labelWidth / 2 + 4, Math.min(rect.width - labelWidth / 2 - 4, edgeX + nx * 26));
+      let ly = Math.max(20, Math.min(rect.height - 8, edgeY + ny * 26));
+      const lxStr = lx.toFixed(1), lyStr = ly.toFixed(1);
+      // Leader line from edge point to label
+      labelHtml =
+        "<g>" +
+          "<line x1='" + edgeX.toFixed(1) + "' y1='" + edgeY.toFixed(1) + "' x2='" + lxStr + "' y2='" + (ly - 1).toFixed(1) + "' stroke='" + fillColor + "' stroke-width='1' stroke-opacity='0.5'></line>" +
+          "<rect x='" + (lx - labelWidth / 2).toFixed(1) + "' y='" + (ly - 12).toFixed(1) + "' width='" + labelWidth.toFixed(1) + "' height='16' rx='3' fill='" + bgFill + "' stroke='" + fillColor + "' stroke-width='0.8' stroke-opacity='0.6'></rect>" +
+          "<text x='" + lxStr + "' y='" + (ly - 4).toFixed(1) + "' fill='" + textColor + "' text-anchor='middle' dominant-baseline='middle' style='font-family: JetBrains Mono, monospace; font-size: 10px; font-weight: 500; letter-spacing:0.03em;'>" + labelText + "</text>" +
+        "</g>";
+    }
     fragments.push(
       "<g class='hull-group' data-key='" + safeKey + "'>" +
       "<polygon points='" + pointsAttribute + "' fill='" + fillColor + "' fill-opacity='" + fillOpacity + "' stroke='" + fillColor + "' stroke-opacity='" + strokeOpacity + "' stroke-width='" + strokeWidth + "'></polygon>" +
@@ -5207,6 +5562,10 @@ function handleGlobalKeydown(event) {
       closeTour();
       return;
     }
+    if (state.presentationActive) {
+      exitPresentation();
+      return;
+    }
     if (state.ui.openModal === "feedback") {
       closeFeedback();
       return;
@@ -5247,6 +5606,18 @@ function handleGlobalKeydown(event) {
     return;
   }
 
+  if (event.key === "ArrowRight" && state.presentationActive) {
+    event.preventDefault();
+    goToSlide(state.presentationSlide + 1);
+    return;
+  }
+
+  if (event.key === "ArrowLeft" && state.presentationActive) {
+    event.preventDefault();
+    goToSlide(state.presentationSlide - 1);
+    return;
+  }
+
   if (event.key === "Backspace" || event.key === "ArrowLeft") {
     event.preventDefault();
     stepBack();
@@ -5267,9 +5638,22 @@ function handleGlobalKeydown(event) {
 
   if (event.key.toLowerCase() === "p") {
     event.preventDefault();
-    dom.settingsMenu?.classList.add("is-hidden");
-    buildPalettePicker();
-    dom.palettePicker.classList.toggle("is-hidden");
+    if (event.shiftKey) {
+      // Shift+P: toggle presentation mode
+      togglePresentation();
+    } else {
+      // P: toggle palette picker
+      dom.settingsMenu?.classList.add("is-hidden");
+      buildPalettePicker();
+      dom.palettePicker.classList.toggle("is-hidden");
+    }
+    return;
+  }
+
+  if (event.key.toLowerCase() === "n" && state.presentationActive) {
+    event.preventDefault();
+    togglePresentationNotes();
+    return;
   }
 }
 
@@ -5541,6 +5925,7 @@ function bindEvents() {
     if (btn) btn.addEventListener("click", () => applyViewPreset(name));
   }
   initPhysicsLab();
+  initPresentation();
   initDiscoverPanel();
   if (dom.physToggle) {
     dom.physToggle.addEventListener("click", () => {

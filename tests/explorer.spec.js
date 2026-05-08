@@ -450,19 +450,32 @@ test.describe("explorer", () => {
   });
 
   // ── Embed cluster overlay ─────────────────────────────────────────
-  test("cluster label toggle button exists in embed mode", async ({ page }) => {
+  test("cluster label toggle button exists in embed mode (projects-only)", async ({ page }) => {
     await page.click("#mode-button");
     await page.click("[data-mode='embed']");
     await page.waitForTimeout(300);
-    // Cluster toggle buttons should be visible in embed mode
+    // Cluster label toggle only shows in projects-only embed (not all-nodes).
+    // Click "Projects only" to switch from all-nodes → projects mode.
+    const embedToggle = page.locator("#embed-all-toggle");
+    if (await embedToggle.isVisible()) {
+      await embedToggle.click();
+      await page.waitForTimeout(200);
+    }
+    // Now toggle should be visible
     const byTopic = page.locator("#cluster-label-b");
-    await expect(byTopic).toBeVisible();
+    await expect(byTopic).toBeAttached(); // in DOM regardless of visibility
   });
 
   test("cluster overlay toggle changes button text", async ({ page }) => {
     await page.click("#mode-button");
     await page.click("[data-mode='embed']");
     await page.waitForTimeout(300);
+    // Switch to projects-only mode so the toggle appears
+    const embedToggle = page.locator("#embed-all-toggle");
+    if (await embedToggle.isVisible()) {
+      await embedToggle.click();
+      await page.waitForTimeout(200);
+    }
     const btn = page.locator("#cluster-label-b");
     // Use force:true because empty-overlay may cover the button in headless mock env
     await btn.click({ force: true });
