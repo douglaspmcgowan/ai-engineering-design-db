@@ -52,6 +52,7 @@
       <div id="mode-menu" class="settings-menu is-hidden" role="menu">
         <button class="settings-menu-item mode-menu-item" data-mode="force" type="button">⬡ Force graph</button>
         <button class="settings-menu-item mode-menu-item" data-mode="embed" type="button">⬤ Embeddings</button>
+        <button class="settings-menu-item mode-menu-item" data-mode="chrono" type="button" title="Chronological — year on x-axis, semantic on y-axis (Litmaps-style)">⏵ Chronological</button>
         <button class="settings-menu-item mode-menu-item" data-mode="discover" type="button">◈ Discover</button>
       </div>
     </div>
@@ -1011,6 +1012,7 @@ const state = {
   forceEnabled: true,
   embedActive: false,
   embedAllNodes: false,   // true = show all 2405 nodes in embed mode using embed_all_x/y
+  chronoActive: false,    // F7: Litmaps-style chronological timeline mode
   clusterLabelMode: "C",
   focus: null,
   selection: {
@@ -2432,6 +2434,21 @@ function getFocusDisplayDepth(focusState = state.focus) {
 }
 
 function getPreferredPosition(nodeId) {
+  // F7: Chronological / Litmaps mode — year on x-axis, embed_y on y-axis.
+  // Projects with both year and embed_y get placed on the timeline; others fall back.
+  if (state.chronoActive) {
+    const node = state.caches.nodeById.get(nodeId);
+    const yr = Number(node?.props?.year);
+    const ey = Number(node?.props?.embed_all_y ?? node?.props?.embed_y);
+    if (Number.isFinite(yr) && Number.isFinite(ey)) {
+      // Map year linearly: yearRange[0] → -2400, yearRange[1] → 2400 (canvas units)
+      const [yMin, yMax] = state.data.yearRange || [2010, 2026];
+      const span = Math.max(1, yMax - yMin);
+      const x = ((yr - yMin) / span) * 4800 - 2400;
+      const y = ey * 200; // wider vertical spread than embed mode (×200 vs ×120)
+      return { x, y };
+    }
+  }
   if (state.embedActive) {
     const node = state.caches.nodeById.get(nodeId);
     if (state.embedAllNodes) {
@@ -2507,7 +2524,7 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
     title: "",
     x: position.x,
     y: position.y,
-    fixed: (isPinned || state.embedActive) ? { x: true, y: true } : { x: false, y: false },
+    fixed: (isPinned || state.embedActive || state.chronoActive) ? { x: true, y: true } : { x: false, y: false },
     color: {
       background: baseColor,
       border: isPinned ? "#f0a85b" : (isPrimary || isFocusRoot || isFlashing ? palette.theme.fg : borderColor),
@@ -2523,7 +2540,7 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
     borderWidth: isPinned ? 2.8 : (isPrimary || isFocusRoot || isFlashing ? 2.6 : isSelected ? 2 : 1.2),
     shadow: false,
     opacity: isSelected ? 1 : 0.98,
-    physics: isPinned ? false : !state.embedActive,
+    physics: isPinned ? false : (!state.embedActive && !state.chronoActive),
   };
   return rendered;
 }
@@ -3793,6 +3810,27 @@ function toggleEmbed(announce = true) {
   if (announce) {
     showToast("Embed view disabled.", "success");
   }
+}
+
+// F7: Chronological / Litmaps-style mode — year on x-axis, embed_y on y-axis.
+// Like embed mode in that nodes are fixed and physics is disabled, but the layout
+// is a timeline. Projects without year+embed fall back to their cached position.
+function toggleChrono(announce = true) {
+  if (!state.data) return;
+  if (!state.chronoActive) {
+    if (state.embedActive) toggleEmbed(false);  // can't be in both
+    state.chronoActive = true;
+    applyView({ fit: false });
+    window.setTimeout(() => state.network?.fit({
+      padding: 80,
+      animation: { duration: 600, easingFunction: "easeInOutQuad" },
+    }), 80);
+    if (announce) showToast("Chronological mode — year on x-axis, semantic on y-axis.", "success");
+    return;
+  }
+  state.chronoActive = false;
+  applyView({ fit: true });
+  if (announce) showToast("Chronological mode disabled.", "success");
 }
 
 // Snap every node back to its UMAP-seeded initial position, then re-run physics from there.
@@ -5284,9 +5322,14 @@ function bindEvents() {
       dom.modeMenu.classList.add("is-hidden");
       const mode = item.dataset.mode;
       if (mode === "embed") {
+        if (state.chronoActive) toggleChrono(false);
         if (!state.embedActive) toggleEmbed(true);
+      } else if (mode === "chrono") {
+        if (state.embedActive) toggleEmbed(false);
+        if (!state.chronoActive) toggleChrono(true);
       } else if (mode === "force") {
         if (state.embedActive) toggleEmbed(false);
+        if (state.chronoActive) toggleChrono(false);
         if (state.focus) exitFocus(true);
       } else if (mode === "discover") {
         if (!state.selection.primaryId) {
