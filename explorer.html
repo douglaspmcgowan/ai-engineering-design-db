@@ -3318,6 +3318,68 @@ function stepBack() {
   }
 }
 
+// F3: Search results panel — show a ranked list of matches in the detail panel
+// AND enter focus mode so the graph zooms to just the matching nodes. This replaces
+// the previous "Enter jumps to first alphabetical node" behavior that confused users.
+function showSearchResultsPanel(query, rankedIds) {
+  if (!rankedIds.length) return;
+  // Enter focus mode with all matches accumulated so the graph filters to them
+  state.focus = {
+    rootId: rankedIds[0],
+    depth: 0,
+    accumulatedIds: new Set(rankedIds),
+    neighborIndex: 0,
+    mode: "search",
+  };
+  state.selection.ids = new Set([rankedIds[0]]);
+  state.selection.primaryId = rankedIds[0];
+  updateFocusExitButtonLabel();
+  applyView({ fit: true });
+
+  // Populate the detail panel with a clickable ranked list
+  const items = rankedIds.slice(0, 30).map((id, i) => {
+    const n = state.caches.nodeById.get(id);
+    if (!n) return "";
+    const color = getNodeColor(n.type);
+    const year = n.props?.year || "";
+    const cat = humanizeValue(n.props?.category || "");
+    const org = n.props?.organization || "";
+    const meta = [year, cat, org].filter(Boolean).slice(0, 3).join(" · ");
+    return `
+      <button class="ghost-button detail-node-link" data-node-id="${escapeHtml(id)}" type="button"
+              style="text-align:left;display:flex;gap:8px;align-items:flex-start;padding:8px 10px;margin-bottom:4px">
+        <span style="color:${color};font-size:9px;flex:none;margin-top:4px">●</span>
+        <span style="flex:1;min-width:0">
+          <span style="font-size:9px;color:var(--fg-faint)">#${i + 1} · ${escapeHtml(n.type)}</span><br>
+          <span style="font-weight:600">${escapeHtml(n.label)}</span>
+          ${meta ? `<br><span style="font-size:11px;color:var(--fg-muted)">${escapeHtml(meta)}</span>` : ""}
+        </span>
+      </button>`;
+  }).join("");
+  const more = rankedIds.length > 30 ? `<div style="font-size:11px;color:var(--fg-faint);text-align:center;padding:6px">+${rankedIds.length - 30} more not shown</div>` : "";
+  const html = `
+    <div class="detail-section">
+      <div class="detail-section-title">Search results — "${escapeHtml(query)}"</div>
+      <div style="font-size:12px;color:var(--fg-muted);margin:2px 0 10px">
+        ${rankedIds.length} matches · graph filtered to these nodes · click any item to inspect
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px">${items}</div>
+      ${more}
+      <div style="margin-top:10px"><button class="ghost-button" id="search-results-clear" type="button">Clear and show all</button></div>
+    </div>`;
+  if (dom.detailBody) dom.detailBody.innerHTML = html;
+  dom.detailBody?.querySelectorAll(".detail-node-link[data-node-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-node-id");
+      if (id) selectSingleNode(id);
+    });
+  });
+  dom.detailBody?.querySelector("#search-results-clear")?.addEventListener("click", () => {
+    exitFocus(false);
+  });
+  showToast(`${rankedIds.length} results · graph filtered to matches.`, "success");
+}
+
 // F2: Earlier / Later related work — same Euclidean-on-UMAP distance as findSimilarNodes,
 // but filtered to projects strictly older or newer than the source. Goes to focus mode
 // like Find Similar so the user can fly through them via the Discover panel.
@@ -5231,22 +5293,33 @@ function bindEvents() {
           return;
         }
       }
-      // No suggestion keyboard-focused: jump to first visible match
-      const visibleIds = Array.from(state.currentView.nodeIds).sort(compareLabels);
-      if (!visibleIds.length) {
-        showToast("No visible nodes match that search.", "warn");
+      // F3: No suggestion keyboard-focused — show ALL ranked matches as a result set
+      // instead of jumping to one alphabetically-first node.
+      const queryStr = (dom.searchInput.value || "").trim();
+      if (items.length >= 1) {
+        // Collect IDs in rank order from the suggestion list (already score-sorted)
+        const rankedIds = items.map((el) => el.dataset.nodeId).filter(Boolean);
+        if (rankedIds.length === 1) {
+          // Single match — same as picking the first suggestion
+          if (suggEl) suggEl.classList.add("is-hidden");
+          dom.searchInput.value = "";
+          state.filters.search = "";
+          applyView({ fit: false });
+          window.setTimeout(() => {
+            selectSingleNode(rankedIds[0]);
+            focusCameraOnNode(rankedIds[0]);
+          }, 60);
+          return;
+        }
+        // Multi-match: enter focus mode showing all ranked results, populate detail panel.
+        showSearchResultsPanel(queryStr, rankedIds);
+        if (suggEl) suggEl.classList.add("is-hidden");
+        // Clear search filter so the focus-mode neighborhood (not the filter) drives visibility
+        dom.searchInput.value = "";
+        state.filters.search = "";
         return;
       }
-      if (suggEl) suggEl.classList.add("is-hidden");
-      const firstId = visibleIds[0];
-      dom.searchInput.value = "";
-      state.filters.search = "";
-      applyView({ fit: false });
-      window.setTimeout(() => {
-        selectSingleNode(firstId);
-        focusCameraOnNode(firstId);
-        showToast("Jumped to node. Double-click to explore its neighborhood.", "success");
-      }, 60);
+      showToast("No matches for that search.", "warn");
     } else if (event.key === "Escape") {
       event.preventDefault();
       if (suggEl) suggEl.classList.add("is-hidden");
