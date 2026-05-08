@@ -2889,12 +2889,21 @@ function renderDetailPanel() {
     : "";
   const hasEmbed = node.props?.embed_x != null || node.props?.embed_all_x != null;
   const similarButtonMarkup = hasEmbed
-    ? "<button id='find-similar-inline' class='ghost-button' type='button'>🔍 Find similar</button>"
+    ? "<button id='find-similar-inline' class='ghost-button' type='button'>🔍 Similar</button>"
+    : "";
+  // F2: Earlier / Later toggles — show projects with year < or > current, ranked by embedding distance.
+  // Only show when the node is a Project with a year and an embedding.
+  const hasYearAndEmbed = hasEmbed && node.type === "Project" && Number.isFinite(Number(node.props?.year));
+  const earlierBtn = hasYearAndEmbed
+    ? "<button id='find-earlier-inline' class='ghost-button' type='button' title='Earlier related work (older year)'>← Earlier</button>"
+    : "";
+  const laterBtn = hasYearAndEmbed
+    ? "<button id='find-later-inline' class='ghost-button' type='button' title='Later related work (newer year)'>Later →</button>"
     : "";
 
   let html = "";
-  if (focusButtonMarkup || similarButtonMarkup) {
-    html += "<div class='detail-section'><div class='detail-section-title'>Actions</div><div class='inline-actions'>" + focusButtonMarkup + similarButtonMarkup + "</div></div>";
+  if (focusButtonMarkup || similarButtonMarkup || earlierBtn || laterBtn) {
+    html += "<div class='detail-section'><div class='detail-section-title'>Related work</div><div class='inline-actions'>" + focusButtonMarkup + earlierBtn + similarButtonMarkup + laterBtn + "</div></div>";
   }
 
   if (node.type === "Project") {
@@ -2916,6 +2925,12 @@ function renderDetailPanel() {
   });
   dom.detailBody.querySelector("#find-similar-inline")?.addEventListener("click", () => {
     findSimilarNodes(nodeId);
+  });
+  dom.detailBody.querySelector("#find-earlier-inline")?.addEventListener("click", () => {
+    findRelatedByYear(nodeId, "earlier");
+  });
+  dom.detailBody.querySelector("#find-later-inline")?.addEventListener("click", () => {
+    findRelatedByYear(nodeId, "later");
   });
   wireDetailNodeLinks();
 }
@@ -3301,6 +3316,50 @@ function stepBack() {
   if (state.focus) {
     exitFocus(false);
   }
+}
+
+// F2: Earlier / Later related work — same Euclidean-on-UMAP distance as findSimilarNodes,
+// but filtered to projects strictly older or newer than the source. Goes to focus mode
+// like Find Similar so the user can fly through them via the Discover panel.
+function findRelatedByYear(nodeId, direction = "earlier", k = 10) {
+  const node = state.caches.nodeById.get(nodeId);
+  if (!node) return;
+  const sourceYear = Number(node.props?.year);
+  const ex = Number(node.props?.embed_all_x ?? node.props?.embed_x);
+  const ey = Number(node.props?.embed_all_y ?? node.props?.embed_y);
+  if (!Number.isFinite(sourceYear) || !Number.isFinite(ex) || !Number.isFinite(ey)) {
+    showToast("Need year + embedding for this node.", "warn");
+    return;
+  }
+  const candidates = [];
+  for (const n of state.data.nodes) {
+    if (n.id === nodeId || n.type !== "Project") continue;
+    const ny = Number(n.props?.year);
+    if (!Number.isFinite(ny)) continue;
+    if (direction === "earlier" && !(ny < sourceYear)) continue;
+    if (direction === "later"   && !(ny > sourceYear)) continue;
+    const nx = Number(n.props?.embed_all_x ?? n.props?.embed_x);
+    const npy = Number(n.props?.embed_all_y ?? n.props?.embed_y);
+    if (!Number.isFinite(nx) || !Number.isFinite(npy)) continue;
+    candidates.push({ id: n.id, year: ny, d: Math.hypot(nx - ex, npy - ey) });
+  }
+  if (!candidates.length) {
+    showToast(`No ${direction} related work found.`, "warn");
+    return;
+  }
+  candidates.sort((a, b) => a.d - b.d);
+  const topK = candidates.slice(0, k).map((c) => c.id);
+  state.focus = {
+    rootId: nodeId,
+    depth: 0,
+    accumulatedIds: new Set([nodeId, ...topK]),
+    neighborIndex: 0,
+    mode: "similarity",
+  };
+  selectSingleNode(nodeId);
+  applyView({ fit: true });
+  renderDiscoverPanel();
+  showToast(`Showing ${topK.length} ${direction} related projects (by embedding).`, "success");
 }
 
 function findSimilarNodes(nodeId, k = 12) {
@@ -4029,6 +4088,11 @@ function handleNetworkClick(params) {
   const sourceEvent = params.event?.srcEvent;
   const additive = Boolean(sourceEvent?.ctrlKey || sourceEvent?.metaKey);
   if (!params.nodes.length) {
+    // F11: Edge-click → show what this relationship means
+    if (params.edges?.length) {
+      showEdgeRelationshipPanel(params.edges[0]);
+      return;
+    }
     if (!additive) {
       clearSelection();
     }
@@ -4044,6 +4108,41 @@ function handleNetworkClick(params) {
     return;
   }
   selectSingleNode(nodeId);
+}
+
+// F11: Edge-click relationship panel — populates the detail panel with what
+// this edge means (from EDGE_DESCRIPTIONS) plus the two endpoints clickable.
+function showEdgeRelationshipPanel(edgeId) {
+  const edge = state.caches.edgeById?.get(edgeId);
+  if (!edge) return;
+  const sourceNode = state.caches.nodeById.get(edge.source);
+  const targetNode = state.caches.nodeById.get(edge.target);
+  const desc = EDGE_DESCRIPTIONS[edge.type] || "Relationship between two graph entities.";
+  const html = `
+    <div class="detail-section">
+      <div class="detail-section-title">Edge: ${escapeHtml(edge.type)}</div>
+      <div style="font-size:13px;color:var(--fg-muted);line-height:1.5;margin:4px 0 10px">${escapeHtml(desc)}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="ghost-button detail-node-link" data-node-id="${escapeHtml(edge.source)}" type="button" style="text-align:left">
+          <span style="font-size:10px;color:var(--fg-faint);text-transform:uppercase">From · ${escapeHtml(sourceNode?.type || "")}</span><br>
+          ${escapeHtml(sourceNode?.label || edge.source)}
+        </button>
+        <button class="ghost-button detail-node-link" data-node-id="${escapeHtml(edge.target)}" type="button" style="text-align:left">
+          <span style="font-size:10px;color:var(--fg-faint);text-transform:uppercase">To · ${escapeHtml(targetNode?.type || "")}</span><br>
+          ${escapeHtml(targetNode?.label || edge.target)}
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--fg-faint);margin-top:10px">Click either endpoint to inspect that node.</div>
+    </div>`;
+  // Detail panel is always in the DOM; just populate the body.
+  if (dom.detailBody) dom.detailBody.innerHTML = html;
+  // Wire endpoint clicks
+  dom.detailBody?.querySelectorAll(".detail-node-link[data-node-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-node-id");
+      if (id) selectSingleNode(id);
+    });
+  });
 }
 
 function handleNetworkDoubleClick(params) {
