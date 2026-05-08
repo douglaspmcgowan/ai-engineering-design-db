@@ -223,4 +223,222 @@ test.describe("browse", () => {
       expect(years[i]).toBeGreaterThanOrEqual(years[i + 1]);
     }
   });
+
+  // ── Table column sort ─────────────────────────────────────────────
+  test("table name column sorts ascending on first click", async ({ page }) => {
+    await page.click("#btn-table");
+    await page.click("th[onclick*=\"'name'\"]");
+    await page.waitForTimeout(100);
+    const names = await page.locator("#table-body tr td:first-child").allInnerTexts();
+    const sorted = [...names].sort((a, b) => a.localeCompare(b));
+    expect(names).toEqual(sorted);
+  });
+
+  test("table name column sort toggles to descending on second click", async ({ page }) => {
+    await page.click("#btn-table");
+    await page.click("th[onclick*=\"'name'\"]"); // asc
+    await page.click("th[onclick*=\"'name'\"]"); // desc
+    await page.waitForTimeout(100);
+    const names = await page.locator("#table-body tr td:first-child").allInnerTexts();
+    const sorted = [...names].sort((a, b) => b.localeCompare(a));
+    expect(names).toEqual(sorted);
+  });
+
+  test("table year column sorts descending after switching from another sort", async ({ page }) => {
+    await page.click("#btn-table");
+    // First sort by name to clear year sort state
+    await page.click("th[onclick*=\"'name'\"]");
+    await page.waitForTimeout(100);
+    // Now click year — first click on a fresh field defaults to "desc"
+    await page.click("th[onclick*=\"'year'\"]");
+    await page.waitForTimeout(100);
+    const years = (await page.locator("#table-body tr td:nth-child(3)").allInnerTexts()).map(Number).filter(Boolean);
+    for (let i = 0; i < years.length - 1; i++) {
+      expect(years[i]).toBeGreaterThanOrEqual(years[i + 1]);
+    }
+  });
+
+  test("table year column sort toggles to ascending on second consecutive click", async ({ page }) => {
+    await page.click("#btn-table");
+    // Sort by name first to reset year sort state
+    await page.click("th[onclick*=\"'name'\"]");
+    await page.waitForTimeout(100);
+    // Click year once → desc, twice → asc
+    await page.click("th[onclick*=\"'year'\"]");
+    await page.click("th[onclick*=\"'year'\"]");
+    await page.waitForTimeout(100);
+    const years = (await page.locator("#table-body tr td:nth-child(3)").allInnerTexts()).map(Number).filter(Boolean);
+    for (let i = 0; i < years.length - 1; i++) {
+      expect(years[i]).toBeLessThanOrEqual(years[i + 1]);
+    }
+  });
+
+  // ── Year range filter ─────────────────────────────────────────────
+  test("year-min filter hides projects below threshold", async ({ page }) => {
+    await page.fill("#year-min", "2023");
+    await page.waitForTimeout(150);
+    const count = await page.locator(".project-card").count();
+    expect(count).toBe(1); // only Alpha (2023); Beta (2021) hidden
+  });
+
+  test("year-max filter hides projects above threshold", async ({ page }) => {
+    await page.fill("#year-max", "2022");
+    await page.waitForTimeout(150);
+    const count = await page.locator(".project-card").count();
+    expect(count).toBe(1); // only Beta (2021); Alpha (2023) hidden
+  });
+
+  test("year range cleared on clear-all", async ({ page }) => {
+    await page.fill("#year-min", "2022");
+    await page.waitForTimeout(100);
+    await page.click(".clear-all-btn");
+    await page.waitForTimeout(100);
+    const val = await page.locator("#year-min").inputValue();
+    expect(val).toBe("");
+    const count = await page.locator(".project-card").count();
+    expect(count).toBe(2);
+  });
+
+  // ── Collections ───────────────────────────────────────────────────
+  test("create collection via JS and render it in list", async ({ page }) => {
+    // Bypass prompt() by writing directly to localStorage and calling renderCollections()
+    await page.evaluate(() => {
+      localStorage.setItem("aied-collections", JSON.stringify({ "Favorites": [] }));
+      if (typeof renderCollections === "function") renderCollections();
+    });
+    await expect(page.locator("#collections-list .collection-item-name")).toContainText("Favorites");
+  });
+
+  test("save project to existing collection updates count", async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem("aied-collections", JSON.stringify({ "Favorites": [] }));
+      if (typeof renderCollections === "function") renderCollections();
+    });
+    // Open detail panel then save
+    await page.click(".project-card:first-child");
+    await page.waitForTimeout(200);
+    // saveToCollection with exactly 1 collection goes directly (no prompt)
+    await page.evaluate(() => {
+      if (typeof saveToCollection === "function") saveToCollection("project:alpha");
+    });
+    const count = await page.evaluate(() => {
+      const cols = JSON.parse(localStorage.getItem("aied-collections") || "{}");
+      return (cols["Favorites"] || []).length;
+    });
+    expect(count).toBe(1);
+  });
+
+  test("collection filter shows only collection members", async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem("aied-collections", JSON.stringify({ "My List": ["project:alpha"] }));
+      if (typeof renderCollections === "function") renderCollections();
+    });
+    // Click the collection to filter
+    await page.evaluate(() => {
+      if (typeof toggleCollectionFilter === "function") toggleCollectionFilter("My List");
+    });
+    await page.waitForTimeout(150);
+    const count = await page.locator(".project-card").count();
+    expect(count).toBe(1);
+  });
+
+  test("delete collection removes it from list", async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem("aied-collections", JSON.stringify({ "ToDelete": ["project:alpha"] }));
+      if (typeof renderCollections === "function") renderCollections();
+    });
+    await expect(page.locator("#collections-list .collection-item-name")).toContainText("ToDelete");
+    await page.evaluate(() => {
+      if (typeof deleteCollection === "function") deleteCollection("ToDelete");
+    });
+    const items = await page.locator("#collections-list .collection-item").count();
+    expect(items).toBe(0);
+  });
+
+  // ── Submit modal ──────────────────────────────────────────────────
+  test("FAB opens submit modal and sets body.modal-open", async ({ page }) => {
+    await page.click("#submit-fab");
+    await expect(page.locator("#submit-modal")).not.toHaveClass(/is-hidden/);
+    const hasClass = await page.evaluate(() => document.body.classList.contains("modal-open"));
+    expect(hasClass).toBe(true);
+  });
+
+  test("FAB is hidden when modal is open", async ({ page }) => {
+    await page.click("#submit-fab");
+    const fabVisible = await page.locator("#submit-fab").isVisible();
+    expect(fabVisible).toBe(false); // hidden via body.modal-open CSS
+  });
+
+  test("close button dismisses modal and removes modal-open", async ({ page }) => {
+    await page.click("#submit-fab");
+    await page.click(".modal-close, #submit-close");
+    await expect(page.locator("#submit-modal")).toHaveClass(/is-hidden/);
+    const hasClass = await page.evaluate(() => document.body.classList.contains("modal-open"));
+    expect(hasClass).toBe(false);
+  });
+
+  test("backdrop click closes modal", async ({ page }) => {
+    await page.click("#submit-fab");
+    // Click the backdrop (the modal-backdrop element itself, not its contents)
+    await page.locator("#submit-modal").click({ position: { x: 5, y: 5 } });
+    await expect(page.locator("#submit-modal")).toHaveClass(/is-hidden/);
+  });
+
+  test("submit modal note text is not stale GPT-4o copy", async ({ page }) => {
+    await page.click("#submit-fab");
+    const noteText = await page.locator(".modal-note").first().innerText();
+    expect(noteText).not.toContain("GPT-4o");
+    expect(noteText).toContain("AI will");
+  });
+
+  // ── GitHub API submission ─────────────────────────────────────────
+  test("submit sends GET then PUT to GitHub API and shows success", async ({ page }) => {
+    // Use in-page fetch mock (page.route CORS is blocked from file:// origin)
+    await page.evaluate(() => {
+      window._ghCalls = [];
+      const orig = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const url = typeof input === "string" ? input : (input?.url || "");
+        if (url.includes("api.github.com")) {
+          window._ghCalls.push({ method: (init?.method || "GET").toUpperCase(), url });
+          const method = (init?.method || "GET").toUpperCase();
+          if (method === "GET") {
+            return new Response(JSON.stringify({ message: "Not Found" }), {
+              status: 404, headers: { "Content-Type": "application/json" }
+            });
+          }
+          return new Response(JSON.stringify({ content: { sha: "abc123" } }), {
+            status: 200, headers: { "Content-Type": "application/json" }
+          });
+        }
+        return orig(input, init);
+      };
+    });
+
+    // Inject a fake token — bypasses admin gating, getToken() reads localStorage directly
+    // browse.html uses TOKEN_KEY = "inbox-gh-token"
+    await page.evaluate(() => localStorage.setItem("inbox-gh-token", "fake_pat_token_test123"));
+
+    // Open modal, fill text, submit
+    await page.click("#submit-fab");
+    await page.fill("#submit-text", "Test project submission from Playwright");
+    await page.click("#submit-send");
+
+    // Wait for result message (success or error)
+    await page.waitForFunction(
+      () => {
+        const el = document.getElementById("submit-result-msg");
+        return el && (el.textContent.includes("✓") || el.textContent.includes("✗"));
+      },
+      { timeout: 10000 }
+    );
+
+    // Verify both API calls were made
+    const calls = await page.evaluate(() => window._ghCalls || []);
+    expect(calls.some(c => c.method === "GET")).toBe(true);
+    expect(calls.some(c => c.method === "PUT")).toBe(true);
+
+    const msg = await page.locator("#submit-result-msg").innerText();
+    expect(msg).toContain("✓");
+  });
 });
