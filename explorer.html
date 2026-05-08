@@ -1342,6 +1342,153 @@ function buildSearchText(node) {
   return parts.filter(Boolean).join(" ").toLowerCase();
 }
 
+// ── F5: Synonym expansion + fuzzy match + field-weighted scoring ────────────
+// Synonyms map common AI/CAD term variants to a canonical form. Both directions
+// are added to the user query so "text-to-cad" matches "text2cad", "txt2cad", etc.
+const SEARCH_SYNONYMS = {
+  "text-to-cad":   ["text2cad", "txt2cad", "text to cad", "nl2cad", "language-to-cad"],
+  "text2cad":      ["text-to-cad"],
+  "image-to-cad":  ["image2cad", "img2cad", "image to cad", "sketch-to-cad"],
+  "sketch-to-cad": ["sketch2cad", "image-to-cad"],
+  "topology-opt":  ["topology optimization", "topo-opt", "topopt"],
+  "topology":      ["topo"],
+  "neural operator": ["neural-operator", "fno", "fourier neural operator", "deeponet"],
+  "neural-operator": ["fno", "deeponet", "fourier neural operator"],
+  "fno":           ["fourier neural operator", "neural-operator"],
+  "pinn":          ["physics-informed neural network", "physics informed nn"],
+  "diffusion":     ["denoising diffusion", "ddpm", "ddim"],
+  "transformer":   ["attention", "self-attention"],
+  "generative":    ["genai", "gen-ai"],
+  "cad":           ["cad-generation", "computer-aided design"],
+  "additive manufacturing": ["am", "3d printing", "dfam"],
+  "am":            ["additive manufacturing", "3d printing"],
+  "dfm":           ["design for manufacturing", "manufacturability"],
+  "dfam":          ["design for additive manufacturing", "additive manufacturing"],
+  "b-rep":         ["brep", "boundary representation"],
+  "brep":          ["b-rep", "boundary representation"],
+  "implicit":      ["sdf", "signed distance field", "implicit modeling"],
+  "sdf":           ["signed distance field", "implicit"],
+  "fea":           ["finite element analysis", "finite-element"],
+  "cfd":           ["computational fluid dynamics", "fluid dynamics"],
+  "llm":           ["large language model", "language model"],
+  "vlm":           ["vision-language model", "multimodal llm"],
+};
+
+function expandQueryWithSynonyms(query) {
+  const expanded = new Set([query.toLowerCase()]);
+  const lower = query.toLowerCase();
+  for (const [key, syns] of Object.entries(SEARCH_SYNONYMS)) {
+    if (lower.includes(key)) {
+      for (const s of syns) expanded.add(s);
+    }
+    for (const s of syns) {
+      if (lower.includes(s)) {
+        expanded.add(key);
+        for (const s2 of syns) expanded.add(s2);
+      }
+    }
+  }
+  return Array.from(expanded);
+}
+
+// Damerau-Levenshtein distance, capped at maxDist for early exit.
+function editDistance(a, b, maxDist = 2) {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > maxDist) return maxDist + 1;
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    let rowMin = Infinity;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+      if (dp[i][j] < rowMin) rowMin = dp[i][j];
+    }
+    if (rowMin > maxDist) return maxDist + 1;
+  }
+  return dp[m][n];
+}
+
+// Field weights — name and id get the strongest signal; description and tags weakest.
+const SEARCH_FIELD_WEIGHTS = {
+  id:           5.0,
+  label:        5.0,
+  name:         5.0,
+  category:     3.5,
+  techniques:   3.0,
+  organization: 2.5,
+  cluster_label: 2.0,
+  industry_application: 2.0,
+  description:  1.0,
+  tags:         0.8,
+  type:         0.5,
+};
+
+// Score a node against a list of query terms (including synonym-expanded terms).
+// Returns a numeric score; higher = better. Uses weighted-TF + fuzzy-match fallback.
+function scoreNodeForQuery(node, primaryTerms, synonymTerms) {
+  // Build per-field text once
+  const fields = {
+    id:           [String(node.id || "")],
+    label:        [String(node.label || "")],
+    name:         [String(node.props?.name || "")],
+    category:     [String(node.props?.category || "")],
+    organization: [String(node.props?.organization || "")],
+    cluster_label: [String(node.props?.cluster_label || "")],
+    description:  [String(node.props?.description || "")],
+    type:         [String(node.type || "")],
+    techniques:   Array.isArray(node.props?.techniques) ? node.props.techniques.map(String) : [],
+    industry_application: Array.isArray(node.props?.industry_application) ? node.props.industry_application.map(String) : [],
+    tags:         Array.isArray(node.props?.tags) ? node.props.tags.map(String) : [],
+  };
+  for (const k of Object.keys(fields)) {
+    fields[k] = fields[k].map((s) => s.toLowerCase());
+  }
+  let score = 0;
+  // Each primary term is required-soft (must hit somewhere, fuzzy or exact)
+  let primaryHits = 0;
+  for (const term of primaryTerms) {
+    const tLower = term.toLowerCase();
+    let bestFieldScore = 0;
+    for (const [field, values] of Object.entries(fields)) {
+      const w = SEARCH_FIELD_WEIGHTS[field] || 0.3;
+      for (const value of values) {
+        if (!value) continue;
+        if (value === tLower) { bestFieldScore = Math.max(bestFieldScore, w * 4); continue; }
+        if (value.startsWith(tLower)) { bestFieldScore = Math.max(bestFieldScore, w * 2.5); continue; }
+        if (value.includes(tLower)) { bestFieldScore = Math.max(bestFieldScore, w * 1.5); continue; }
+        // Fuzzy: only for short fields and only if the lengths are close
+        if (value.length <= 40 && Math.abs(value.length - tLower.length) <= 2) {
+          const d = editDistance(value, tLower, 2);
+          if (d === 1) bestFieldScore = Math.max(bestFieldScore, w * 0.6);
+          else if (d === 2) bestFieldScore = Math.max(bestFieldScore, w * 0.3);
+        }
+      }
+    }
+    if (bestFieldScore > 0) primaryHits++;
+    score += bestFieldScore;
+  }
+  // Synonym terms contribute a smaller boost (don't require them to be present)
+  for (const term of synonymTerms) {
+    if (primaryTerms.includes(term)) continue;
+    const tLower = term.toLowerCase();
+    for (const [field, values] of Object.entries(fields)) {
+      const w = (SEARCH_FIELD_WEIGHTS[field] || 0.3) * 0.5; // half weight for synonyms
+      for (const value of values) {
+        if (value && value.includes(tLower)) {
+          score += w * 1.2;
+          break; // count synonym hit once per field
+        }
+      }
+    }
+  }
+  // Require at least half the primary terms to be hit — otherwise discard
+  if (primaryHits < Math.ceil(primaryTerms.length / 2)) return 0;
+  return score;
+}
+
 function renderSearchSuggestions() {
   const el = document.getElementById("search-suggestions");
   if (!el) return;
@@ -1351,15 +1498,13 @@ function renderSearchSuggestions() {
     el.innerHTML = "";
     return;
   }
-  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const primaryTerms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  // F5: synonym expansion — both directions
+  const synonymTerms = expandQueryWithSynonyms(q).filter((t) => !primaryTerms.includes(t));
   const matches = [];
   for (const node of state.data.nodes) {
-    if (!terms.every((t) => node.searchText.includes(t))) continue;
-    const labelLower = node.label.toLowerCase();
-    const idLower = node.id.toLowerCase();
-    // Score: 2 = id starts with query, 1 = label matches all terms, 0 = body only
-    const score = terms.every((t) => idLower.startsWith(t)) ? 2
-      : terms.every((t) => labelLower.includes(t)) ? 1 : 0;
+    const score = scoreNodeForQuery(node, primaryTerms, synonymTerms);
+    if (score <= 0) continue;
     matches.push({ node, score });
   }
   if (!matches.length) {
