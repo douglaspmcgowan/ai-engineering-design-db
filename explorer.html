@@ -3224,11 +3224,9 @@ function initDiscoverPanel() {
 // ── Focus / Explore Mode ───────────────────────────────────────────────────
 
 function activateFocus(nodeId, depth = 1) {
-  // Exit embed mode when entering discovery focus
-  if (state.embedActive) {
-    toggleEmbed(false);
-  }
   const previousDepth = getFocusDisplayDepth();
+  // Bug 21 fix: set state.focus FIRST so the embed-exit's applyView() builds
+  // the correct focus view in one render — no double-fit flash on the focused node.
   state.focus = {
     rootId: nodeId,
     accumulatedIds: new Set([nodeId]),
@@ -3238,8 +3236,14 @@ function activateFocus(nodeId, depth = 1) {
   state.selection.ids = new Set([nodeId]);
   state.selection.primaryId = nodeId;
   updateFocusExitButtonLabel();
-  // fit:true so viewport flies to the neighborhood instead of staying on the full graph
-  applyView({ fit: true });
+  // Exit embed mode AFTER focus is set; toggleEmbed(false) will run applyView with fit
+  // and that single render already accounts for state.focus.
+  if (state.embedActive) {
+    toggleEmbed(false);
+  } else {
+    // fit:true so viewport flies to the neighborhood instead of staying on the full graph
+    applyView({ fit: true });
+  }
   renderDiscoverPanel();
   showToast(depth === 1 ? "Exploring 1-hop neighborhood." : "Exploring 2-hop neighborhood.", "success");
 }
@@ -3363,6 +3367,14 @@ function toggleEmbed(announce = true) {
     return;
   }
   if (!state.embedActive) {
+    // Bug 24 fix: snapshot the pre-embed view state so we can restore it cleanly
+    // on exit instead of relying on fit() to reconstruct it.
+    state.caches.preEmbedSnapshot = {
+      cameraView: state.network?.getViewPosition?.() || null,
+      cameraScale: state.network?.getScale?.() || 1,
+      edgeTypes: new Set(state.filters.edgeTypes),
+      nodeTypes: new Set(state.filters.nodeTypes),
+    };
     state.caches.pendingRestorePositions = new Map();
     const visibleIds = Array.from(state.currentView.nodeIds);
     const positions = state.network.getPositions(visibleIds);
@@ -3400,9 +3412,29 @@ function toggleEmbed(announce = true) {
   state.embedAllNodes = false;
   document.getElementById("filter-sidebar")?.classList.remove("embed-active");
   setEmbedDrawingListener(false);
+  // Bug 24 fix: restore filter state captured before embed entry so the home view
+  // matches what the user had — no surprise "extra edges + giant labels" on return.
+  const snap = state.caches.preEmbedSnapshot;
+  if (snap) {
+    state.filters.edgeTypes = snap.edgeTypes;
+    state.filters.nodeTypes = snap.nodeTypes;
+  }
   applyGraphTheme();
   if (dom.embedAllToggle) dom.embedAllToggle.classList.add("is-hidden");
-  applyView({ fit: true });
+  applyView({ fit: false });   // don't fit — restore camera instead
+  // Restore camera position/scale so the user lands where they were before embed.
+  window.setTimeout(() => {
+    if (snap?.cameraView && state.network) {
+      state.network.moveTo({
+        position: snap.cameraView,
+        scale: snap.cameraScale,
+        animation: { duration: 400, easingFunction: "easeInOutQuad" },
+      });
+    } else {
+      state.network?.fit({ padding: 120, animation: { duration: 400, easingFunction: "easeInOutQuad" } });
+    }
+  }, 50);
+  state.caches.preEmbedSnapshot = null;
   if (announce) {
     showToast("Embed view disabled.", "success");
   }
@@ -3566,6 +3598,16 @@ function runGephiPhases() {
   const totalS = (t3 / 1000).toFixed(1);
   showToast("Gephi phases (" + totalS + "s): expansion → cooling → clustering…", "success");
 
+  // Bug 19 mitigation: zero all node velocities before starting so the sim
+  // runs from rest each time. vis-network's barnesHut has no exposed RNG seed
+  // (variance is inherent to floating-point summation order in the quad-tree),
+  // but starting from velocity=0 reduces visible variance significantly.
+  if (state.network.body && state.network.body.nodes) {
+    for (const id in state.network.body.nodes) {
+      const n = state.network.body.nodes[id];
+      if (n) { n.vx = 0; n.vy = 0; }
+    }
+  }
   // Phase 1: PURE REPULSION — zero spring attraction so dense edge sets don't collapse
   // to center. With many edges active, even springConstant:0.06 × 20 neighbors = huge
   // inward force that overwhelms repulsion. Zero springs = true blast outward.
@@ -4113,11 +4155,26 @@ function renderClusterHulls() {
 
     let clusterKey, clusterLabel;
     if (state.embedAllNodes) {
-      // All-nodes mode: use k-means cluster assignments for all entity types
-      clusterKey = String(node.props?.cluster_k_all ?? "");
-      clusterLabel = node.props?.cluster_label_all
-        || state.caches.clusterLabelByKeyAll?.get(clusterKey)
-        || ("Cluster " + clusterKey);
+      // All-nodes mode: prefer cluster_k_all, but fall back to per-type clustering
+      // when build-graph.py hasn't computed all-node clusters yet (Bug 20 fix).
+      // Fallback: project nodes use cluster_k; non-project nodes group by type.
+      const ckAll = node.props?.cluster_k_all;
+      if (ckAll !== undefined && ckAll !== null && ckAll !== "") {
+        clusterKey = String(ckAll);
+        clusterLabel = node.props?.cluster_label_all
+          || state.caches.clusterLabelByKeyAll?.get(clusterKey)
+          || ("Cluster " + clusterKey);
+      } else if (node.type === "Project") {
+        clusterKey = "p" + String(node.props?.cluster_k ?? "");
+        if (clusterKey === "p") continue;
+        clusterLabel = node.props?.cluster_label
+          || state.caches.clusterLabelByKey.get(String(node.props?.cluster_k))
+          || ("Cluster " + clusterKey);
+      } else {
+        // Non-project nodes: group by type to give the user some structure
+        clusterKey = "type:" + node.type;
+        clusterLabel = node.type + "s";
+      }
     } else if (state.clusterLabelMode === "A") {
       if (node.type !== "Project") continue;
       clusterKey = String(node.props?.category ?? "");
