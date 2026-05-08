@@ -3761,7 +3761,10 @@ function showSearchResultsPanel(query, rankedIds) {
       </div>
       <div style="display:flex;flex-direction:column;gap:2px">${items}</div>
       ${more}
-      <div style="margin-top:10px"><button class="ghost-button" id="search-results-clear" type="button">Clear and show all</button></div>
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="ghost-button is-strong" id="search-results-map" type="button" title="Project the results onto the embedding map (Open Knowledge Maps style)">🗺 Map results</button>
+        <button class="ghost-button" id="search-results-clear" type="button">Clear</button>
+      </div>
     </div>`;
   if (dom.detailBody) dom.detailBody.innerHTML = html;
   dom.detailBody?.querySelectorAll(".detail-node-link[data-node-id]").forEach((btn) => {
@@ -3772,6 +3775,27 @@ function showSearchResultsPanel(query, rankedIds) {
   });
   dom.detailBody?.querySelector("#search-results-clear")?.addEventListener("click", () => {
     exitFocus(false);
+  });
+  // F6: Map results — project the matching nodes onto the embedding map.
+  // We enter embed mode (projects-only when possible) so the existing cluster-hull
+  // rendering shows topic clusters around the result set. Focus stays set so the
+  // graph remains filtered to just the matches.
+  dom.detailBody?.querySelector("#search-results-map")?.addEventListener("click", () => {
+    if (!state.embedActive) toggleEmbed(true);
+    // Force projects-only mode so the topic-cluster hulls (cluster_k / cluster_label)
+    // render even when result set is small.
+    state.embedAllNodes = false;
+    if (dom.embedAllToggle) dom.embedAllToggle.textContent = "All nodes";
+    applyView({ fit: false });
+    window.setTimeout(() => {
+      state.network?.fit({
+        nodes: rankedIds,
+        padding: 100,
+        animation: { duration: 600, easingFunction: "easeInOutQuad" },
+      });
+      scheduleClusterHullRender();
+    }, 100);
+    showToast("Mapped — bubbles colored by topic cluster, fit to results.", "success");
   });
   showToast(`${rankedIds.length} results · graph filtered to matches.`, "success");
 }
