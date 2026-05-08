@@ -4403,6 +4403,41 @@ function loadGraph(rawData, sourceLabel) {
   if (!localStorage.getItem(STORAGE_KEYS.visited)) {
     openHelp("overview", { focusButton: false });
   }
+
+  // Handle #nodes= hash — collection view from browse.html
+  // Format: explorer.html#nodes=project:alpha,project:beta&label=My+Collection
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const nodeParam  = hashParams.get("nodes");
+  const labelParam = hashParams.get("label");
+  if (nodeParam) {
+    const ids = nodeParam.split(",").map(s => s.trim()).filter(Boolean);
+    const valid = ids.filter(id => state.caches.nodeById.has(id));
+    if (valid.length) {
+      // Enter focus mode on the first node, accumulating all valid ids
+      window.setTimeout(() => {
+        const firstId = valid[0];
+        state.focus = {
+          rootId: firstId,
+          accumulatedIds: new Set(valid),
+          depth: 1,
+          neighborIndex: -1,
+        };
+        state.selection.ids = new Set(valid);
+        state.selection.primaryId = firstId;
+        updateFocusExitButtonLabel();
+        applyView({ fit: true });
+        renderDiscoverPanel();
+        showToast(
+          labelParam
+            ? `Showing collection: ${labelParam} (${valid.length} nodes)`
+            : `Showing ${valid.length} node${valid.length !== 1 ? "s" : ""} from collection`,
+          "success"
+        );
+        // Clear hash so a reload doesn't re-trigger
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }, 1200); // wait for initial physics to settle
+    }
+  }
 }
 
 // ── Filters & Year Input ───────────────────────────────────────────────────

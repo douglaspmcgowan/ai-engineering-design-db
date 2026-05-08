@@ -316,6 +316,22 @@ mark { background: rgba(255,196,0,0.25); color: inherit; border-radius: 2px; pad
   display: flex; align-items: center; gap: 4px;
 }
 
+/* ── Timeline view ───────────────────────────────────────────────── */
+#timeline-wrap { padding: 0 16px 20px; display: none; }
+.timeline-year-group { margin-bottom: 28px; }
+.timeline-year-label {
+  font-size: 22px; font-weight: 700; color: var(--accent);
+  padding: 0 0 10px; margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 10px;
+}
+.timeline-year-count { font-size: 12px; font-weight: 400; color: var(--fg-faint); }
+.timeline-year-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
 /* ── Table view ─────────────────────────────────────────────────── */
 #table-wrap { padding: 0 16px 20px; overflow-x: auto; display: none; }
 .data-table {
@@ -558,6 +574,8 @@ mark { background: rgba(255,196,0,0.25); color: inherit; border-radius: 2px; pad
 .collection-count { font-size: 10px; color: var(--fg-faint); }
 .collection-del { font-size: 11px; color: var(--fg-faint); cursor: pointer; padding: 1px 3px; border-radius: 2px; }
 .collection-del:hover { color: #e55; }
+.collection-graph { font-size: 11px; color: var(--fg-faint); cursor: pointer; padding: 1px 3px; border-radius: 2px; opacity: 0.6; }
+.collection-graph:hover { opacity: 1; }
 
 /* ── Save-to-collection btn in detail panel ──────────────────────── */
 .save-btn {
@@ -773,6 +791,14 @@ body.modal-open .toast-stack { display: none; }
       </svg>
       Table
     </button>
+    <button class="view-btn" id="btn-timeline" onclick="setView('timeline')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/><circle cx="7" cy="6" r="2" fill="currentColor"/>
+        <circle cx="14" cy="12" r="2" fill="currentColor"/><circle cx="9" cy="18" r="2" fill="currentColor"/>
+      </svg>
+      Timeline
+    </button>
   </div>
 
   <button type="button" class="topbar-link" onclick="openSubmitModal('')">
@@ -907,6 +933,8 @@ body.modal-open .toast-stack { display: none; }
         <tbody id="table-body"></tbody>
       </table>
     </div>
+
+    <div id="timeline-wrap"></div>
   </div>
 
   <!-- Detail panel — always shows 36px strip; expands to 380px on card click -->
@@ -1634,6 +1662,7 @@ function renderResults() {
 }
 function renderContent() {
   if (S.view === "cards") renderCards();
+  else if (S.view === "timeline") renderTimeline();
   else renderTable();
 }
 
@@ -1842,13 +1871,45 @@ function initColResize() {
   });
 }
 
+// ── Timeline rendering ────────────────────────────────────────────
+function renderTimeline() {
+  const wrap = document.getElementById("timeline-wrap");
+  if (!S.filtered.length) {
+    wrap.innerHTML = `<div class="no-results"><h3>No entries found</h3><p>Try different filters or a broader search.</p></div>`;
+    return;
+  }
+  // Group by year (projects scope) or just render flat (all scope)
+  if (S.scope !== "projects") { wrap.innerHTML = S.filtered.map(renderProjectCard).join(""); return; }
+  const byYear = new Map();
+  S.filtered.forEach(p => {
+    const yr = p.year || "Unknown";
+    if (!byYear.has(yr)) byYear.set(yr, []);
+    byYear.get(yr).push(p);
+  });
+  // Sort years descending; Unknown last
+  const years = [...byYear.keys()].sort((a, b) => {
+    if (a === "Unknown") return 1;
+    if (b === "Unknown") return -1;
+    return b - a;
+  });
+  wrap.innerHTML = years.map(yr => {
+    const items = byYear.get(yr);
+    return `<div class="timeline-year-group">
+      <div class="timeline-year-label">${yr}<span class="timeline-year-count">${items.length} project${items.length !== 1 ? "s" : ""}</span></div>
+      <div class="timeline-year-cards">${items.map(renderProjectCard).join("")}</div>
+    </div>`;
+  }).join("");
+}
+
 // ── View toggle ───────────────────────────────────────────────────
 function setView(v) {
   S.view = v;
   document.getElementById("btn-cards").classList.toggle("active", v === "cards");
   document.getElementById("btn-table").classList.toggle("active", v === "table");
-  document.getElementById("card-grid").style.display  = v === "cards" ? "grid" : "none";
-  document.getElementById("table-wrap").style.display = v === "table" ? "block" : "none";
+  document.getElementById("btn-timeline").classList.toggle("active", v === "timeline");
+  document.getElementById("card-grid").style.display      = v === "cards"    ? "grid"  : "none";
+  document.getElementById("table-wrap").style.display     = v === "table"    ? "block" : "none";
+  document.getElementById("timeline-wrap").style.display  = v === "timeline" ? "block" : "none";
   if (v === "table") {
     S.colResizeInit = false; // re-init resize handles on view switch
   }
@@ -2141,6 +2202,7 @@ function renderCollections() {
     return `<div class="collection-item" onclick="toggleCollectionFilter('${esc(name)}')">
       <span class="collection-item-name ${active}" title="${esc(name)}">${esc(name)}</span>
       <span class="collection-count">${ids.length}</span>
+      <span class="collection-graph" onclick="event.stopPropagation();viewCollectionInExplorer('${esc(name)}')" title="Open as graph">🕸</span>
       <span class="collection-del" onclick="event.stopPropagation();deleteCollection('${esc(name)}')" title="Delete">✕</span>
     </div>`;
   }).join("");
@@ -2207,7 +2269,7 @@ function isInAnyCollection(id) {
 function viewCollectionInExplorer(name) {
   const cols = loadCollections();
   const ids = (cols[name] || []).join(",");
-  window.open(`/?collection=${encodeURIComponent(ids)}`, "_blank");
+  window.open(`/explorer.html#nodes=${encodeURIComponent(ids)}&label=${encodeURIComponent(name)}`, "_blank");
 }
 
 // ── Keyboard ──────────────────────────────────────────────────────
