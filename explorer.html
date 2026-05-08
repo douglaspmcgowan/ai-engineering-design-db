@@ -228,6 +228,31 @@
         </div>
       </details>
 
+      <details id="tools-analysis-section" class="sidebar-section" data-accordion>
+        <summary>
+          <span class="summary-title">Analysis</span>
+          <span class="summary-meta">Algorithms</span>
+        </summary>
+        <div class="section-body">
+          <div class="phys-presets" style="display:grid;gap:6px">
+            <button class="ghost-button" id="analysis-pagerank" type="button"
+              title="Run PageRank — surfaces canonical/most-connected projects. Size by score.">▶ PageRank · size by score</button>
+            <button class="ghost-button" id="analysis-pagerank-clear" type="button"
+              title="Clear PageRank sizing">Clear PageRank</button>
+            <hr style="border:none;border-top:1px solid var(--border);margin:6px 0">
+            <button class="ghost-button" id="analysis-path-pick-a" type="button"
+              title="Pick the currently-selected node as path source A">Set node A (selected)</button>
+            <button class="ghost-button" id="analysis-path-pick-b" type="button"
+              title="Pick the currently-selected node as path target B and run shortest path">Set node B + run path</button>
+            <div id="analysis-path-status" style="font-size:11px;color:var(--fg-faint);min-height:14px"></div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:6px 0">
+            <button class="ghost-button" id="analysis-save-view" type="button"
+              title="Name and save the current filter + view as a perspective">Save current view…</button>
+            <div id="analysis-saved-views" style="display:flex;flex-direction:column;gap:3px"></div>
+          </div>
+        </div>
+      </details>
+
       <details id="tools-physics-section" class="sidebar-section" data-accordion>
         <summary>
           <span class="summary-title">Physics Lab</span>
@@ -2461,7 +2486,13 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
   // Scale size by log(degree) so high-degree hub nodes appear larger.
   // incidentEdgeIdsByNode holds ALL edges (structural + semantic) for each node.
   const _degree = state.caches.incidentEdgeIdsByNode?.get(nodeId)?.length || 1;
-  const _degreeBoost = state.embedActive ? 0 : Math.min(22, Math.log(_degree + 1) * 3.2);
+  let _degreeBoost = state.embedActive ? 0 : Math.min(22, Math.log(_degree + 1) * 3.2);
+  // F8: when PageRank sizing is active, override degree boost with PR-derived size
+  if (state.ui.pagerankActive && state.pageRankScores && !state.embedActive) {
+    const pr = state.pageRankScores.get(nodeId) || 0;
+    // Normalize: log-scale boosts low-PR nodes a bit so they're still visible
+    _degreeBoost = Math.min(40, Math.log(1 + pr * 10000) * 4.5);
+  }
   const rendered = {
     id: nodeId,
     label,
@@ -3316,6 +3347,209 @@ function stepBack() {
   if (state.focus) {
     exitFocus(false);
   }
+}
+
+// ── F8: PageRank centrality ──────────────────────────────────────────────────
+// Standard damped PageRank over the graph. ~30 iterations is enough for convergence
+// on this graph size. Result is stored in state.pageRankScores (id → score) and
+// the network nodes are resized by score when state.ui.pagerankActive is true.
+function computePageRank(damping = 0.85, iters = 30) {
+  if (!state.data) return new Map();
+  const nodes = state.data.nodes;
+  const N = nodes.length;
+  if (!N) return new Map();
+  // Build out-edges adjacency
+  const outNeighbors = new Map();
+  for (const n of nodes) outNeighbors.set(n.id, []);
+  for (const e of state.data.edges) {
+    const arr = outNeighbors.get(e.source);
+    if (arr) arr.push(e.target);
+  }
+  // Initialize uniformly
+  let scores = new Map();
+  for (const n of nodes) scores.set(n.id, 1 / N);
+  // Iterate
+  for (let i = 0; i < iters; i++) {
+    const next = new Map();
+    for (const n of nodes) next.set(n.id, (1 - damping) / N);
+    for (const n of nodes) {
+      const out = outNeighbors.get(n.id);
+      if (!out || !out.length) continue;
+      const share = (damping * scores.get(n.id)) / out.length;
+      for (const tgt of out) {
+        next.set(tgt, (next.get(tgt) || 0) + share);
+      }
+    }
+    scores = next;
+  }
+  return scores;
+}
+
+function applyPageRankSizing() {
+  state.ui.pagerankActive = true;
+  state.pageRankScores = computePageRank();
+  // Find min/max for normalization
+  let max = 0;
+  for (const v of state.pageRankScores.values()) if (v > max) max = v;
+  if (max <= 0) { showToast("PageRank produced no scores.", "warn"); return; }
+  // Trigger re-render — sizing is read from state.pageRankScores in buildRenderedNode
+  applyView({ fit: false });
+  showToast("PageRank applied — node size now reflects centrality.", "success");
+}
+
+function clearPageRankSizing() {
+  state.ui.pagerankActive = false;
+  state.pageRankScores = null;
+  applyView({ fit: false });
+  showToast("PageRank cleared.", "success");
+}
+
+// ── F9: Shortest path A↔B ────────────────────────────────────────────────────
+function findShortestPath(sourceId, targetId) {
+  if (!state.data || !sourceId || !targetId) return null;
+  if (sourceId === targetId) return [sourceId];
+  // Build undirected adjacency
+  const adj = new Map();
+  for (const n of state.data.nodes) adj.set(n.id, []);
+  for (const e of state.data.edges) {
+    adj.get(e.source)?.push(e.target);
+    adj.get(e.target)?.push(e.source);
+  }
+  // BFS
+  const parent = new Map([[sourceId, null]]);
+  const queue = [sourceId];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === targetId) break;
+    for (const next of (adj.get(cur) || [])) {
+      if (!parent.has(next)) {
+        parent.set(next, cur);
+        queue.push(next);
+      }
+    }
+  }
+  if (!parent.has(targetId)) return null;
+  // Reconstruct
+  const path = [];
+  let n = targetId;
+  while (n !== null && n !== undefined) {
+    path.unshift(n);
+    n = parent.get(n);
+  }
+  return path;
+}
+
+function runShortestPath() {
+  const a = state.ui.pathA;
+  const b = state.ui.pathB;
+  if (!a || !b) return;
+  const path = findShortestPath(a, b);
+  const status = document.getElementById("analysis-path-status");
+  if (!path) {
+    if (status) status.textContent = "No path between A and B.";
+    showToast("No path connects those two nodes.", "warn");
+    return;
+  }
+  if (status) status.textContent = `Path length ${path.length - 1} hops`;
+  // Enter focus mode showing only the path nodes
+  state.focus = {
+    rootId: path[0],
+    accumulatedIds: new Set(path),
+    depth: 0,
+    neighborIndex: 0,
+    mode: "path",
+  };
+  state.selection.ids = new Set([path[0], path[path.length - 1]]);
+  state.selection.primaryId = path[0];
+  applyView({ fit: true });
+  showToast(`Shortest path: ${path.length - 1} hops · ${path.length} nodes.`, "success");
+}
+
+// ── F10: Saved views / perspectives ─────────────────────────────────────────
+const SAVED_VIEWS_KEY = "aied-saved-views";
+function loadSavedViews() {
+  try { return JSON.parse(localStorage.getItem(SAVED_VIEWS_KEY) || "{}"); }
+  catch { return {}; }
+}
+function saveSavedViews(v) { localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(v)); }
+
+function captureCurrentView() {
+  return {
+    nodeTypes: Array.from(state.filters.nodeTypes || []),
+    edgeTypes: Array.from(state.filters.edgeTypes || []),
+    categories: Array.from(state.filters.categories || []),
+    yearMin: state.filters.yearMin,
+    yearMax: state.filters.yearMax,
+    embedActive: state.embedActive,
+    paletteIndex: state.paletteIndex,
+    cameraScale: state.network?.getScale?.() || 1,
+    cameraPos: state.network?.getViewPosition?.() || null,
+    timestamp: Date.now(),
+  };
+}
+
+function restoreSavedView(name) {
+  const views = loadSavedViews();
+  const v = views[name];
+  if (!v) { showToast(`No saved view "${name}".`, "warn"); return; }
+  // Restore filters
+  if (v.nodeTypes) state.filters.nodeTypes = new Set(v.nodeTypes);
+  if (v.edgeTypes) state.filters.edgeTypes = new Set(v.edgeTypes);
+  if (v.categories) state.filters.categories = new Set(v.categories);
+  if (v.yearMin != null) state.filters.yearMin = v.yearMin;
+  if (v.yearMax != null) state.filters.yearMax = v.yearMax;
+  if (typeof v.paletteIndex === "number" && v.paletteIndex !== state.paletteIndex) {
+    applyPalette(v.paletteIndex, false);
+  }
+  // Embed state
+  if (v.embedActive && !state.embedActive) toggleEmbed(false);
+  else if (!v.embedActive && state.embedActive) toggleEmbed(false);
+  applyView({ fit: false });
+  if (v.cameraPos && state.network) {
+    window.setTimeout(() => state.network?.moveTo({
+      position: v.cameraPos, scale: v.cameraScale,
+      animation: { duration: 400, easingFunction: "easeInOutQuad" },
+    }), 80);
+  }
+  showToast(`Restored view: ${name}`, "success");
+}
+
+function renderSavedViewsList() {
+  const el = document.getElementById("analysis-saved-views");
+  if (!el) return;
+  const views = loadSavedViews();
+  const names = Object.keys(views).sort();
+  if (!names.length) { el.innerHTML = "<div style='font-size:11px;color:var(--fg-faint)'>No saved views yet.</div>"; return; }
+  el.innerHTML = names.map((name) => {
+    const safe = escapeHtml(name);
+    return `<div style="display:flex;gap:4px;align-items:center;padding:2px 0">
+      <button class="ghost-button" data-restore="${safe}" type="button" style="flex:1;text-align:left;font-size:12px">▸ ${safe}</button>
+      <button class="ghost-button" data-delete="${safe}" type="button" style="font-size:11px;padding:2px 6px" title="Delete">✕</button>
+    </div>`;
+  }).join("");
+  el.querySelectorAll("[data-restore]").forEach((btn) => {
+    btn.addEventListener("click", () => restoreSavedView(btn.getAttribute("data-restore")));
+  });
+  el.querySelectorAll("[data-delete]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const name = btn.getAttribute("data-delete");
+      const views = loadSavedViews();
+      delete views[name];
+      saveSavedViews(views);
+      renderSavedViewsList();
+      showToast(`Deleted view: ${name}`, "success");
+    });
+  });
+}
+
+function promptSaveCurrentView() {
+  const name = window.prompt("Name this view (e.g. 'Topology + 2024 only'):", "");
+  if (!name || !name.trim()) return;
+  const views = loadSavedViews();
+  views[name.trim()] = captureCurrentView();
+  saveSavedViews(views);
+  renderSavedViewsList();
+  showToast(`Saved view: ${name.trim()}`, "success");
 }
 
 // F3: Search results panel — show a ranked list of matches in the detail panel
@@ -5145,6 +5379,28 @@ function bindEvents() {
   document.getElementById("tour-skip")?.addEventListener("click", closeTour);
   dom.fitButton.addEventListener("click", () => fitVisibleGraph());
   dom.focusExitButton.addEventListener("click", () => exitFocus(true));
+
+  // F8 / F9 / F10 — Analysis section wiring
+  document.getElementById("analysis-pagerank")?.addEventListener("click", applyPageRankSizing);
+  document.getElementById("analysis-pagerank-clear")?.addEventListener("click", clearPageRankSizing);
+  document.getElementById("analysis-path-pick-a")?.addEventListener("click", () => {
+    const sel = state.selection.primaryId;
+    if (!sel) { showToast("Select a node first.", "warn"); return; }
+    state.ui.pathA = sel;
+    const status = document.getElementById("analysis-path-status");
+    if (status) status.textContent = `A = ${state.caches.nodeById.get(sel)?.label || sel}`;
+    showToast(`Set path source A = ${state.caches.nodeById.get(sel)?.label || sel}`, "success");
+  });
+  document.getElementById("analysis-path-pick-b")?.addEventListener("click", () => {
+    const sel = state.selection.primaryId;
+    if (!sel) { showToast("Select a node first.", "warn"); return; }
+    if (!state.ui.pathA) { showToast("Set node A first.", "warn"); return; }
+    state.ui.pathB = sel;
+    runShortestPath();
+  });
+  document.getElementById("analysis-save-view")?.addEventListener("click", promptSaveCurrentView);
+  // Initial render of saved views list
+  renderSavedViewsList();
   dom.clusterLabelA.addEventListener("click", () => {
     state.clusterLabelMode = "A";
     syncClusterLabelToggleButtons();
