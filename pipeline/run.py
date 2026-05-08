@@ -1,12 +1,14 @@
 """Pipeline runner.
 
 Usage:
-    python -m pipeline.run                  # all sources
-    python -m pipeline.run --source arxiv   # one source
-    python -m pipeline.run --dry-run        # don't write inbox
+    python -m pipeline.run                     # all sources
+    python -m pipeline.run --source arxiv      # one source
+    python -m pipeline.run --dry-run           # don't write inbox
+    python -m pipeline.run --no-enrich         # skip in-flow enrichment
 
 Reads each source's fetch() function, dedupes against existing consolidated.jsonl
-+ existing inbox, and appends new entries to raw/inbox-pipeline.jsonl.
++ existing inbox, enriches missing fields (year / description / venue), and
+appends new entries to raw/inbox-pipeline.jsonl.
 """
 from __future__ import annotations
 import argparse, json, re, sys
@@ -21,6 +23,8 @@ STATE = ROOT / "pipeline" / "state.json"
 # Import source modules. Adding a new source = add to this dict.
 from pipeline.sources import arxiv_rss, github_trending, youtube_whisper
 from pipeline.sources import nasa_ntrs, conferences, substack, scholar_alerts
+from pipeline.sources import citation_monitor
+from pipeline import enricher as _enricher
 
 SOURCES = {
     "arxiv":            arxiv_rss,
@@ -30,6 +34,7 @@ SOURCES = {
     "conferences":      conferences,
     "substack":         substack,
     "scholar":          scholar_alerts,
+    "citations":        citation_monitor,
 }
 
 
@@ -66,6 +71,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", help="Run only this source (default: all)")
     parser.add_argument("--dry-run", action="store_true", help="Don't write inbox")
+    parser.add_argument(
+        "--no-enrich",
+        action="store_true",
+        help="Skip in-flow enrichment (year/description/venue fill via S2 + GitHub)",
+    )
     args = parser.parse_args()
 
     sources_to_run = [args.source] if args.source else list(SOURCES.keys())
@@ -103,6 +113,12 @@ def main():
         return 0
 
     print(f"\nTotal new entries: {len(new_records)}")
+
+    # In-flow enrichment — fill missing year / description / venue before
+    # writing to inbox so curators see complete records.
+    if not args.no_enrich:
+        _enricher.enrich_batch(new_records)
+
     if args.dry_run:
         print("--dry-run: not writing inbox")
         return 0
@@ -118,13 +134,23 @@ def main():
 
 
 def _save_state(summary, new_count):
-    state = {
+    # Merge into existing state so source-specific sub-keys (e.g.
+    # citation_seen_ids written by citation_monitor.fetch()) are preserved.
+    # Note: source modules may write their own persistent keys here; we keep them.
+    existing: dict = {}
+    if STATE.exists():
+        try:
+            with open(STATE, encoding="utf-8") as f:
+                existing = json.load(f)
+        except Exception as e:
+            print(f"  ! state.json unreadable — resetting (lost persistent keys): {e}", file=sys.stderr)
+    existing.update({
         "last_run": datetime.now().isoformat(timespec="seconds"),
         "last_run_count": new_count,
         "by_source": summary,
-    }
+    })
     with open(STATE, "w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2)
+        json.dump(existing, f, indent=2)
 
 
 if __name__ == "__main__":
