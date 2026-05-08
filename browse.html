@@ -283,6 +283,7 @@ body {
 }
 .year-tag { font-size: 11px; color: var(--fg-faint); flex-shrink: 0; margin-top: 2px; }
 .card-name { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--fg); }
+mark { background: rgba(255,196,0,0.25); color: inherit; border-radius: 2px; padding: 0 1px; }
 .card-org { font-size: 12px; color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-desc {
   font-size: 12px; color: var(--fg-muted); line-height: 1.55; flex: 1;
@@ -1133,6 +1134,13 @@ const S = {
 function esc(s) {
   return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+// Highlight search term in text — returns HTML with <mark> tags
+function highlight(text, q) {
+  if (!q || !text) return esc(text);
+  const safe = esc(text);
+  const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return safe.replace(new RegExp(safeQ.replace(/\s+/g, ".{0,2}"), "gi"), m => `<mark>${m}</mark>`);
+}
 function catColor(cat) {
   if (!catColorCache.has(cat))
     catColorCache.set(cat, CAT_COLORS[catColorCache.size % CAT_COLORS.length]);
@@ -1269,6 +1277,7 @@ async function init() {
 
     renderSidebar();
     renderCollections();
+    decodeHash();   // restore filters from URL hash before first render
     applyFilters();
   } catch (e) {
     document.getElementById("results-count").textContent = "Failed to load — " + e.message;
@@ -1484,6 +1493,35 @@ function clearSearch() {
   S.filters.q = ""; applyFilters();
 }
 
+// ── URL hash — shareable filter state ────────────────────────────
+function encodeHash() {
+  const p = new URLSearchParams();
+  if (S.filters.q)               p.set("q", S.filters.q);
+  if (S.filters.cats.size)       p.set("cats", [...S.filters.cats].join(","));
+  if (S.filters.mods.size)       p.set("mods", [...S.filters.mods].join(","));
+  if (S.filters.yearMin)         p.set("yMin", S.filters.yearMin);
+  if (S.filters.yearMax)         p.set("yMax", S.filters.yearMax);
+  if (S.sortField !== "year" || S.sortDir !== "desc")
+                                 p.set("sort", `${S.sortField}-${S.sortDir}`);
+  const str = p.toString();
+  history.replaceState(null, "", str ? "#" + str : window.location.pathname + window.location.search);
+}
+
+function decodeHash() {
+  const raw = window.location.hash.slice(1);
+  if (!raw) return;
+  const p = new URLSearchParams(raw);
+  if (p.get("q"))    { S.filters.q = p.get("q"); document.getElementById("search-input").value = p.get("q"); }
+  if (p.get("cats")) p.get("cats").split(",").forEach(c => c && S.filters.cats.add(c));
+  if (p.get("mods")) p.get("mods").split(",").forEach(m => m && S.filters.mods.add(m));
+  if (p.get("yMin")) { S.filters.yearMin = Number(p.get("yMin")); document.getElementById("year-min").value = p.get("yMin"); }
+  if (p.get("yMax")) { S.filters.yearMax = Number(p.get("yMax")); document.getElementById("year-max").value = p.get("yMax"); }
+  if (p.get("sort")) {
+    const [f, d] = p.get("sort").split("-");
+    if (f && d) { S.sortField = f; S.sortDir = d; }
+  }
+}
+
 // ── Filtering ─────────────────────────────────────────────────────
 function applyFilters() {
   const q = document.getElementById("search-input").value.trim().toLowerCase();
@@ -1523,6 +1561,7 @@ function applyFilters() {
   S.filtered = doSort(S.filtered);
   renderResults();
   renderActiveFilters();
+  encodeHash();
 }
 
 function renderActiveFilters() {
@@ -1624,9 +1663,9 @@ function renderProjectCard(p) {
       <div class="card-badges">${badge(p.cat)}${etBadge}</div>
       <span class="year-tag">${p.year || ""}</span>
     </div>
-    <div class="card-name">${esc(p.name)}</div>
-    <div class="card-org">${esc(p.org)}</div>
-    <div class="card-desc">${esc(p.desc)}</div>
+    <div class="card-name">${highlight(p.name, S.filters.q)}</div>
+    <div class="card-org">${highlight(p.org, S.filters.q)}</div>
+    <div class="card-desc">${highlight(p.desc, S.filters.q)}</div>
     <div class="card-footer">
       <div class="card-modality">${modStr}</div>
       <div class="card-right">
@@ -1648,9 +1687,9 @@ function renderEntityCard(p) {
       <span class="node-type-badge" style="color:${color};border-color:${color}30;background:${color}15">${esc(p.nodeType)}</span>
       ${p.year ? `<span class="year-tag">${p.year}</span>` : ""}
     </div>
-    <div class="card-name">${esc(p.name)}</div>
-    ${p.org ? `<div class="card-org">${esc(p.org)}</div>` : ""}
-    ${desc ? `<div class="card-desc">${esc(desc)}</div>` : ""}
+    <div class="card-name">${highlight(p.name, S.filters.q)}</div>
+    ${p.org ? `<div class="card-org">${highlight(p.org, S.filters.q)}</div>` : ""}
+    ${desc ? `<div class="card-desc">${highlight(desc, S.filters.q)}</div>` : ""}
     <div class="card-footer">
       ${p.projectCount > 0 ? `<div class="conn-count">${SVG.link} ${p.projectCount} ${connLabel}</div>` : "<div></div>"}
       <div class="card-links">
@@ -1726,8 +1765,8 @@ function renderProjectRow(p) {
   const sel = S.selectedId === p.id ? "selected" : "";
   const links = buildProjectLinks(p, false);
   return `<tr class="${sel}" data-id="${esc(p.id)}" onclick="selectEntity('${esc(p.id)}')">
-    <td class="td-name"><div class="td-name-inner"><span class="td-name-text" title="${esc(p.name)}">${esc(p.name)}</span></div></td>
-    <td class="td-org" title="${esc(p.org)}">${esc(truncate(p.org, 30))}</td>
+    <td class="td-name"><div class="td-name-inner"><span class="td-name-text" title="${esc(p.name)}">${highlight(p.name, S.filters.q)}</span></div></td>
+    <td class="td-org" title="${esc(p.org)}">${highlight(truncate(p.org, 30), S.filters.q)}</td>
     <td class="td-year">${p.year || "—"}</td>
     <td>${badge(p.cat)}${p.entryType ? `<span class="et-badge">${esc(p.entryType.replace(/-/g," "))}</span>` : ""}</td>
     <td class="td-modality">${esc(shortMod(p.inMod))} → ${esc(shortMod(p.outMod))}</td>
