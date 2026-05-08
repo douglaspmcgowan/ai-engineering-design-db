@@ -77,6 +77,9 @@
 
 <main class="layout">
   <aside class="sidebar" id="filter-sidebar">
+    <button class="panel-collapse-btn panel-collapse-left" id="left-collapse-btn"
+            type="button" title="Collapse sidebar" aria-label="Collapse left sidebar"
+            onclick="togglePanelCollapse('left')">‹</button>
     <div class="sidebar-embed-notice">Filters paused in embed view</div>
     <div class="sidebar-inner">
       <details class="sidebar-section" data-accordion open>
@@ -202,6 +205,9 @@
 
   <aside class="tools-panel">
     <div class="resize-handle" data-panel="tools" title="Drag to resize"></div>
+    <button class="panel-collapse-btn panel-collapse-right" id="right-collapse-btn"
+            type="button" title="Collapse panel" aria-label="Collapse right panel"
+            onclick="togglePanelCollapse('right')">›</button>
     <div class="sidebar-inner">
       <details id="tools-presets-section" class="sidebar-section" data-accordion open>
         <summary>
@@ -4742,6 +4748,31 @@ function closeTour() {
 
 // ── Resize Handles ─────────────────────────────────────────────────────────
 
+// Sidebar collapse — toggles --left-w / --tools-w via data-attribute on .layout.
+// Persists state to localStorage; redraws vis-network so canvas fills the new size.
+window.togglePanelCollapse = function (side) {
+  const layout = document.querySelector(".layout");
+  if (!layout) return;
+  const attr = side === "left" ? "data-left-collapsed" : "data-right-collapsed";
+  const key  = side === "left" ? "aied-left-collapsed" : "aied-right-collapsed";
+  const isCollapsed = layout.hasAttribute(attr);
+  if (isCollapsed) { layout.removeAttribute(attr); localStorage.removeItem(key); }
+  else             { layout.setAttribute(attr, ""); localStorage.setItem(key, "1"); }
+  // Update button arrow
+  const btn = document.getElementById(side === "left" ? "left-collapse-btn" : "right-collapse-btn");
+  if (btn) btn.textContent = (side === "left")
+    ? (isCollapsed ? "‹" : "›")
+    : (isCollapsed ? "›" : "‹");
+  // Resize the network so it fills the new column width
+  setTimeout(() => state.network?.redraw(), 220);
+};
+function restorePanelCollapseState() {
+  const layout = document.querySelector(".layout");
+  if (!layout) return;
+  if (localStorage.getItem("aied-left-collapsed"))  { layout.setAttribute("data-left-collapsed", ""); const b=document.getElementById("left-collapse-btn"); if (b) b.textContent = "›"; }
+  if (localStorage.getItem("aied-right-collapsed")) { layout.setAttribute("data-right-collapsed", ""); const b=document.getElementById("right-collapse-btn"); if (b) b.textContent = "‹"; }
+}
+
 function initResizeHandles() {
   const layout = document.querySelector(".layout");
   if (!layout) return;
@@ -4860,6 +4891,7 @@ function bindEvents() {
     });
   }
   initResizeHandles();
+  restorePanelCollapseState();
   dom.forceButton.addEventListener("click", () => toggleForce(true));
   // Settings menu (palette + feedback)
   if (dom.settingsButton) {

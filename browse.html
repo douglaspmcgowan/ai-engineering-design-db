@@ -118,9 +118,11 @@ body {
 .sidebar {
   width: 216px; flex-shrink: 0;
   background: var(--surface); border-right: 1px solid var(--border);
-  overflow-y: auto; display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;   /* kill the spurious horizontal scrollbar */
+  display: flex; flex-direction: column;
   transition: width 200ms ease;
 }
+.sidebar * { min-width: 0; }   /* let flex/grid children shrink instead of forcing scroll */
 .sidebar[data-collapsed] { width: 32px; overflow: hidden; }
 .sidebar[data-collapsed] .filter-section,
 .sidebar[data-collapsed] .sidebar-footer {
@@ -801,9 +803,6 @@ body.modal-open .toast-stack { display: none; }
     </button>
   </div>
 
-  <button type="button" class="topbar-link" onclick="openSubmitModal('')">
-    + Add project
-  </button>
   <a href="/" class="topbar-link">
     Graph Explorer
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -531,6 +531,7 @@ a:hover {
 .tools-panel {
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;        /* match .sidebar — kill the horizontal scrollbar */
   border-left: 1px solid var(--border);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%),
@@ -543,6 +544,40 @@ a:hover {
   display: grid;
   gap: 10px;
 }
+
+/* Sidebar collapse buttons (left + right) */
+.panel-collapse-btn {
+  position: absolute;
+  top: 8px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-2, rgba(40,40,46,0.95));
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 14px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 25;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.panel-collapse-btn:hover { background: var(--surface-3, rgba(60,60,70,0.95)); color: var(--fg); }
+.panel-collapse-left  { right: 6px; }
+.panel-collapse-right { left: 6px; }
+.layout[data-left-collapsed]  { --left-w: 24px;  }
+.layout[data-right-collapsed] { --tools-w: 24px; }
+.layout[data-left-collapsed]  .sidebar > *:not(.panel-collapse-btn),
+.layout[data-right-collapsed] .tools-panel > *:not(.panel-collapse-btn):not(.resize-handle) {
+  display: none;
+}
+.layout[data-left-collapsed]  .panel-collapse-left  { right: 1px; }
+.layout[data-right-collapsed] .panel-collapse-right { left: 1px; }
+.layout[data-left-collapsed]  .panel-collapse-left::before  { content: "›"; }
+.layout[data-right-collapsed] .panel-collapse-right::before { content: "‹"; }
+.layout[data-left-collapsed]  #left-collapse-btn  { font-size: 0; }
+.layout[data-right-collapsed] #right-collapse-btn { font-size: 0; }
+.layout[data-left-collapsed]  #left-collapse-btn::before,
+.layout[data-right-collapsed] #right-collapse-btn::before { font-size: 14px; }
 
 /* Draggable resize handles on sidebar edges */
 .resize-handle {
@@ -565,6 +600,7 @@ a:hover {
 .sidebar {
   min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;        /* kill the spurious horizontal scrollbar */
   border-right: 1px solid var(--border);
   position: relative;
   background:
@@ -1566,11 +1602,13 @@ a:hover {
 .toast-stack {
   position: fixed;
   right: 18px;
-  bottom: 18px;
+  bottom: 80px;          /* above the +Add project FAB (FAB occupies bottom 0–66px) */
   display: grid;
   gap: 10px;
   z-index: 60;
+  pointer-events: none;  /* let the user click the FAB through any stale toast */
 }
+.toast-stack > .toast { pointer-events: auto; }
 
 .toast {
   min-width: 220px;
