@@ -267,28 +267,28 @@
             <div id="phys-timer" class="phys-timer"></div>
             <div class="phys-row">
               <label class="phys-label" for="phys-duration">Duration</label>
-              <input id="phys-duration" class="phys-slider" type="range" min="2" max="30" step="1" value="7">
-              <span id="phys-duration-val" class="phys-val">7s</span>
+              <input id="phys-duration" class="phys-slider" type="range" min="2" max="30" step="1" value="5">
+              <span id="phys-duration-val" class="phys-val">5s</span>
             </div>
             <div class="phys-row">
               <label class="phys-label" for="phys-grav">Gravity</label>
-              <input id="phys-grav" class="phys-slider" type="range" min="-30000" max="-500" step="500" value="-15000">
-              <span id="phys-grav-val" class="phys-val">-15000</span>
+              <input id="phys-grav" class="phys-slider" type="range" min="-30000" max="-500" step="500" value="-3500">
+              <span id="phys-grav-val" class="phys-val">-3500</span>
             </div>
             <div class="phys-row">
               <label class="phys-label" for="phys-cg">CentralG</label>
-              <input id="phys-cg" class="phys-slider" type="range" min="0.001" max="0.08" step="0.001" value="0.006">
-              <span id="phys-cg-val" class="phys-val">0.006</span>
+              <input id="phys-cg" class="phys-slider" type="range" min="0.001" max="0.08" step="0.001" value="0.01">
+              <span id="phys-cg-val" class="phys-val">0.01</span>
             </div>
             <div class="phys-row">
               <label class="phys-label" for="phys-sl">SpringLen</label>
-              <input id="phys-sl" class="phys-slider" type="range" min="40" max="360" step="10" value="200">
-              <span id="phys-sl-val" class="phys-val">200</span>
+              <input id="phys-sl" class="phys-slider" type="range" min="40" max="360" step="10" value="130">
+              <span id="phys-sl-val" class="phys-val">130</span>
             </div>
             <div class="phys-row">
               <label class="phys-label" for="phys-sc">SpringK</label>
-              <input id="phys-sc" class="phys-slider" type="range" min="0.01" max="0.30" step="0.01" value="0.10">
-              <span id="phys-sc-val" class="phys-val">0.10</span>
+              <input id="phys-sc" class="phys-slider" type="range" min="0.01" max="0.30" step="0.01" value="0.12">
+              <span id="phys-sc-val" class="phys-val">0.12</span>
             </div>
             <div class="phys-row">
               <label class="phys-label" for="phys-ao">Overlap</label>
@@ -682,11 +682,14 @@ const FORCE_OPTIONS = {
   enabled: true,
   solver: "barnesHut",
   barnesHut: {
-    gravitationalConstant: -15000,
-    centralGravity: 0.006,
-    springLength: 200,
-    springConstant: 0.10,
-    damping: 0.22,          // higher damping → less oscillation at equilibrium
+    // Weak repulsion: the UMAP seed positions are already organically clustered, so
+    // strong repulsion just explodes them into a diffuse cloud. Keep it gentle and
+    // let short, stiff springs + de-overlap tidy the layout while preserving clusters.
+    gravitationalConstant: -3500,
+    centralGravity: 0.01,
+    springLength: 130,
+    springConstant: 0.12,
+    damping: 0.25,          // higher damping → less oscillation at equilibrium
     avoidOverlap: 0.20,
   },
   stabilization: { enabled: false }, // live animation from UMAP seed; no pre-compute pass
@@ -4504,8 +4507,8 @@ function runGephiPhases() {
   // to center. With many edges active, even springConstant:0.06 × 20 neighbors = huge
   // inward force that overwhelms repulsion. Zero springs = true blast outward.
   state.network.setOptions({ physics: { enabled: true, solver: "barnesHut", barnesHut: {
-    gravitationalConstant: -70000, centralGravity: 0,
-    springLength: 400, springConstant: 0, avoidOverlap: 0, damping: 0.06,
+    gravitationalConstant: -28000, centralGravity: 0,
+    springLength: 300, springConstant: 0, avoidOverlap: 0, damping: 0.06,
   }, stabilization: { enabled: false }, maxVelocity: 600 }});
   state.network.startSimulation();
   state.ui.physicsActive = true;
@@ -4530,21 +4533,23 @@ function runGephiPhases() {
       springLength: 300, springConstant: 0.03, avoidOverlap: 0.05, damping: 0.12,
     }}});
   }, t1));
-  // Phase 3: Cluster separation — strengthen springs but keep long length for spread
+  // Phase 3: Cluster separation — strong, short, stiff springs pull connected nodes
+  // into tight islands while moderate central gravity reins in the low-degree halo.
   _gephiTimers.push(window.setTimeout(() => {
     if (!state.network) return;
     state.network.setOptions({ physics: { barnesHut: {
-      gravitationalConstant: -18000, centralGravity: 0.005,
-      springLength: 240, springConstant: 0.08, avoidOverlap: 0.22, damping: 0.20,
+      gravitationalConstant: -9000, centralGravity: 0.015,
+      springLength: 150, springConstant: 0.14, avoidOverlap: 0.18, damping: 0.22,
     }}});
   }, t2));
-  // Finalize
+  // Finalize — fit to the dense core so the clustered mass fills the viewport
+  // instead of zooming all the way out to include a few far-flung stragglers.
   _gephiTimers.push(window.setTimeout(() => {
     if (!state.network) return;
     clampOutlierNodes();
     if (!state.ui.continuousPhysics) disablePhysics();
-    state.network.fit({ padding: 120, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
-    showToast("Gephi phases complete.", "success");
+    state.network.fit({ nodes: getCoreFitNodeIds(), padding: 70, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+    showToast("Layout settled.", "success");
   }, t3));
 }
 
@@ -4651,13 +4656,35 @@ function syncClusterLabelToggleButtons() {
   dom.clusterLabelC?.classList.toggle("is-active", state.clusterLabelMode === "C");
 }
 
+// Returns the subset of visible nodes within the Nth-percentile distance of the
+// centroid. Force layouts produce a dense readable core plus a sparse far-flung
+// halo; fitting to *every* node zooms the core down to an unreadable speck. Fitting
+// to the core (default 92nd pct) lets the meaningful mass fill the viewport while a
+// few stragglers sit just past the edges.
+function getCoreFitNodeIds(percentile = 0.85) {
+  const ids = Array.from(state.currentView.nodeIds);
+  if (ids.length < 30 || state.embedActive || state.chronoActive) return ids;
+  const pos = state.network.getPositions(ids);
+  let cx = 0, cy = 0, n = 0;
+  for (const id of ids) { const p = pos[id]; if (p) { cx += p.x; cy += p.y; n++; } }
+  if (!n) return ids;
+  cx /= n; cy /= n;
+  const withDist = ids.map((id) => {
+    const p = pos[id] || { x: cx, y: cy };
+    return { id, d: Math.hypot(p.x - cx, p.y - cy) };
+  });
+  withDist.sort((a, b) => a.d - b.d);
+  const cut = Math.max(1, Math.floor(withDist.length * percentile));
+  return withDist.slice(0, cut).map((o) => o.id);
+}
+
 function fitVisibleGraph(duration = 280) {
   if (!state.network || !state.currentView.nodeIds.size) {
     return;
   }
   state.network.fit({
-    nodes: Array.from(state.currentView.nodeIds),
-    padding: 120,
+    nodes: getCoreFitNodeIds(),
+    padding: 80,
     animation: {
       duration,
       easingFunction: "easeInOutQuad",
@@ -4704,7 +4731,7 @@ function clampOutlierNodes() {
   if (!median) {
     return;
   }
-  const maxDistance = median * 15;
+  const maxDistance = median * 9;
   for (const nodeId of visibleIds) {
     const position = positions[nodeId];
     if (!position) {
@@ -4722,7 +4749,7 @@ function clampOutlierNodes() {
 
 function getPhysicsDurationMs() {
   const el = document.getElementById("phys-duration");
-  return el ? Number(el.value) * 1000 : 7000;
+  return el ? Number(el.value) * 1000 : 5000;
 }
 
 function settlePhysics() {
@@ -4778,7 +4805,7 @@ function settlePhysics() {
       disablePhysics();
     }
     if (!state.focus && !state.embedActive) {
-      state.network?.fit({ padding: 120, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
+      state.network?.fit({ nodes: getCoreFitNodeIds(), padding: 80, animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     }
   }, durationMs);
 }

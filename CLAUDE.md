@@ -45,16 +45,28 @@ The layout shows natural hub-and-spoke clusters (dense center, sparse periphery)
 ```js
 solver: "barnesHut",
 barnesHut: {
-  gravitationalConstant: -15000,
-  centralGravity: 0.006,
-  springLength: 200,
-  springConstant: 0.10,
-  damping: 0.15,
+  gravitationalConstant: -3500,   // weak — strong repulsion explodes the UMAP seed
+  centralGravity: 0.01,
+  springLength: 130,              // short + stiff → tight cluster islands
+  springConstant: 0.12,
+  damping: 0.25,
   avoidOverlap: 0.20,
 },
-stabilization: { iterations: 100 },
-// settlePhysics timer: 3500ms
+stabilization: { enabled: false },
+// settlePhysics timer (manual restarts): 5000ms (slider #phys-duration default 5s)
 ```
+
+**IMPORTANT — the INITIAL load layout is NOT settlePhysics.** `loadGraph()` runs
+`runGephiPhases()` (a 3-phase animated opening). Phase 1 is a repulsion blast
+(now -28000, was -70000 which produced a far too diffuse cloud), phases 2–3 cool
+into clusters (final phase: grav -9000, cg 0.015, springLength 150, springConstant
+0.14). It ends by fitting to the **dense core** via `getCoreFitNodeIds()` (85th
+percentile of distance-from-centroid), not all nodes — fitting every node zoomed
+the readable core down to a speck because the layout has a long sparse halo.
+
+**Known limitation:** vis-network's barnesHut produces a dense core + sparse halo
+for this ~2500-node graph regardless of moderate tuning. Tighter, Cosmograph-style
+clusters need a GPU engine — see `KG-EXPLORERS.md` (cosmos.gl migration).
 
 **Why NOT ForceAtlas2Based with avoidOverlap > 0.4:**
 With 2000+ nodes, very high avoidOverlap forces ALL nodes to repel equally → square packing at canvas boundary. Keep avoidOverlap ≤ 0.25 with barnesHut.
