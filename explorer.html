@@ -1292,6 +1292,16 @@ function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(Number(value) || 0);
 }
 
+// Stable 0..1 hash of a string (FNV-1a). Used for deterministic layout jitter.
+function hashUnit(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 4294967295;
+}
+
 // Convert machine-formatted values to human-readable display strings.
 // e.g. "research-prototype" → "Research prototype", "open-source-tool" → "Open source tool"
 function humanizeValue(value) {
@@ -2421,14 +2431,23 @@ function buildBaseEligibleNodeIds() {
   const searchTerms = state.filters.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const embedMode = state.embedActive;
   const embedAllMode = embedMode && state.embedAllNodes;
+  const chronoMode = state.chronoActive;
   // In embed-all mode, allow all node types that have embed_all coords (except Year — not semantic)
   const EMBED_EXCLUDED_TYPES = new Set(["Year"]);
-  const allowedNodeTypes = embedMode
+  // Chronological mode is a Project-only timeline; structural org/category nodes
+  // have no place on a year axis and only clutter it.
+  const allowedNodeTypes = chronoMode
+    ? new Set(["Project"])
+    : embedMode
     ? (embedAllMode ? new Set(Object.keys(NODE_METRICS)) : new Set(["Project"]))
     : state.filters.nodeTypes;
 
   for (const node of state.data.nodes) {
     if (!allowedNodeTypes.has(node.type)) {
+      continue;
+    }
+    // Chrono: only Project nodes that have a publication year (their x position).
+    if (chronoMode && !Number.isFinite(Number(node.props?.year))) {
       continue;
     }
     // Year nodes are structural calendar nodes — no semantic meaning in embed space
@@ -2626,19 +2645,27 @@ function getFocusDisplayDepth(focusState = state.focus) {
 }
 
 function getPreferredPosition(nodeId) {
-  // F7: Chronological / Litmaps mode — Project nodes only, year on x-axis,
-  // weighted semantic y: 0.4×embed_x + 0.6×embed_y for richer vertical spread.
+  // Chronological / Litmaps mode — Project nodes only. X = publication year
+  // (locked). Y = impact (log of connection count) so high-impact work rises to
+  // the top and recent work sits to the right → recent+impactful land top-right,
+  // the signature Litmaps reading. Deterministic jitter de-clumps same-year,
+  // same-impact papers (a cheap stand-in for Litmaps' "Compact" Y optimizer).
   if (state.chronoActive) {
     const node = state.caches.nodeById.get(nodeId);
     if (node?.type === "Project") {
       const yr = Number(node?.props?.year);
-      const ex = Number(node?.props?.embed_x);
-      const ey = Number(node?.props?.embed_y);
-      if (Number.isFinite(yr) && Number.isFinite(ex) && Number.isFinite(ey)) {
+      if (Number.isFinite(yr)) {
         const [yMin, yMax] = state.data.yearRange || [2010, 2026];
         const span = Math.max(1, yMax - yMin);
-        const x = ((yr - yMin) / span) * 4800 - 2400;
-        const y = (ex * 0.4 + ey * 0.6) * 300; // weighted for organic vertical placement
+        const colW = 4800 / span;
+        const norm = state.caches.chronoRank?.get(nodeId) ?? 0.5; // 0..1 impact percentile
+        const ySpan = 3000;
+        const hx = hashUnit(nodeId);
+        const hy = hashUnit(nodeId + "~y");
+        const x = ((yr - yMin) / span) * 4800 - 2400 + (hx - 0.5) * colW * 0.7;
+        // High impact → negative y (top). Jitter band shrinks as impact rises so
+        // the influential papers stay cleanly near the top.
+        const y = (0.5 - norm) * ySpan + (hy - 0.5) * (150 + (1 - norm) * 220);
         return { x, y };
       }
     }
@@ -4079,6 +4106,22 @@ function toggleChrono(announce = true) {
   if (!state.data) return;
   if (!state.chronoActive) {
     if (state.embedActive) toggleEmbed(false);  // can't be in both
+    // Precompute an impact RANK (0..1 percentile by connection count) for every
+    // dated project. Using rank rather than raw degree spreads nodes evenly up the
+    // Y axis even though most projects have few connections and a handful are hubs
+    // — otherwise the low-impact majority piles up at the bottom.
+    const projs = state.data.nodes.filter(
+      (n) => n.type === "Project" && Number.isFinite(Number(n.props?.year))
+    );
+    projs.sort(
+      (a, b) =>
+        (state.caches.incidentEdgeIdsByNode?.get(a.id)?.length || 0) -
+        (state.caches.incidentEdgeIdsByNode?.get(b.id)?.length || 0)
+    );
+    const rank = new Map();
+    const N = projs.length;
+    projs.forEach((n, i) => rank.set(n.id, N > 1 ? i / (N - 1) : 0.5));
+    state.caches.chronoRank = rank;
     state.chronoActive = true;
     applyView({ fit: false });
     window.setTimeout(() => {
@@ -4089,7 +4132,7 @@ function toggleChrono(announce = true) {
       // Delay axis render slightly so fit() can compute DOM positions first
       window.setTimeout(renderChronoAxis, 700);
     }, 80);
-    if (announce) showToast("Chronological — year axis · Project nodes only · Weighted semantic y.", "success");
+    if (announce) showToast("Chronological — year on x-axis, impact (connections) on y-axis. Recent + influential rise to the top-right.", "success");
     return;
   }
   state.chronoActive = false;
@@ -5079,7 +5122,7 @@ function renderChronoAxis() {
     fragments.push(
       "<text x='" + xStr + "' y='" + (rect.height - 8) +
         "' fill='" + textColor + "' text-anchor='middle' " +
-        "style='font-size:10px;font-family:JetBrains Mono,monospace;font-weight:500;opacity:0.7'>" +
+        "style='font-size:11px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-weight:500;opacity:0.75'>" +
         yr + "</text>"
     );
   }
