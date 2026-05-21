@@ -523,22 +523,35 @@ a:hover {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: var(--left-w, 240px) minmax(0, 1fr) var(--tools-w, 280px) var(--detail-width);
+  /* Tools live in a floating top-right card now (not a grid column). */
+  grid-template-columns: var(--left-w, 240px) minmax(0, 1fr) var(--detail-width);
   height: calc(100vh - var(--topbar-height) - var(--subbar-height));
   margin-top: calc(var(--topbar-height) + var(--subbar-height));
 }
 
+/* Floating tools window: compact card pinned to the top-right of the canvas. It
+   shifts left by the detail-panel width so the two never overlap, and scrolls
+   internally instead of stretching the whole viewport height. */
 .tools-panel {
-  min-width: 0;
+  position: fixed;
+  top: calc(var(--topbar-height) + 12px);
+  right: calc(var(--detail-width, 0px) + 14px);
+  width: 272px;
+  max-height: calc(100vh - var(--topbar-height) - 28px);
   overflow-y: auto;
-  overflow-x: hidden;        /* match .sidebar — kill the horizontal scrollbar */
-  border-left: 1px solid var(--border);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28%),
-    rgba(19, 19, 22, 0.94);
-  padding: 16px 16px 16px 12px;
-  position: relative;
+  overflow-x: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(19, 19, 22, 0.96);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-popover);
+  padding: 12px 12px 14px;
+  z-index: 18;
 }
+
+/* No drag-resize on the floating window */
+.tools-panel .resize-handle { display: none; }
 
 .tools-panel .sidebar-inner {
   display: grid;
@@ -723,6 +736,10 @@ details.sidebar-section[open] > summary::after {
 .option-list {
   display: grid;
   gap: 6px;
+  overflow-y: auto;
+  resize: vertical;          /* drag the bottom edge to adjust the menu height */
+  max-height: 240px;
+  min-height: 44px;
 }
 
 .option-row,
@@ -771,8 +788,10 @@ details.sidebar-section[open] > summary::after {
 }
 
 .categories-scroll {
-  max-height: 200px;
+  max-height: 240px;
+  min-height: 60px;
   overflow-y: auto;
+  resize: vertical;          /* drag the bottom edge to adjust the list height */
   padding-right: 2px;
 }
 
