@@ -5997,7 +5997,14 @@ function bindEvents() {
         if (state.focus) exitFocus(true);
       } else if (mode === "discover") {
         if (!state.selection.primaryId) {
-          showToast("Click a node first, then choose Discover to explore its connections.", "warn");
+          // Discover starts in the search bar: search for anything, then click a
+          // result to drop into its neighborhood and grow the graph from there.
+          if (state.embedActive) toggleEmbed(false);
+          if (state.chronoActive) toggleChrono(false);
+          dom.searchInput?.focus();
+          dom.searchInput?.select();
+          renderSearchSuggestions();
+          showToast("Discover — search for a project, org, or topic, then click a result to explore its connections.", "success");
         } else if (state.focus?.rootId === state.selection.primaryId && !state.embedActive) {
           // Already exploring this node — don't reset depth
         } else {
