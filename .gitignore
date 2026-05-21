@@ -32,3 +32,8 @@ desktop.ini
 CURRENT-TASK.md
 BACKGROUND-TASKS.md
 node_modules/
+
+# playwright run artifacts + throwaway diagnostic screenshots
+test-results/
+playwright-report/
+tests/screenshots/diag/
