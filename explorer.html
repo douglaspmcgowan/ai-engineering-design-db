@@ -7,8 +7,8 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='5' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='4' cy='25' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='28' cy='25' r='3.5' fill='%23ff6b3d'/%3E%3Ccircle cx='16' cy='19' r='2.5' fill='%23ff9d7a'/%3E%3Cline x1='16' y1='5' x2='4' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='16' y1='5' x2='28' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='4' y1='25' x2='28' y2='25' stroke='%23ff6b3d' stroke-width='1.5' stroke-opacity='0.6'/%3E%3Cline x1='16' y1='5' x2='16' y2='19' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3Cline x1='16' y1='19' x2='4' y2='25' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3Cline x1='16' y1='19' x2='28' y2='25' stroke='%23ff9d7a' stroke-width='1' stroke-opacity='0.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="lib/vis-9.1.2/vis-network.min.js"></script>
 <link rel="stylesheet" href="explorer.css">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0a0b">
@@ -50,10 +50,10 @@
     <div style="position: relative;">
       <button id="mode-button" class="ghost-button" type="button" title="Switch view mode: Force graph · Embeddings · Discover">Mode ▾</button>
       <div id="mode-menu" class="settings-menu is-hidden" role="menu">
-        <button class="settings-menu-item mode-menu-item" data-mode="force" type="button">⬡ Force graph</button>
-        <button class="settings-menu-item mode-menu-item" data-mode="embed" type="button">⬤ Embeddings</button>
-        <button class="settings-menu-item mode-menu-item" data-mode="chrono" type="button" title="Chronological — year on x-axis, semantic on y-axis (Litmaps-style)">⏵ Chronological</button>
-        <button class="settings-menu-item mode-menu-item" data-mode="discover" type="button">◈ Discover</button>
+        <button class="settings-menu-item mode-menu-item" data-mode="force" type="button">Force graph</button>
+        <button class="settings-menu-item mode-menu-item" data-mode="embed" type="button">Embeddings</button>
+        <button class="settings-menu-item mode-menu-item" data-mode="chrono" type="button" title="Chronological — year on x-axis, semantic on y-axis (Litmaps-style)">Chronological</button>
+        <button class="settings-menu-item mode-menu-item" data-mode="discover" type="button">Discover</button>
       </div>
     </div>
     <button id="embed-all-toggle" class="ghost-button is-hidden" type="button" title="Toggle between project-only and all-node embedding">Projects only</button>
@@ -239,7 +239,7 @@
         <div class="section-body">
           <div class="phys-presets" style="display:grid;gap:6px">
             <button class="ghost-button" id="analysis-pagerank" type="button"
-              title="Run PageRank — surfaces canonical/most-connected projects. Size by score.">▶ PageRank · size by score</button>
+              title="Run PageRank — surfaces canonical/most-connected projects. Size by score.">PageRank · size by score</button>
             <button class="ghost-button" id="analysis-pagerank-clear" type="button"
               title="Clear PageRank sizing">Clear PageRank</button>
             <hr style="border:none;border-top:1px solid var(--border);margin:6px 0">
@@ -263,7 +263,7 @@
         </summary>
         <div class="section-body">
           <div class="phys-lab">
-            <button id="phys-toggle" class="ghost-button phys-wide-btn" type="button">▶ Start physics</button>
+            <button id="phys-toggle" class="ghost-button phys-wide-btn" type="button">Start physics</button>
             <div id="phys-timer" class="phys-timer"></div>
             <div class="phys-row">
               <label class="phys-label" for="phys-duration">Duration</label>
@@ -328,7 +328,7 @@
             </div>
             <button id="phys-gephi-phases" class="ghost-button phys-wide-btn" type="button"
               title="Multi-phase: expansion → cooling → clustering. Speed multiplier scales all phase durations.">
-              ▶ Run Gephi Phases
+              Run Gephi Phases
             </button>
             <button id="phys-remove-overlap" class="ghost-button phys-wide-btn" type="button"
               title="Push overlapping nodes apart without restructuring the layout (1.8s)">
@@ -426,8 +426,8 @@
           <strong style="color:var(--fg)">Double-click</strong> a node to explore its neighborhood. Single-click opens the detail panel.
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px">
-          <button id="help-start-tour" class="ghost-button" type="button" style="height:36px; font-size:12px; border-color:var(--accent); color:var(--accent)">▶ General tour</button>
-          <button id="help-physics-tour" class="ghost-button" type="button" style="height:36px; font-size:12px">⚡ Physics Lab tour</button>
+          <button id="help-start-tour" class="ghost-button" type="button" style="height:36px; font-size:12px; border-color:var(--accent); color:var(--accent)">General tour</button>
+          <button id="help-physics-tour" class="ghost-button" type="button" style="height:36px; font-size:12px">Physics Lab tour</button>
         </div>
         <div class="help-grid">
           <div class="help-panel">
@@ -694,6 +694,7 @@ const FORCE_OPTIONS = {
   minVelocity: 0.75,        // vis-network fires 'stabilized' when all nodes below this
 };
 
+const NODE_SIZE_SCALE = 1.5; // global node-size multiplier (nodes 50% larger)
 const NODE_METRICS = {
   Project: { size: 10, shape: "dot" },
   Organization: { size: 18, shape: "dot" },
@@ -2708,14 +2709,13 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
     id: nodeId,
     label,
     font: {
-      face: "Geist, sans-serif",
+      face: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
       size: node.type === "Project" ? 12 : 11,
       color: palette.theme.fg,
       strokeWidth: 0,
     },
     shape: getNodeShape(node.type),
-    size: (state.embedActive ? (state.embedAllNodes ? metrics.size * 0.7 : 6) : metrics.size + _degreeBoost) + (isSelected ? 2 : 0) + (isFlashing ? 2 : 0),
-    title: "",
+    size: NODE_SIZE_SCALE * (state.embedActive ? (state.embedAllNodes ? metrics.size * 0.7 : 6) : metrics.size + _degreeBoost) + (isSelected ? 2 : 0) + (isFlashing ? 2 : 0),
     x: position.x,
     y: position.y,
     fixed: (isPinned || state.embedActive || state.chronoActive) ? { x: true, y: true } : { x: false, y: false },
@@ -2741,17 +2741,33 @@ function buildRenderedNode(nodeId, visibleNodeCount) {
 
 function buildRenderedEdge(edgeId) {
   const edge = state.caches.edgeById.get(edgeId);
-  const color = getEdgeColor(edge.type);
+  // Edge color follows its SOURCE node (the "galaxy" look from Cosmograph/Sigma);
+  // edge TYPE stays legible through the dash pattern (see getEdgeDashes).
+  const srcNode = state.caches.nodeById.get(edge.source);
+  const color = srcNode ? getNodeColor(srcNode.type) : getEdgeColor(edge.type);
+  // Degree-aware styling: hubs fade their many edges so the graph reads as
+  // clusters rather than a hairball; links between two well-connected nodes
+  // are drawn thicker.
+  const incident = state.caches.incidentEdgeIdsByNode;
+  const srcDeg = incident?.get(edge.source)?.length || 1;
+  const tgtDeg = incident?.get(edge.target)?.length || 1;
+  const maxDeg = Math.max(srcDeg, tgtDeg);
+  const minDeg = Math.min(srcDeg, tgtDeg);
+  const baseAlpha = state.embedActive ? 0.34 : 0.30;
+  const alpha = Math.max(0.06, baseAlpha / (1 + Math.log(maxDeg + 1) * 0.4));
+  const width = edge.type === "SEMANTICALLY_NEAR"
+    ? 0.8
+    : Math.min(3.4, 0.6 + Math.log(minDeg + 1) * 0.55 + (edge.weight || 0) * 0.25);
   return {
     id: edge.id,
     from: edge.source,
     to: edge.target,
     color: {
-      color: withAlpha(color, state.embedActive ? 0.34 : 0.28),
+      color: withAlpha(color, alpha),
       highlight: color,
       hover: color,
     },
-    width: edge.type === "SEMANTICALLY_NEAR" ? 1 : Math.min(3, 1 + edge.weight * 0.4),
+    width,
     dashes: getEdgeDashes(edge.type),
     smooth: (state.embedActive || state.chronoActive)
       ? {
@@ -2760,7 +2776,6 @@ function buildRenderedEdge(edgeId) {
           roundness: 0.04,
         }
       : false,
-    title: "",
   };
 }
 
@@ -3133,16 +3148,16 @@ function renderDetailPanel() {
     : "";
   const hasEmbed = node.props?.embed_x != null || node.props?.embed_all_x != null;
   const similarButtonMarkup = hasEmbed
-    ? "<button id='find-similar-inline' class='ghost-button' type='button'>🔍 Similar</button>"
+    ? "<button id='find-similar-inline' class='ghost-button' type='button'>Similar</button>"
     : "";
   // F2: Earlier / Later toggles — show projects with year < or > current, ranked by embedding distance.
   // Only show when the node is a Project with a year and an embedding.
   const hasYearAndEmbed = hasEmbed && node.type === "Project" && Number.isFinite(Number(node.props?.year));
   const earlierBtn = hasYearAndEmbed
-    ? "<button id='find-earlier-inline' class='ghost-button' type='button' title='Earlier related work (older year)'>← Earlier</button>"
+    ? "<button id='find-earlier-inline' class='ghost-button' type='button' title='Earlier related work (older year)'>Earlier</button>"
     : "";
   const laterBtn = hasYearAndEmbed
-    ? "<button id='find-later-inline' class='ghost-button' type='button' title='Later related work (newer year)'>Later →</button>"
+    ? "<button id='find-later-inline' class='ghost-button' type='button' title='Later related work (newer year)'>Later</button>"
     : "";
 
   let html = "";
@@ -3193,12 +3208,24 @@ function renderProjectDetail(node, neighborIds) {
   ).join("");
   const techniques = Array.isArray(node.props?.techniques) ? node.props.techniques : [];
   const industries = Array.isArray(node.props?.industry_application) ? node.props.industry_application : [];
-  const tags = Array.isArray(node.props?.tags) ? node.props.tags : [];
-  const links = [
-    { label: "Primary", href: node.props?.url_primary },
-    { label: "Paper", href: node.props?.url_paper },
-    { label: "GitHub", href: node.props?.url_github },
-  ].filter((item) => item.href);
+  const tags = (Array.isArray(node.props?.tags) ? node.props.tags : []).filter((t) => t !== "codex-generated");
+  // "Website" = url_primary (the record's canonical/home link). For ~75% of papers
+  // url_primary and url_paper are the same DOI, so dedupe by href and let the more
+  // specific "Paper"/"GitHub" label win over the generic "Website".
+  const links = (() => {
+    const candidates = [
+      { label: "Paper", href: node.props?.url_paper },
+      { label: "GitHub", href: node.props?.url_github },
+      { label: "Website", href: node.props?.url_primary },
+    ].filter((item) => item.href);
+    const seen = new Set();
+    return candidates.filter((item) => {
+      const key = String(item.href).trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
   const linkMarkup = links.length
     ? "<div class='detail-section'><div class='detail-section-title'>Links</div><div class='link-list'>" +
       links.map((item) =>
@@ -3813,7 +3840,7 @@ function showSearchResultsPanel(query, rankedIds) {
       <div style="display:flex;flex-direction:column;gap:2px">${items}</div>
       ${more}
       <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-        <button class="ghost-button is-strong" id="search-results-map" type="button" title="Project the results onto the embedding map (Open Knowledge Maps style)">🗺 Map results</button>
+        <button class="ghost-button is-strong" id="search-results-map" type="button" title="Project the results onto the embedding map (Open Knowledge Maps style)">Map results</button>
         <button class="ghost-button" id="search-results-clear" type="button">Clear</button>
       </div>
     </div>`;
@@ -4605,7 +4632,7 @@ function disablePhysics() {
     state.network.setOptions({ physics: { enabled: false } });
   }
   state.ui.physicsActive = false;
-  if (dom.physToggle) dom.physToggle.textContent = "▶ Start physics";
+  if (dom.physToggle) dom.physToggle.textContent = "Start physics";
   if (dom.physTimer) {
     dom.physTimer.textContent = "";
     dom.physTimer.classList.remove("is-running");
@@ -4832,12 +4859,26 @@ function renderTooltip() {
   const h = dom.tooltip.offsetHeight || 60;
 
   const padding = 14;
-  const { x, y } = state.ui.hoverPosition;
-  // Prefer right of cursor, flip left if it would clip
-  let left = x + 16;
-  if (left + w > window.innerWidth - padding) left = x - w - 16;
-  // Prefer below cursor but centered, flip if would clip bottom
-  let top = y - Math.round(h / 3);
+  // Anchor to the node's on-screen position. vis-network's hoverNode event does
+  // not carry a reliable mouse position, so deriving it from the mouse left the
+  // tooltip pinned at (0,0). canvasToDOM + the container's viewport rect places
+  // it right next to the hovered node instead.
+  let anchorX, anchorY;
+  const pos = state.network?.getPositions([state.ui.hoverNodeId])?.[state.ui.hoverNodeId];
+  if (pos && dom.network) {
+    const domPt = state.network.canvasToDOM(pos);
+    const rect = dom.network.getBoundingClientRect();
+    anchorX = rect.left + domPt.x;
+    anchorY = rect.top + domPt.y;
+  } else {
+    anchorX = state.ui.hoverPosition?.x || padding;
+    anchorY = state.ui.hoverPosition?.y || padding;
+  }
+  // Prefer right of the node, flip left if it would clip
+  let left = anchorX + 18;
+  if (left + w > window.innerWidth - padding) left = anchorX - w - 18;
+  // Vertically center-ish on the node, clamp to viewport
+  let top = anchorY - Math.round(h / 3);
   if (top < padding) top = padding;
   if (top + h > window.innerHeight - padding) top = window.innerHeight - h - padding;
 
@@ -6230,6 +6271,7 @@ function bindEvents() {
   dom.homeButton.addEventListener("click", () => {
     exitFocus(false);
     if (state.embedActive) toggleEmbed(false);
+    if (state.chronoActive) toggleChrono(false);
     resetFilters({ exitFocus: false });
     showToast("Home — full graph.", "success");
   });

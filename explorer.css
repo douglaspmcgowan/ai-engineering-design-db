@@ -1,6 +1,6 @@
 :root {
-  --font-sans: "Geist", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --bg: #0a0a0b;
   --surface: #131316;
   --surface-2: #1c1c20;
