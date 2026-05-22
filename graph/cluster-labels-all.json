@@ -1,26 +1,505 @@
 {
-  "0": "Organizations · Institut National De Recherc",
-  "1": "Techniques · Gaussian Splatting",
-  "2": "Persons · Nils Thuerey",
-  "3": "Projects · 3D Slicer",
-  "4": "Venues · Alpha3D",
-  "5": "Modalitys · None",
-  "6": "Projects · A Foundation Model For Atomi",
-  "7": "Industrys · Medical",
-  "8": "Venues · Arxiv",
-  "9": "Organizations · 3D Slicer",
-  "10": "Years · 2023",
-  "11": "Projects · A Century Of Robotic Hands",
-  "12": "Projects · A Multi Fidelity Bayesian Op",
-  "13": "Projects · 3D Gaussian Splatting For Re",
-  "14": "Techniques · Gan",
-  "15": "Projects · A Hierarchical Neural Networ",
-  "16": "Projects · A Dataset For Deep Learning ",
-  "17": "Organizations · Unknown",
-  "18": "Organizations · South China Agricultural Uni",
-  "19": "PhysicsDomains · None",
-  "20": "Techniques · Segmentation",
-  "21": "Projects · 3D Printing Of Tissue Engine",
-  "22": "Projects · Alphachip",
-  "23": "Projects · A Neural Operator Unifying G"
+  "0": {
+    "label": "Benchmark Dataset",
+    "size": 12,
+    "top_type": "Project",
+    "cx": 10.769,
+    "cy": 16.52,
+    "cats": [
+      "benchmark-dataset",
+      "foundation-model-physics",
+      "multi-disciplinary-optimization"
+    ]
+  },
+  "1": {
+    "label": "Physics Informed Nn",
+    "size": 25,
+    "top_type": "Project",
+    "cx": 12.228,
+    "cy": 15.928,
+    "cats": [
+      "physics-informed-nn",
+      "neural-operator",
+      "differentiable-physics"
+    ]
+  },
+  "2": {
+    "label": "Inverse Design Materials",
+    "size": 33,
+    "top_type": "Project",
+    "cx": 7.188,
+    "cy": 15.852,
+    "cats": [
+      "inverse-design-materials",
+      "architected-materials",
+      "physics-surrogate",
+      "topology-optimization"
+    ]
+  },
+  "3": {
+    "label": "Generative 3D Shape",
+    "size": 9,
+    "top_type": "Project",
+    "cx": 8.247,
+    "cy": 14.517,
+    "cats": [
+      "generative-3d-shape",
+      "medical-engineering-ai",
+      "topology-optimization"
+    ]
+  },
+  "4": {
+    "label": "Neural Operator",
+    "size": 11,
+    "top_type": "Project",
+    "cx": 12.838,
+    "cy": 16.304,
+    "cats": [
+      "neural-operator"
+    ]
+  },
+  "5": {
+    "label": "Neural Operator",
+    "size": 24,
+    "top_type": "Project",
+    "cx": 12.764,
+    "cy": 16.227,
+    "cats": [
+      "neural-operator"
+    ]
+  },
+  "6": {
+    "label": "Scientific Ml",
+    "size": 8,
+    "top_type": "Project",
+    "cx": 11.226,
+    "cy": 16.19,
+    "cats": [
+      "scientific-ml",
+      "multi-disciplinary-optimization",
+      "optimization"
+    ]
+  },
+  "7": {
+    "label": "Optimization",
+    "size": 19,
+    "top_type": "Project",
+    "cx": 11.485,
+    "cy": 16.331,
+    "cats": [
+      "optimization",
+      "scientific-ml"
+    ]
+  },
+  "8": {
+    "label": "Scientific Ml",
+    "size": 13,
+    "top_type": "Project",
+    "cx": 11.689,
+    "cy": 16.052,
+    "cats": [
+      "scientific-ml",
+      "differentiable-physics",
+      "optimization"
+    ]
+  },
+  "9": {
+    "label": "Dfm Ai",
+    "size": 12,
+    "top_type": "Project",
+    "cx": 10.527,
+    "cy": 12.878,
+    "cats": [
+      "dfm-ai"
+    ]
+  },
+  "10": {
+    "label": "Other",
+    "size": 52,
+    "top_type": "Project",
+    "cx": 8.749,
+    "cy": 14.886,
+    "cats": [
+      "other",
+      "generative-platform",
+      "implicit-modeling",
+      "topology-optimization"
+    ]
+  },
+  "11": {
+    "label": "Dfam Ai",
+    "size": 19,
+    "top_type": "Project",
+    "cx": 10.842,
+    "cy": 13.066,
+    "cats": [
+      "dfam-ai",
+      "process-monitoring-ml",
+      "physics-informed-nn",
+      "vision-inspection-ml"
+    ]
+  },
+  "12": {
+    "label": "Process Monitoring Ml",
+    "size": 25,
+    "top_type": "Project",
+    "cx": 11.042,
+    "cy": 12.809,
+    "cats": [
+      "process-monitoring-ml",
+      "dfam-ai"
+    ]
+  },
+  "13": {
+    "label": "Ml Interatomic Potential",
+    "size": 24,
+    "top_type": "Project",
+    "cx": 7.366,
+    "cy": 16.603,
+    "cats": [
+      "ml-interatomic-potential",
+      "generative-materials",
+      "benchmark-dataset"
+    ]
+  },
+  "14": {
+    "label": "Generative Materials",
+    "size": 20,
+    "top_type": "Project",
+    "cx": 7.701,
+    "cy": 16.476,
+    "cats": [
+      "generative-materials",
+      "benchmark-dataset",
+      "inverse-design-materials",
+      "architected-materials"
+    ]
+  },
+  "15": {
+    "label": "Engineering Rag Chat",
+    "size": 23,
+    "top_type": "Project",
+    "cx": 10.277,
+    "cy": 14.508,
+    "cats": [
+      "engineering-rag-chat"
+    ]
+  },
+  "16": {
+    "label": "Robotics Mfg Ai",
+    "size": 12,
+    "top_type": "Project",
+    "cx": 9.709,
+    "cy": 16.118,
+    "cats": [
+      "robotics-mfg-ai"
+    ]
+  },
+  "17": {
+    "label": "Robotics Mfg Ai",
+    "size": 8,
+    "top_type": "Project",
+    "cx": 9.71,
+    "cy": 15.869,
+    "cats": [
+      "robotics-mfg-ai"
+    ]
+  },
+  "18": {
+    "label": "Pcb Design Ai",
+    "size": 12,
+    "top_type": "Project",
+    "cx": 10.306,
+    "cy": 12.22,
+    "cats": [
+      "pcb-design-ai",
+      "vision-inspection-ml"
+    ]
+  },
+  "19": {
+    "label": "Vision Inspection Ml",
+    "size": 21,
+    "top_type": "Project",
+    "cx": 10.377,
+    "cy": 12.292,
+    "cats": [
+      "vision-inspection-ml",
+      "aec-construction-ai",
+      "generative-platform",
+      "pcb-design-ai"
+    ]
+  },
+  "20": {
+    "label": "Topology Optimization",
+    "size": 8,
+    "top_type": "Project",
+    "cx": 7.984,
+    "cy": 15.425,
+    "cats": [
+      "topology-optimization",
+      "other"
+    ]
+  },
+  "21": {
+    "label": "Topology Optimization",
+    "size": 14,
+    "top_type": "Project",
+    "cx": 7.967,
+    "cy": 15.456,
+    "cats": [
+      "topology-optimization"
+    ]
+  },
+  "22": {
+    "label": "Design Cognition Ai",
+    "size": 18,
+    "top_type": "Project",
+    "cx": 9.442,
+    "cy": 14.956,
+    "cats": [
+      "design-cognition-ai",
+      "cad-agent",
+      "human-ai-design-collab",
+      "other"
+    ]
+  },
+  "23": {
+    "label": "Differentiable Physics",
+    "size": 10,
+    "top_type": "Project",
+    "cx": 10.994,
+    "cy": 15.754,
+    "cats": [
+      "differentiable-physics",
+      "physics-informed-nn",
+      "foundation-model-physics",
+      "neural-operator"
+    ]
+  },
+  "24": {
+    "label": "Physics Surrogate",
+    "size": 20,
+    "top_type": "Project",
+    "cx": 10.625,
+    "cy": 15.631,
+    "cats": [
+      "physics-surrogate",
+      "multi-disciplinary-optimization",
+      "foundation-model-physics",
+      "human-ai-design-collab"
+    ]
+  },
+  "25": {
+    "label": "Vision Inspection Ml",
+    "size": 12,
+    "top_type": "Project",
+    "cx": 9.813,
+    "cy": 15.074,
+    "cats": [
+      "vision-inspection-ml",
+      "generative-platform",
+      "pcb-design-ai",
+      "design-cognition-ai"
+    ]
+  },
+  "26": {
+    "label": "Pcb Design Ai",
+    "size": 12,
+    "top_type": "Project",
+    "cx": 10.047,
+    "cy": 14.758,
+    "cats": [
+      "pcb-design-ai",
+      "aec-construction-ai",
+      "cad-agent",
+      "dfam-ai"
+    ]
+  },
+  "27": {
+    "label": "Image To 3D",
+    "size": 36,
+    "top_type": "Project",
+    "cx": 7.892,
+    "cy": 13.476,
+    "cats": [
+      "image-to-3d",
+      "text-to-3d",
+      "generative-3d-shape"
+    ]
+  },
+  "28": {
+    "label": "Human Ai Design Collab",
+    "size": 9,
+    "top_type": "Project",
+    "cx": 10.344,
+    "cy": 14.908,
+    "cats": [
+      "human-ai-design-collab",
+      "ai-plm",
+      "eda-chip-design",
+      "generative-platform"
+    ]
+  },
+  "29": {
+    "label": "Cad Reconstruction",
+    "size": 11,
+    "top_type": "Project",
+    "cx": 9.004,
+    "cy": 13.039,
+    "cats": [
+      "cad-reconstruction",
+      "b-rep-learning"
+    ]
+  },
+  "30": {
+    "label": "Cad Copilot",
+    "size": 46,
+    "top_type": "Project",
+    "cx": 9.681,
+    "cy": 14.534,
+    "cats": [
+      "cad-copilot",
+      "cad-agent",
+      "human-ai-design-collab",
+      "generative-platform"
+    ]
+  },
+  "31": {
+    "label": "Dfm Ai",
+    "size": 14,
+    "top_type": "Project",
+    "cx": 9.93,
+    "cy": 14.146,
+    "cats": [
+      "dfm-ai",
+      "dfam-ai",
+      "vision-inspection-ml",
+      "process-monitoring-ml"
+    ]
+  },
+  "32": {
+    "label": "Optimization",
+    "size": 8,
+    "top_type": "Project",
+    "cx": 10.552,
+    "cy": 15.17,
+    "cats": [
+      "optimization",
+      "eda-chip-design",
+      "multi-disciplinary-optimization"
+    ]
+  },
+  "33": {
+    "label": "Optimization",
+    "size": 11,
+    "top_type": "Project",
+    "cx": 10.486,
+    "cy": 15.306,
+    "cats": [
+      "optimization",
+      "multi-disciplinary-optimization",
+      "ai-simulation-prep",
+      "generative-platform"
+    ]
+  },
+  "34": {
+    "label": "Text To 3D",
+    "size": 24,
+    "top_type": "Project",
+    "cx": 8.315,
+    "cy": 13.997,
+    "cats": [
+      "text-to-3d",
+      "image-to-3d",
+      "generative-3d-shape",
+      "dfam-ai"
+    ]
+  },
+  "35": {
+    "label": "Cad Reconstruction",
+    "size": 23,
+    "top_type": "Project",
+    "cx": 8.772,
+    "cy": 13.661,
+    "cats": [
+      "cad-reconstruction",
+      "image-to-cad"
+    ]
+  },
+  "36": {
+    "label": "Benchmark Dataset",
+    "size": 15,
+    "top_type": "Project",
+    "cx": 8.79,
+    "cy": 13.054,
+    "cats": [
+      "benchmark-dataset",
+      "text-to-cad"
+    ]
+  },
+  "37": {
+    "label": "Generative 3D Shape",
+    "size": 11,
+    "top_type": "Project",
+    "cx": 8.339,
+    "cy": 13.465,
+    "cats": [
+      "generative-3d-shape",
+      "image-to-cad",
+      "other",
+      "b-rep-learning"
+    ]
+  },
+  "38": {
+    "label": "Text To Cad",
+    "size": 35,
+    "top_type": "Project",
+    "cx": 9.223,
+    "cy": 13.91,
+    "cats": [
+      "text-to-cad",
+      "cad-copilot",
+      "sketch-to-cad",
+      "cad-agent"
+    ]
+  },
+  "39": {
+    "label": "Image To Cad",
+    "size": 8,
+    "top_type": "Project",
+    "cx": 8.567,
+    "cy": 13.386,
+    "cats": [
+      "image-to-cad",
+      "b-rep-learning",
+      "other",
+      "implicit-modeling"
+    ]
+  },
+  "40": {
+    "label": "Program Cad",
+    "size": 19,
+    "top_type": "Project",
+    "cx": 9.026,
+    "cy": 13.576,
+    "cats": [
+      "program-cad",
+      "image-to-cad",
+      "text-to-cad",
+      "sketch-to-cad"
+    ]
+  },
+  "41": {
+    "label": "Cad Reconstruction",
+    "size": 14,
+    "top_type": "Project",
+    "cx": 8.924,
+    "cy": 13.382,
+    "cats": [
+      "cad-reconstruction",
+      "image-to-cad",
+      "b-rep-learning",
+      "text-to-cad"
+    ]
+  }
 }

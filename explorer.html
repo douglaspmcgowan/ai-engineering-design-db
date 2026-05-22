@@ -40,6 +40,7 @@
   <div class="search-wrap">
     <span class="search-prefix">/</span>
     <input id="search-input" class="search-input" type="text" autocomplete="off" spellcheck="false" placeholder="Search nodes, orgs, categories, techniques, descriptions">
+    <button id="semantic-toggle" class="search-semantic-btn" title="Semantic search — expands results to nearby nodes in embedding space" type="button">~</button>
     <span class="search-suffix">Ctrl+K</span>
     <div id="search-suggestions" class="search-suggestions is-hidden" role="listbox" aria-label="Search suggestions"></div>
   </div>
@@ -948,6 +949,7 @@ const dom = {
   breadcrumbRoot: document.getElementById("breadcrumb-root"),
   breadcrumbTrail: document.getElementById("breadcrumb-trail"),
   searchInput: document.getElementById("search-input"),
+  semanticToggle: document.getElementById("semantic-toggle"),
   embedAllToggle: document.getElementById("embed-all-toggle"),
   resetButton: document.getElementById("reset-button"),
   forceButton: document.getElementById("force-button"),
@@ -1044,6 +1046,9 @@ const state = {
   forceEnabled: true,
   embedActive: false,
   embedAllNodes: false,   // true = show all 2405 nodes in embed mode using embed_all_x/y
+  semanticMode: false,    // semantic search: expand results by embedding-space proximity
+  semanticIndex: null,   // loaded search-index.json PCA data
+  semanticLoading: false,
   chronoActive: false,    // F7: Litmaps-style chronological timeline mode
   presentationActive: false, // Presentation mode: filmstrip tray, fullscreen canvas
   presentationDeck: [],   // ordered array of {nodeId, notes} slide entries
@@ -1535,6 +1540,46 @@ function scoreNodeForQuery(node, primaryTerms, synonymTerms) {
   return score;
 }
 
+function buildSearchSuggestionHtml(node) {
+  const color = getNodeColor(node.type);
+  let metaLine = "";
+  if (node.type === "Project") {
+    const year = node.props?.year || "";
+    const cat = humanizeValue(node.props?.category || "");
+    const org = node.props?.organization || "";
+    const parts = [year, cat].filter(Boolean);
+    if (org) parts.push(org);
+    metaLine = parts.slice(0, 3).join(" · ");
+  } else if (node.type === "Organization" && node.props?.country) {
+    metaLine = node.props.country;
+  }
+  return "<div class='search-suggestion-item' role='option' data-node-id='" + escapeHtml(node.id) + "'>" +
+    "<span style='color:" + color + ";font-size:7px;flex:none;margin-top:3px'>●</span>" +
+    "<div class='search-sugg-body'>" +
+      "<span class='search-sugg-label'>" + escapeHtml(node.label) + "</span>" +
+      (metaLine ? "<span class='search-sugg-meta'>" + escapeHtml(metaLine) + "</span>" : "") +
+    "</div>" +
+    "<span class='search-sugg-type'>" + escapeHtml(node.type) + "</span>" +
+    "</div>";
+}
+
+function attachSuggestionListeners(el) {
+  for (const item of el.querySelectorAll("[data-node-id]")) {
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const nodeId = item.dataset.nodeId;
+      el.classList.add("is-hidden");
+      dom.searchInput.value = "";
+      state.filters.search = "";
+      applyView({ fit: false });
+      window.setTimeout(() => {
+        selectSingleNode(nodeId);
+        focusCameraOnNode(nodeId);
+      }, 60);
+    });
+  }
+}
+
 function renderSearchSuggestions() {
   const el = document.getElementById("search-suggestions");
   if (!el) return;
@@ -1544,6 +1589,21 @@ function renderSearchSuggestions() {
     el.innerHTML = "";
     return;
   }
+
+  // Semantic mode: use PCA-centroid proximity to expand beyond keyword matches
+  if (state.semanticMode && state.semanticIndex) {
+    const semResults = semanticSearchResults(q, 18);
+    if (semResults && semResults.length) {
+      const shown = semResults;
+      el.innerHTML =
+        "<div class='search-semantic-header'>Semantic results</div>" +
+        shown.map((m) => buildSearchSuggestionHtml(m.node)).join("");
+      el.classList.remove("is-hidden");
+      attachSuggestionListeners(el);
+      return;
+    }
+  }
+
   const primaryTerms = q.toLowerCase().split(/\s+/).filter(Boolean);
   // F5: synonym expansion — both directions
   const synonymTerms = expandQueryWithSynonyms(q).filter((t) => !primaryTerms.includes(t));
@@ -1559,46 +1619,9 @@ function renderSearchSuggestions() {
   }
   matches.sort((a, b) => b.score - a.score);
   const shown = matches.slice(0, 12);
-  el.innerHTML = shown.map((m) => {
-    const color = getNodeColor(m.node.type);
-    // Build a meta line with context — year + humanized category for projects, just type otherwise
-    let metaLine = "";
-    if (m.node.type === "Project") {
-      const year = m.node.props?.year || "";
-      const cat = humanizeValue(m.node.props?.category || "");
-      const org = m.node.props?.organization || "";
-      const parts = [year, cat].filter(Boolean);
-      if (org) parts.push(org);
-      metaLine = parts.slice(0, 3).join(" · ");
-    } else if (m.node.type === "Organization" && m.node.props?.country) {
-      metaLine = m.node.props.country;
-    }
-    return "<div class='search-suggestion-item' role='option' data-node-id='" + escapeHtml(m.node.id) + "'>" +
-      "<span style='color:" + color + ";font-size:7px;flex:none;margin-top:3px'>●</span>" +
-      "<div class='search-sugg-body'>" +
-        "<span class='search-sugg-label'>" + escapeHtml(m.node.label) + "</span>" +
-        (metaLine ? "<span class='search-sugg-meta'>" + escapeHtml(metaLine) + "</span>" : "") +
-      "</div>" +
-      "<span class='search-sugg-type'>" + escapeHtml(m.node.type) + "</span>" +
-      "</div>";
-  }).join("");
+  el.innerHTML = shown.map((m) => buildSearchSuggestionHtml(m.node)).join("");
   el.classList.remove("is-hidden");
-  for (const item of el.querySelectorAll("[data-node-id]")) {
-    item.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      const nodeId = item.dataset.nodeId;
-      el.classList.add("is-hidden");
-      // Clear search filter so full graph shows, then fly to the node
-      dom.searchInput.value = "";
-      state.filters.search = "";
-      applyView({ fit: false });
-      window.setTimeout(() => {
-        selectSingleNode(nodeId);
-        focusCameraOnNode(nodeId);
-        // Do NOT auto-enter focus mode — user can double-click to explore
-      }, 60);
-    });
-  }
+  attachSuggestionListeners(el);
   // Append semantic mini-map if enough results have embed coords
   const miniMapHtml = buildSearchResultsMiniMap(shown.map((m) => m.node));
   if (miniMapHtml) {
@@ -2799,12 +2822,10 @@ function buildRenderedEdge(edgeId) {
     },
     width,
     dashes: getEdgeDashes(edge.type),
-    smooth: (state.embedActive || state.chronoActive)
-      ? {
-          enabled: true,
-          type: "continuous",
-          roundness: 0.04,
-        }
+    smooth: state.chronoActive
+      ? { enabled: true, type: "curvedCW", roundness: 0.22 }
+      : state.embedActive
+      ? { enabled: true, type: "continuous", roundness: 0.04 }
       : false,
   };
 }
@@ -3988,6 +4009,99 @@ function findSimilarNodes(nodeId, k = 12) {
   applyView({ fit: true });
   renderDiscoverPanel();
   showToast("Showing " + topK.length + " semantically nearest nodes.", "success");
+}
+
+// ── Semantic search ──────────────────────────────────────────────────────────
+
+async function loadSemanticIndex() {
+  if (state.semanticIndex) return true;
+  if (state.semanticLoading) return false;
+  state.semanticLoading = true;
+  try {
+    const resp = await fetch("graph/search-index.json");
+    if (!resp.ok) throw new Error("not found");
+    const raw = await resp.json();
+    state.semanticIndex = {
+      dims: raw.dims,
+      pca_components: raw.pca_components.map((row) => new Float32Array(row)),
+      pca_mean: new Float32Array(raw.pca_mean),
+      nodes: Object.fromEntries(
+        Object.entries(raw.nodes).map(([id, vec]) => [id, new Float32Array(vec)])
+      ),
+    };
+    return true;
+  } catch {
+    showToast("Semantic index not available — run embed-all-entities.py first.", "warn");
+    state.semanticMode = false;
+    updateSemanticToggleUI();
+    return false;
+  } finally {
+    state.semanticLoading = false;
+  }
+}
+
+function updateSemanticToggleUI() {
+  if (!dom.semanticToggle) return;
+  dom.semanticToggle.classList.toggle("is-active", state.semanticMode);
+  dom.semanticToggle.title = state.semanticMode
+    ? "Semantic mode ON — click to disable"
+    : "Semantic search — expands results to nearby nodes in embedding space";
+}
+
+async function toggleSemanticSearch() {
+  state.semanticMode = !state.semanticMode;
+  if (state.semanticMode && !state.semanticIndex) {
+    showToast("Loading semantic index…", "info");
+    const ok = await loadSemanticIndex();
+    if (!ok) return;
+    showToast("Semantic search ready.", "success");
+  }
+  updateSemanticToggleUI();
+  renderSearchSuggestions();
+}
+
+function semanticSearchResults(query, topK = 18) {
+  if (!state.semanticIndex) return null;
+  const { dims, nodes: indexNodes } = state.semanticIndex;
+
+  // Step 1: keyword seeds — find best text matches as centroid anchors
+  const primaryTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const synonymTerms = expandQueryWithSynonyms(query).filter((t) => !primaryTerms.includes(t));
+  const seeds = [];
+  for (const node of state.data.nodes) {
+    const score = scoreNodeForQuery(node, primaryTerms, synonymTerms);
+    if (score > 0 && indexNodes[node.id]) seeds.push({ node, score });
+  }
+  seeds.sort((a, b) => b.score - a.score);
+  const topSeeds = seeds.slice(0, 8);
+
+  // Step 2: weighted centroid in PCA space
+  const centroid = new Float32Array(dims);
+  let totalW = 0;
+  for (const { node, score } of topSeeds) {
+    const vec = indexNodes[node.id];
+    for (let i = 0; i < dims; i++) centroid[i] += vec[i] * score;
+    totalW += score;
+  }
+  if (totalW < 1e-9) return null;
+  for (let i = 0; i < dims; i++) centroid[i] /= totalW;
+  const cLen = Math.sqrt(centroid.reduce((s, v) => s + v * v, 0));
+  if (cLen < 1e-9) return null;
+  const cNorm = centroid.map((v) => v / cLen);
+
+  // Step 3: rank all indexed nodes by cosine similarity
+  const results = [];
+  for (const node of state.data.nodes) {
+    const vec = indexNodes[node.id];
+    if (!vec) continue;
+    const vLen = Math.sqrt(vec.reduce((s, v) => s + v * v, 0));
+    if (vLen < 1e-9) continue;
+    let dot = 0;
+    for (let i = 0; i < dims; i++) dot += cNorm[i] * vec[i] / vLen;
+    results.push({ node, score: dot });
+  }
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, topK);
 }
 
 function cycleFocusNeighbor() {
@@ -6203,6 +6317,8 @@ function bindEvents() {
     applyView({ fit: false });
     showToast("Category filter cleared.", "warn");
   });
+
+  dom.semanticToggle?.addEventListener("click", () => toggleSemanticSearch());
 
   dom.searchInput.addEventListener("input", () => {
     renderSearchSuggestions(); // immediate suggestions update

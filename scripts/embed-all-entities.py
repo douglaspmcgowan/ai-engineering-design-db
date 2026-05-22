@@ -234,6 +234,29 @@ def main() -> int:
     with open(OUT_COORDS, "w", encoding="utf-8") as f:
         json.dump(coords_out, f, ensure_ascii=False)
     print(f"\n✓ Wrote {len(coords_out)} coordinates → {OUT_COORDS.name}")
+
+    # Save PCA-compressed vectors for browser-side semantic search
+    from sklearn.decomposition import PCA  # type: ignore
+    n_pca = min(32, arr.shape[1], arr.shape[0] - 1)
+    print(f"\nComputing PCA({n_pca}) for semantic search index…")
+    pca = PCA(n_components=n_pca, random_state=42)
+    vecs_pca = pca.fit_transform(arr).astype(np.float32)
+    print(f"  ✓ PCA done. Explained variance: {pca.explained_variance_ratio_.sum():.1%}")
+
+    search_index: dict = {
+        "model": model_name,
+        "dims": n_pca,
+        "pca_components": pca.components_.tolist(),  # shape (n_pca, original_dim)
+        "pca_mean": pca.mean_.tolist(),               # shape (original_dim,)
+        "nodes": {},
+    }
+    for node_id, vec in zip(ids, vecs_pca.tolist()):
+        search_index["nodes"][node_id] = [round(v, 5) for v in vec]
+
+    out_search = OUT_COORDS.parent / "search-index.json"
+    with open(out_search, "w", encoding="utf-8") as f:
+        json.dump(search_index, f, ensure_ascii=False)
+    print(f"✓ Wrote search index ({len(search_index['nodes'])} nodes) → {out_search.name}")
     print("\nNext steps:")
     print("  1. Inspect embed-coords-all.json (should have all node types)")
     print("  2. Update build-graph.py to inject coords for non-Project nodes too")
