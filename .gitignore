@@ -37,3 +37,4 @@ node_modules/
 test-results/
 playwright-report/
 tests/screenshots/diag/
+transcripts/
