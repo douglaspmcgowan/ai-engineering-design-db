@@ -2222,3 +2222,97 @@ body.modal-open .toast-stack { display: none; }
   min-height: 120px;
   outline: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   App-quality pass — 2026-06-14
+═══════════════════════════════════════════════════════════════════ */
+
+/* 1. Remove mono font from UI chrome.
+      JetBrains Mono stays only where content is genuinely technical:
+      .search-prefix (/), .search-suffix (Ctrl+K), .shortcut-key (<kbd>),
+      .phys-label (parameter names), .phys-timer (live counter),
+      .pres-notes-area (code-like notepad).
+      Everything else — buttons, labels, chips, section headers,
+      toasts, metadata — now uses the sans face. */
+.crumb-button,
+.crumb-current,
+.crumb-sep,
+.search-mini-map-title,
+.search-sugg-type,
+.ghost-button,
+.settings-menu-item,
+.tour-progress,
+.palette-option,
+.filter-chip,
+.summary-meta,
+.option-count,
+.field-label,
+.phys-val,
+.phys-divider,
+.phys-check-row,
+.discover-node-meta,
+.discover-neighbors,
+.discover-section-label,
+.stat-label,
+.stats-note,
+.embed-hint,
+.tooltip-meta,
+.context-menu button,
+.detail-kicker,
+.detail-section-title,
+.meta-card-label,
+.project-row-meta,
+.detail-empty,
+.tab-button,
+.toast,
+.pres-counter,
+.dropzone-hint {
+  font-family: var(--font-sans);
+}
+
+/* 2. For numbers that need column alignment, use CSS tabular figures
+      on the sans font — not a monospace font (rule 7 in ai-isms). */
+.summary-meta,
+.option-count,
+.phys-val,
+.pres-counter,
+.stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 3. Focus rings — keyboard users must see a distinct ring,
+      separate from hover. The previous focus-visible rule on
+      .ghost-button only cleared the outline without adding a ring. */
+.ghost-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent);
+}
+
+.tab-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent);
+}
+
+.context-menu button:focus-visible {
+  outline: none;
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1.5px var(--accent) inset;
+}
+
+/* Search input: add a separate focus-visible ring distinct from hover */
+.search-input:focus-visible {
+  border-color: rgba(255, 107, 61, 0.55);
+  box-shadow: 0 0 0 2px rgba(255, 107, 61, 0.12);
+  outline: none;
+}
+
+/* 4. Respect prefers-reduced-motion — required for accessibility.
+      Cuts all transitions and animations for users who need it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
