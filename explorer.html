@@ -61,9 +61,9 @@
     <div style="position: relative;">
       <button id="settings-button" class="ghost-button" type="button" title="Settings">⚙</button>
       <div id="settings-menu" class="settings-menu is-hidden" role="menu">
-        <button id="settings-palette-btn" class="settings-menu-item" type="button">🎨 Color palette</button>
+        <button id="settings-palette-btn" class="settings-menu-item" type="button">Color palette</button>
         <div class="settings-menu-divider"></div>
-        <button id="settings-feedback-btn" class="settings-menu-item" type="button">✉ Send feedback</button>
+        <button id="settings-feedback-btn" class="settings-menu-item" type="button">Send feedback</button>
       </div>
       <div id="palette-picker" class="palette-picker is-hidden" role="listbox" aria-label="Choose color palette"></div>
     </div>
@@ -199,8 +199,8 @@
         <button id="context-zoom-button" type="button">Zoom to node</button>
         <button id="context-select-button" type="button">Select &amp; show details</button>
         <button id="context-focus-button" type="button">Focus / discover</button>
-        <button id="context-pin-button" type="button">📌 Pin node</button>
-        <button id="context-deck-button" type="button">🎞 Add to presentation deck</button>
+        <button id="context-pin-button" type="button">Pin node</button>
+        <button id="context-deck-button" type="button">Add to presentation deck</button>
         <button id="context-hide-button" type="button">Remove from view</button>
       </div>
     </div>
@@ -427,7 +427,7 @@
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px">
           <button id="help-start-tour" class="ghost-button" type="button" style="height:36px; font-size:12px; border-color:var(--accent); color:var(--accent)">▶ General tour</button>
-          <button id="help-physics-tour" class="ghost-button" type="button" style="height:36px; font-size:12px">⚡ Physics Lab tour</button>
+          <button id="help-physics-tour" class="ghost-button" type="button" style="height:36px; font-size:12px">Physics Lab tour</button>
         </div>
         <div class="help-grid">
           <div class="help-panel">
@@ -4942,7 +4942,7 @@ function handleNetworkContextMenu(params) {
   }
   state.ui.contextNodeId = nodeId;
   if (dom.contextPinButton) {
-    dom.contextPinButton.textContent = state.pinnedNodeIds?.has(nodeId) ? "📌 Unpin node" : "📌 Pin node";
+    dom.contextPinButton.textContent = state.pinnedNodeIds?.has(nodeId) ? "Unpin node" : "Pin node";
   }
   // Show briefly off-screen to measure real height, then position correctly
   dom.contextMenu.style.visibility = "hidden";
