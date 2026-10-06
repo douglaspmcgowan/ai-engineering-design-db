@@ -1,21 +1,41 @@
 {
   "cleanUrls": true,
   "redirects": [
-    { "source": "/", "destination": "/explorer.html", "permanent": false },
-    { "source": "/ingest", "destination": "/ingest.html", "permanent": false }
+    {
+      "source": "/",
+      "destination": "/explorer.html",
+      "permanent": false
+    },
+    {
+      "source": "/ingest",
+      "destination": "/ingest.html",
+      "permanent": false
+    }
   ],
   "headers": [
     {
       "source": "/graph/graph-data.json",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300, must-revalidate"
+        }
       ]
     },
     {
       "source": "/explorer.html",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
       ]
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  }
 }
